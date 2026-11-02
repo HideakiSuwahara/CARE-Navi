@@ -18,6 +18,7 @@ export function seedToEvents(seed: SeedData, ctx: EventContext): Event[] {
   for (const template of seed.templates) events.push({ ...metaOf(ctx), type: "template.upsert", template });
   for (const pattern of seed.patterns) events.push({ ...metaOf(ctx), type: "pattern.upsert", pattern });
   for (const entry of seed.roster) events.push({ ...metaOf(ctx), type: "roster.upsert", entry });
+  for (const sheet of seed.sheets ?? []) events.push({ ...metaOf(ctx), type: "sheet.upsert", sheet });
   for (const task of seed.extraTasks) {
     const residentIds = seed.extraTargets.filter((t) => t.taskId === task.id).map((t) => t.residentId);
     events.push({ ...metaOf(ctx), type: "task.add", task: { ...task, origin: task.origin ?? "manual" }, residentIds });

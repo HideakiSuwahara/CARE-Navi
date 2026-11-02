@@ -95,6 +95,15 @@ UI の「元に戻す」は直近 10 の batchId を対象にする。
 - **休憩をずらす**: 休憩カード間の `assignment.remove` ＋ `assignment.add`、または休憩カードの `task.update`（時刻）。重なりを確認。
 - **長押しメニュー**: 中止＝`task.update {status:'cancelled'}`、ずらす＝`task.update {startMin,endMin}`、担当を外す＝`assignment.remove`。
 
+## 6A. 施設の日課と24時間シート（決定記録 0004）
+
+- **施設の日課**: 業務表（DayPattern）の項目のうち `routineId` を持つもの。同じ日課は業務表が違っても同じ `routineId`。一覧は `routinesOf(state, groupId)`（src/domain/routine.ts）。
+- **24時間シート**: `ResidentSheet { residentId, rows: SheetRow[], updatedAt? }`。状態は `state.sheets[residentId]`。変更は `sheet.upsert`（シートを丸ごと置き換える。元に戻せる）。
+- **SheetRow**: `routineId` ありは日課への調整（`startMin`/`endMin` で時刻の変更、`skip` でなし、どちらもなければ標準どおりで4項目だけ）。`routineId` なしはその方だけの行（`templateId` があれば個別の枠を作る。`weekdays` で曜日を限れる）。4項目は `rhythm`・`preference`・`canDo`・`support`。
+- **時間割の作り方**（`applyPatternEvents` → `splitRoutineTargets`）: 対象の方を、標準どおり → 一括の枠、開始が枠の中 → 一括の枠のまま（`TaskInstance.targetTimes[residentId]` に時刻）、枠の外 → 別の枠（開始時刻ごとにまとめる。同じ `routineId`・同じ番・必要人数は業務の種類の標準）、`skip` → 入れない、に振り分ける。その方だけの行は `extraRowsForDate` から個別の枠（番はその方のグループの番で時刻に合うもの）。
+- **今日を業務表として保存**（`patternFromDay`）は、日課から分かれた枠を残さない（日課ごとに対象の多い枠だけ）。
+- シートの変更は、次に時間割を作るときから入る。当日反映は作り直し（確認つき）。
+
 ## 7. 二重計上の防止
 - 同じ利用者・同じ業務の型・重なる時刻に、個別予定と一括枠の両方がある場合は注意表示（禁止はしない）。
 - 一括枠からの個別切り出しは作らない。必要なら「対象者から外す」＋「個別予定を作る」の2操作。

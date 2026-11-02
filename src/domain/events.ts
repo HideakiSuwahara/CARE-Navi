@@ -15,6 +15,7 @@ import type {
   ID,
   Minutes,
   Resident,
+  ResidentSheet,
   RoleSlot,
   RosterEntry,
   Staff,
@@ -78,7 +79,9 @@ export type EventBody =
   | { type: "task.setTargets"; id: ID; residentIds: ID[] }
   | { type: "assignment.add"; assignment: Assignment }
   | { type: "assignment.remove"; id: ID }
-  | { type: "day.setPattern"; date: DateKey; patternId?: ID };
+  | { type: "day.setPattern"; date: DateKey; patternId?: ID }
+  /** 24時間シートを丸ごと置き換える（行の追加・変更・削除はすべてこれ） */
+  | { type: "sheet.upsert"; sheet: ResidentSheet };
 
 export type Event = EventMeta & EventBody;
 

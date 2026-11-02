@@ -155,6 +155,12 @@ export interface DayPatternItem {
   headcount: number;
   /** 束ねる役割枠。型を当てると、当日この役割を持つ出勤者が担当になる。 */
   slotIds: ID[];
+  /**
+   * 施設の日課（利用者にかかわる業務）の印。同じ日課は業務表が違っても同じ routineId を持つ
+   * （例: 平日と入浴日の「東フロア 起床介助」は同じ "rt-wake-east"）。
+   * 利用者の24時間シートはこの ID で日課ごとの調整（時刻の変更・なし）を持つ。決定記録 0004
+   */
+  routineId?: string;
 }
 
 /** 一日の型（役割表の中身）。例: 平日、入浴日、日曜 */
@@ -215,6 +221,49 @@ export interface TaskInstance {
   status: TaskStatus;
   /** pattern = 一日の型から作られた予定。省略は手で足した予定（型を当て直しても消さない） */
   origin?: "pattern" | "manual";
+  /** 施設の日課から作られた枠なら、その日課の ID */
+  routineId?: string;
+  /** 一括の枠の中で、標準と違う時刻の方の時刻（residentId → 開始の分）。詳細の対象者一覧に出す */
+  targetTimes?: Record<ID, Minutes>;
+}
+
+// ---------------------------------------------------------------------------
+// 利用者の24時間シート（決定記録 0004）
+// ---------------------------------------------------------------------------
+
+/**
+ * 24時間シートの1行。
+ * - routineId あり: 施設の日課への調整。startMin/endMin を入れれば時刻の変更、skip ならその方はなし。
+ *   どちらもなければ「標準どおり」（4つの項目だけを書く行）。
+ * - routineId なし: その方だけの行。templateId があれば、その方の個別の枠を作る。
+ *   templateId がなければ参考の行（「10:00 新聞を読む」）で、枠は作らない。
+ */
+export interface SheetRow {
+  id: ID;
+  routineId?: string;
+  startMin?: Minutes;
+  endMin?: Minutes;
+  skip?: boolean;
+  templateId?: ID;
+  /** その方だけの行の名前（templateId がないとき） */
+  label?: string;
+  /** その方だけの行を入れる曜日（0=日〜6=土）。省略は毎日 */
+  weekdays?: number[];
+  /** 生活リズム（その時間の過ごし方） */
+  rhythm?: string;
+  /** 意向・好み */
+  preference?: string;
+  /** 自分でできること */
+  canDo?: string;
+  /** サポートが必要なこと（担当の人の手元画面に出す） */
+  support?: string;
+}
+
+export interface ResidentSheet {
+  residentId: ID;
+  rows: SheetRow[];
+  /** 最終更新（ISO）。シートの印刷に出す */
+  updatedAt?: string;
 }
 
 /** 一括業務の対象者を明示保存する（人数だけ保存しない） */
@@ -254,6 +303,8 @@ export interface State {
   targets: Record<ID, ID[]>;
   assignments: Record<ID, Assignment>;
   days: Record<DateKey, DayMeta>;
+  /** residentId → 24時間シート */
+  sheets: Record<ID, ResidentSheet>;
 }
 
 export function emptyState(): State {
@@ -270,6 +321,7 @@ export function emptyState(): State {
     targets: {},
     assignments: {},
     days: {},
+    sheets: {},
   };
 }
 
@@ -293,6 +345,8 @@ export interface SeedData {
   extraTargets: TaskTarget[];
   /** 日付ごとに当てる型 */
   dayPatterns: { date: DateKey; patternId: ID }[];
+  /** 利用者の24時間シート（省略可。省略した方は全員が標準どおり） */
+  sheets?: ResidentSheet[];
 }
 
 // ---------------------------------------------------------------------------

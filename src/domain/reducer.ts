@@ -131,6 +131,9 @@ export function reduce(state: State, ev: Event): State {
         days: { ...state.days, [ev.date]: { date: ev.date, appliedPatternId: ev.patternId, updatedAt: ev.ts } },
       };
 
+    case "sheet.upsert":
+      return { ...state, sheets: { ...state.sheets, [ev.sheet.residentId]: ev.sheet } };
+
     default:
       return state;
   }
@@ -250,6 +253,8 @@ export function invertEvent(ev: Event, before: State): Event[] {
     }
     case "day.setPattern":
       return [{ ...meta, type: "day.setPattern", date: ev.date, patternId: before.days[ev.date]?.appliedPatternId }];
+    case "sheet.upsert":
+      return [{ ...meta, type: "sheet.upsert", sheet: before.sheets[ev.sheet.residentId] ?? { residentId: ev.sheet.residentId, rows: [] } }];
     default:
       return [];
   }

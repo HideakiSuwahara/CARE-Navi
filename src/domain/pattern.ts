@@ -6,6 +6,7 @@
 import type { Event } from "./events.ts";
 import { rosterForDate, tasksForDate } from "./checks.ts";
 import { reduce as reduceOne } from "./reducer.ts";
+import { extraRowsForDate, slotsForResidentTask, splitRoutineTargets } from "./routine.ts";
 import type { DateKey, DayPattern, DayPatternItem, ID, RosterEntry, State, TaskInstance } from "./types.ts";
 
 export interface EventContext {
@@ -80,15 +81,63 @@ export function applyPatternEvents(state: State, date: DateKey, patternId: ID, c
     if (t.origin === "pattern") events.push({ ...metaOf(ctx), type: "task.remove", id: t.id });
   }
 
+  const addTask = (task: TaskInstance, residentIds: ID[], slotIds: ID[]) => {
+    events.push({ ...metaOf(ctx), type: "task.add", task, residentIds });
+    for (const staffId of staffForSlots(state, date, slotIds)) {
+      events.push({ ...metaOf(ctx), type: "assignment.add", assignment: { id: ctx.newId(), taskId: task.id, staffId } });
+    }
+  };
+
   for (const item of pattern.items) {
-    const taskId = ctx.newId();
-    const task = taskFromPatternItem(state, date, item, taskId);
-    if (!task) continue;
-    events.push({ ...metaOf(ctx), type: "task.add", task, residentIds: residentsForItem(state, item) });
-    for (const staffId of staffForSlots(state, date, item.slotIds)) {
-      events.push({ ...metaOf(ctx), type: "assignment.add", assignment: { id: ctx.newId(), taskId, staffId } });
+    const base = taskFromPatternItem(state, date, item, ctx.newId());
+    if (!base) continue;
+    const targets = residentsForItem(state, item);
+    if (!item.routineId) {
+      addTask(base, targets, item.slotIds);
+      continue;
+    }
+    // 施設の日課: 24時間シートの調整で振り分ける（決定記録 0004 §2）
+    const split = splitRoutineTargets(state, item, targets);
+    if (split.main.length > 0 || targets.length === 0) {
+      const mainTimes = Object.keys(split.mainTimes).length > 0 ? split.mainTimes : undefined;
+      addTask({ ...base, routineId: item.routineId, targetTimes: mainTimes }, split.main, item.slotIds);
+    }
+    const tpl = state.templates[item.templateId];
+    for (const o of split.outside) {
+      addTask(
+        {
+          ...base,
+          id: ctx.newId(),
+          routineId: item.routineId,
+          targetMode: o.residentIds.length === 1 ? "individual" : "group",
+          startMin: o.startMin,
+          endMin: o.endMin,
+          headcount: Math.max(1, tpl?.defaultHeadcount ?? 1),
+          targetTimes: undefined,
+        },
+        o.residentIds,
+        item.slotIds,
+      );
     }
   }
+
+  // 24時間シートの「その方だけの行」（業務の種類つき）から、その方の個別の枠
+  for (const { residentId, row } of extraRowsForDate(state, weekdayOf(date))) {
+    const tpl = state.templates[row.templateId!];
+    if (!tpl) continue;
+    const startMin = row.startMin!;
+    const endMin = row.endMin ?? startMin + tpl.defaultDurationMin;
+    const resident = state.residents[residentId];
+    const slotIds = slotsForResidentTask(state, residentId, startMin, endMin);
+    const task = taskFromPatternItem(
+      state,
+      date,
+      { id: row.id, templateId: tpl.id, startMin, endMin, groupId: resident?.groupId, targetRule: "residents", residentIds: [residentId], headcount: Math.max(1, tpl.defaultHeadcount), slotIds },
+      ctx.newId(),
+    );
+    if (task) addTask({ ...task, targetMode: "individual" }, [residentId], slotIds);
+  }
+
   events.push({ ...metaOf(ctx), type: "day.setPattern", date, patternId });
   return events;
 }
@@ -98,8 +147,16 @@ export function applyPatternEvents(state: State, date: DateKey, patternId: ID, c
  */
 export function patternFromDay(state: State, date: DateKey, name: string, ctx: EventContext): DayPattern | null {
   const items: DayPatternItem[] = [];
+  // 日課から分かれた枠（時刻を変えた方の別の枠）は業務表に残さない。日課ごとに対象の多い枠を1つだけ残す
+  const mainOfRoutine = new Map<string, ID>();
+  for (const t of tasksForDate(state, date)) {
+    if (!t.routineId) continue;
+    const cur = mainOfRoutine.get(t.routineId);
+    if (!cur || (state.targets[t.id]?.length ?? 0) > (state.targets[cur]?.length ?? 0)) mainOfRoutine.set(t.routineId, t.id);
+  }
   for (const t of tasksForDate(state, date)) {
     if (!t.templateId) continue;
+    if (t.routineId && mainOfRoutine.get(t.routineId) !== t.id) continue;
     const targetIds = state.targets[t.id] ?? [];
     let targetRule: DayPatternItem["targetRule"] = "none";
     let residentIds: ID[] | undefined;
@@ -124,6 +181,7 @@ export function patternFromDay(state: State, date: DateKey, name: string, ctx: E
       residentIds,
       headcount: t.headcount,
       slotIds: [...t.slotIds],
+      routineId: t.routineId,
     });
   }
   if (items.length === 0) return null;
