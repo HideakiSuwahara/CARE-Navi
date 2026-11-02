@@ -5,7 +5,10 @@
   --cn-ground: #f3f3ef;
   --cn-surface: #ffffff;
   --cn-border: #e3e3de;
+  --cn-grid: #eeeeea;
+  --cn-card-line: #d9dad4;
   --cn-ink: #1c1f23;
+  --cn-ink-soft: #3a4651;
   --cn-muted: #5b6168;
   --cn-accent: #1d5c8a;
   --cn-accent-soft: #e6f0f8;
@@ -15,6 +18,10 @@
   --cn-short-ink: #6b4e00;
   --cn-break-bg: #f3f1f8;
   --cn-break-ink: #4e4870;
+  --cn-break-line: #8f87b5;
+  --cn-rail-bg: #f7f9fb;
+  /* 担当未定・担当あと n 人の枠線。白地で 3:1 以上（決定記録 0003 §12） */
+  --cn-alert-line: #b5651d;
   --cn-now: #c2410c;
 }
 

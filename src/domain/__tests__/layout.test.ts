@@ -68,3 +68,41 @@ test("ボードの列はグループ順で、共通には休憩・対象なし�
   );
   assert.equal(cols[0].sub, "3人");
 });
+
+test("パレット: 出勤者は番の順。休みの人は、その番の未充足の枠数だけを持つ（件数・時間は持たない）", async () => {
+  const { paletteRows } = await import("../layout.ts");
+  const s = miniState();
+  const { working, off } = paletteRows(s, DATE);
+  assert.deepEqual(
+    working.map((r) => `${r.surname}:${r.slotName}`),
+    ["佐藤:早番A", "鈴木:日勤A", "加藤:スポット(午後)"],
+  );
+  assert.equal(working.find((r) => r.surname === "加藤")?.firstTimer, true);
+  assert.equal(off.length, 1);
+  assert.equal(off[0].surname, "渡辺");
+  assert.equal(off[0].unfilledSlotTasks, 2, "入浴（あと1人）とリネン回収（担当未定）");
+  assert.ok(!("load" in working[0]), "人に件数を付けない");
+});
+
+test("2時間以上の継続業務（見守り）は左のレールへ。休憩はレールに入れない", async () => {
+  const { layoutGroupColumn } = await import("../layout.ts");
+  const watch = t("watch", toMin(9), toMin(11));
+  const diaper = t("diaper", toMin(10), toMin(10, 30));
+  const brk = { ...t("break", toMin(11), toMin(13)), kind: "break" as const };
+  const { cards, hasRail } = layoutGroupColumn([watch, diaper, brk]);
+  assert.equal(hasRail, true);
+  const by = Object.fromEntries(cards.map((c) => [c.task.id, c]));
+  assert.equal(by.watch.rail, true);
+  assert.equal(by.diaper.rail, undefined);
+  assert.equal(by.diaper.lanes, 1, "見守りと重なっても、レールの外は1段");
+  assert.equal(by.break.rail, undefined);
+});
+
+test("見出しのまとめは実際の文言ごと（担当未定 → 担当あと n 人）", async () => {
+  const { shortageGroups } = await import("../checks.ts");
+  const s = miniState();
+  assert.deepEqual(shortageGroups(s, DATE), [
+    { label: "担当未定", level: "unassigned", count: 1 },
+    { label: "担当あと1人", level: "short", count: 2 },
+  ]);
+});

@@ -43,11 +43,15 @@ export function headcountLabel(required: number, assigned: number): string {
   return `${assigned - required}人 多め`;
 }
 
+/**
+ * 充足の状態。休憩カードは「埋める枠」ではないので、常に無印（ok・空ラベル）。決定記録 0003 §5
+ */
 export function headcountStatus(state: State, taskId: ID): HeadcountStatus {
   const task = state.tasks[taskId];
   const required = task?.headcount ?? 0;
   const assigned = assignmentsOf(state, taskId).length;
   const gap = required - assigned;
+  if (task?.kind === "break") return { required, assigned, gap, level: "ok", label: "" };
   let level: HeadcountStatus["level"] = "ok";
   if (required > 0 && assigned === 0) level = "unassigned";
   else if (assigned < required) level = "short";
@@ -185,77 +189,54 @@ export function checkAssignment(state: State, taskId: ID, staffId: ID): Issue[] 
 }
 
 /**
- * 候補の段。
+ * 候補の段（決定記録 0003 §6: 「問題なし」を開いて出し、他は畳む）。
  * - ok: 条件を満たし、時間も空いている
- * - partial: 重なりだけがあり、業務時間の半分以上は空いている（「11:30 からなら入れます」）
- * - warn: 注意（重なり・休憩・勤務時間の一部・条件不一致・初回のみ）
- * - off: この時間に勤務予定がない（勤務外・欠勤・勤務予定なし）
+ * - warn: 注意（重なり・休憩・勤務時間の一部・条件不一致・初回のみ）。追加できる
+ * - off: この時間に勤務予定がない（勤務外・欠勤・勤務予定なし）。追加ボタンを出さない
  * - blocked: 禁止（二重登録）
  */
-export type CandidateTier = "ok" | "partial" | "warn" | "off" | "blocked";
+export type CandidateTier = "ok" | "warn" | "off" | "blocked";
 
 export interface Candidate {
   staff: Staff;
   entry?: RosterEntry;
   issues: Issue[];
   tier: CandidateTier;
-  /** 当日の担当件数（並び順の補助） */
+  /** 当日の担当件数（並び順の補助にだけ使い、画面には出さない） */
   load: number;
-  /** 業務が束ねられた役割枠を持つ人（同じ段の中で先頭に出す） */
+  /** 業務が束ねられた番（役割枠）を持つ人（同じ段の中で先頭に出す） */
   sameSlot: boolean;
-  /** partial のとき、空いている時間帯。例: 「11:30–12:00」 */
-  freeRange?: string;
 }
 
-function freePortion(task: TaskInstance, busy: TaskInstance[]): { freeMin: number; range?: string } {
-  // 重なる業務を除いた「空き」を前後から求める（間に挟まる空きは数えない: 現場で使いにくい）
-  let start = task.startMin;
-  let end = task.endMin;
-  for (const b of busy) {
-    if (b.startMin <= start && b.endMin > start) start = Math.max(start, b.endMin);
-    if (b.endMin >= end && b.startMin < end) end = Math.min(end, b.startMin);
-  }
-  const freeMin = Math.max(0, end - start);
-  return freeMin > 0 ? { freeMin, range: fmtRange(start, end) } : { freeMin: 0 };
-}
-
-function tierOf(state: State, task: TaskInstance, issues: Issue[]): { tier: CandidateTier; freeRange?: string } {
-  if (issues.some((i) => i.severity === "block")) return { tier: "blocked" };
-  if (issues.some((i) => i.code === "noRoster" || i.code === "absent")) return { tier: "off" };
-  if (issues.some((i) => i.code === "offShift" && i.message.startsWith("この時間は勤務予定がありません"))) return { tier: "off" };
-  if (issues.length === 0) return { tier: "ok" };
-  const onlyOverlap = issues.every((i) => i.code === "overlap");
-  if (onlyOverlap) {
-    const related = issues.flatMap((i) => i.relatedTaskIds ?? []).map((id) => state.tasks[id]).filter((t): t is TaskInstance => Boolean(t));
-    const fp = freePortion(task, related);
-    if (fp.freeMin * 2 >= task.endMin - task.startMin) return { tier: "partial", freeRange: fp.range };
-  }
-  return { tier: "warn" };
+function tierOf(issues: Issue[]): CandidateTier {
+  if (issues.some((i) => i.severity === "block")) return "blocked";
+  if (issues.some((i) => i.code === "noRoster" || i.code === "absent")) return "off";
+  if (issues.some((i) => i.code === "offShift" && i.message.startsWith("この時間は勤務予定がありません"))) return "off";
+  if (issues.length === 0) return "ok";
+  return "warn";
 }
 
 /**
- * 候補一覧。問題なし → 部分参加 → 注意 → 勤務外・休み の順。
- * 同じ段では、その業務の役割枠を持つ人 → 担当件数が少ない人 → 名前順。
+ * 候補一覧。問題なし → 注意 → 勤務外・休み の順。
+ * 同じ段では、その業務の番を持つ人 → 担当件数が少ない人 → 名前順。
  * すでに担当の人（duplicate）は除く。
  */
 export function rankCandidates(state: State, taskId: ID): Candidate[] {
   const task = state.tasks[taskId];
   if (!task) return [];
-  const order: Record<CandidateTier, number> = { ok: 0, partial: 1, warn: 2, off: 3, blocked: 4 };
+  const order: Record<CandidateTier, number> = { ok: 0, warn: 1, off: 2, blocked: 3 };
   const out: Candidate[] = [];
   for (const staff of Object.values(state.staff)) {
     const issues = checkAssignment(state, taskId, staff.id);
     if (issues.some((i) => i.code === "duplicate")) continue;
     const entry = rosterOf(state, task.date, staff.id);
-    const { tier, freeRange } = tierOf(state, task, issues);
     out.push({
       staff,
       entry,
       issues,
-      tier,
+      tier: tierOf(issues),
       load: tasksOfStaff(state, task.date, staff.id).length,
       sameSlot: Boolean(entry?.slotId && task.slotIds.includes(entry.slotId)),
-      freeRange,
     });
   }
   return out.sort(
@@ -265,6 +246,34 @@ export function rankCandidates(state: State, taskId: ID): Candidate[] {
       a.load - b.load ||
       a.staff.displayName.localeCompare(b.staff.displayName, "ja"),
   );
+}
+
+/** 候補を「開いて出す人（問題なし）」と「畳む人」に分ける */
+export function splitCandidates(cands: Candidate[]): { open: Candidate[]; folded: Candidate[]; warnCount: number; offCount: number } {
+  const open = cands.filter((c) => c.tier === "ok");
+  const folded = cands.filter((c) => c.tier !== "ok" && c.tier !== "blocked");
+  return {
+    open,
+    folded,
+    warnCount: folded.filter((c) => c.tier === "warn").length,
+    offCount: folded.filter((c) => c.tier === "off").length,
+  };
+}
+
+/**
+ * 見出し用のまとめ。ラベルごとの件数（例: [{label:"担当未定",count:2},{label:"担当あと1人",count:1}]）。
+ * 担当未定を先に、担当あと n 人は n の小さい順。
+ */
+export function shortageGroups(state: State, date: string): { label: string; level: "unassigned" | "short"; count: number }[] {
+  const map = new Map<string, { label: string; level: "unassigned" | "short"; count: number; gap: number }>();
+  for (const t of tasksForDate(state, date)) {
+    const s = headcountStatus(state, t.id);
+    if (s.level !== "unassigned" && s.level !== "short") continue;
+    const cur = map.get(s.label) ?? { label: s.label, level: s.level, count: 0, gap: s.level === "unassigned" ? -1 : s.gap };
+    cur.count++;
+    map.set(s.label, cur);
+  }
+  return [...map.values()].sort((a, b) => a.gap - b.gap).map(({ label, level, count }) => ({ label, level, count }));
 }
 
 /** その日の「担当未定」「担当あと n 人」の件数（ボードの見出し用） */

@@ -49,11 +49,11 @@ test("クイック操作は1バッチで戻る", async () => {
   const s0 = engine.state;
   const preview = escortPreview(
     s0,
-    { date: DATE, name: "受診の付き添い", residentId: "r-101", startMin: toMin(10, 30), endMin: toMin(12), staffId: "s-suzuki" },
+    { date: DATE, residentId: "r-101", startMin: toMin(10, 30), endMin: toMin(12), staffId: "s-suzuki" },
     engine.context(),
   );
   await engine.dispatch(preview.events, "受診の付き添いを追加しました");
-  assert.equal(Object.keys(engine.state.tasks).length, 6);
+  assert.equal(Object.keys(engine.state.tasks).length, 7, "付き添い＋ずらした休憩");
   await engine.undo();
   assert.equal(Object.keys(engine.state.tasks).length, 5);
   assert.deepEqual(Object.keys(engine.state.assignments).sort(), Object.keys(s0.assignments).sort());

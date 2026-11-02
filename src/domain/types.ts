@@ -93,6 +93,8 @@ export interface Staff {
   /** 担当条件タグ。例: 介護福祉士、喀痰吸引、入浴担当可、施設オリエン済 */
   tags: string[];
   homeGroupId?: ID;
+  /** 施設内の連絡先（PHS・内線）。任意。業務詳細の「困ったら」に出す */
+  phone?: string;
 }
 
 /**
@@ -160,6 +162,8 @@ export interface DayPattern {
   id: ID;
   name: string;
   items: DayPatternItem[];
+  /** この業務表を既定で選ぶ曜日（0=日〜6=土）。朝の「今日の時間割を作る」で使う */
+  weekdays?: number[];
 }
 
 // ---------------------------------------------------------------------------

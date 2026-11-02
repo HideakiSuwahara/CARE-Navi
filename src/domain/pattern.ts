@@ -5,7 +5,8 @@
 
 import type { Event } from "./events.ts";
 import { rosterForDate, tasksForDate } from "./checks.ts";
-import type { DateKey, DayPattern, DayPatternItem, ID, State, TaskInstance } from "./types.ts";
+import { reduce as reduceOne } from "./reducer.ts";
+import type { DateKey, DayPattern, DayPatternItem, ID, RosterEntry, State, TaskInstance } from "./types.ts";
 
 export interface EventContext {
   newId: () => ID;
@@ -160,4 +161,85 @@ export function reassignSlotEvents(
     }
   }
   return events;
+}
+
+// ---------------------------------------------------------------------------
+// 朝: 「今日の時間割を作る」（決定記録 0003 §2）
+// 開いた時点で、先週の同じ曜日の番と、曜日の業務表を入れておく。人は違うところだけ直して1タップ。
+// ---------------------------------------------------------------------------
+
+/** "2026-11-03" → 曜日（0=日〜6=土）。タイムゾーンに依存しないよう UTC で計算する */
+export function weekdayOf(date: DateKey): number {
+  const [y, m, d] = date.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+}
+
+export function addDays(date: DateKey, days: number): DateKey {
+  const [y, m, d] = date.split("-").map(Number);
+  const t = new Date(Date.UTC(y, m - 1, d + days));
+  return `${t.getUTCFullYear()}-${String(t.getUTCMonth() + 1).padStart(2, "0")}-${String(t.getUTCDate()).padStart(2, "0")}`;
+}
+
+/** その日の既定の業務表: 曜日が合う業務表 → 先週の同じ曜日に使った業務表 → 最初の業務表 */
+export function patternForDate(state: State, date: DateKey): ID | undefined {
+  const wd = weekdayOf(date);
+  const patterns = Object.values(state.patterns);
+  const byWeekday = patterns.find((p) => p.weekdays?.includes(wd));
+  if (byWeekday) return byWeekday.id;
+  const lastWeek = state.days[addDays(date, -7)]?.appliedPatternId;
+  if (lastWeek && state.patterns[lastWeek]) return lastWeek;
+  return patterns[0]?.id;
+}
+
+export interface MorningDraft {
+  date: DateKey;
+  patternId?: ID;
+  /** 今日の出勤者の下書き。すでに今日の出勤者があればそれ、なければ先週の同じ曜日から */
+  entries: RosterEntry[];
+  /** entries の出どころ */
+  source: "today" | "lastWeek" | "none";
+}
+
+/**
+ * 朝の下書き。先週の同じ曜日の出勤者を、今日の日付・初回なし・休みなしで写す。
+ * 番（役割枠）の既定の勤務時間があればそれに合わせる。
+ */
+export function morningDraft(state: State, date: DateKey, newId: () => ID): MorningDraft {
+  const today = rosterForDate(state, date);
+  const patternId = patternForDate(state, date);
+  if (today.length > 0) return { date, patternId, entries: today.map((e) => ({ ...e })), source: "today" };
+  const prev = rosterForDate(state, addDays(date, -7));
+  if (prev.length === 0) return { date, patternId, entries: [], source: "none" };
+  const entries = prev
+    .filter((e) => state.staff[e.staffId])
+    .map((e) => {
+      const slot = e.slotId ? state.roleSlots[e.slotId] : undefined;
+      return {
+        id: newId(),
+        date,
+        staffId: e.staffId,
+        slotId: e.slotId,
+        startMin: slot?.defaultStartMin ?? e.startMin,
+        endMin: slot?.defaultEndMin ?? e.endMin,
+        firstTimer: false,
+        absent: false,
+      };
+    });
+  return { date, patternId, entries, source: "lastWeek" };
+}
+
+/**
+ * 「この内容で作る」: 出勤者の登録と業務表の適用を1つのバッチにする（1回で元に戻せる）。
+ */
+export function createDayEvents(state: State, draft: MorningDraft, ctx: EventContext): Event[] {
+  const events: Event[] = [];
+  const keep = new Set(draft.entries.map((e) => e.id));
+  for (const e of rosterForDate(state, draft.date)) {
+    if (!keep.has(e.id)) events.push({ ...metaOf(ctx), type: "roster.remove", id: e.id });
+  }
+  for (const entry of draft.entries) events.push({ ...metaOf(ctx), type: "roster.upsert", entry });
+  if (!draft.patternId) return events;
+  let s = state;
+  for (const ev of events) s = reduceOne(s, ev);
+  return [...events, ...applyPatternEvents(s, draft.date, draft.patternId, ctx)];
 }
