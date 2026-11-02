@@ -17,6 +17,8 @@ export default defineConfig({
     locale: "ja-JP",
     timezoneId: "Asia/Tokyo",
     trace: "retain-on-failure",
+    // 環境に入っているブラウザを使う（別版をインストールしない）。版が合わないときはその実行ファイルを指す
+    launchOptions: process.env.PW_CHROMIUM_PATH ? { executablePath: process.env.PW_CHROMIUM_PATH } : undefined,
   },
   projects: [
     // ボード・業務の見直し・設定（PC）。スマホ用の画面は *.phone.spec.ts に分ける

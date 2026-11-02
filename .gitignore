@@ -38,3 +38,6 @@ Thumbs.db
 supabase/.temp/
 tsconfig.tsbuildinfo
 next-env.d.ts
+
+# 手元の作業用フォルダ（公開しない）
+Claude outputs/

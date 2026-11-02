@@ -120,3 +120,24 @@ test("短い業務も最小の長さを占めるものとして並べる（15分
   assert.notEqual(by.a.lane, by.b.lane, "最小20分なら横に並ぶ");
   assert.equal(by.a.lanes, 2);
 });
+
+test("職員表示: 同じ人の帯が重なれば両方に印、見守りの空きは担当未定", async () => {
+  const { staffViewRows, watchLines, unfilledTasks } = await import("../layout.ts");
+  const { himawariSeed } = await import("../seed/index.ts");
+  const { deterministicContext, stateFromSeed } = await import("../loadSeed.ts");
+  const s = { state: stateFromSeed(himawariSeed, deterministicContext("h")), date: DATE };
+  const rows = staffViewRows(s.state, s.date);
+  assert.ok(rows.length > 0);
+  // 人に数字を付けない: 行に件数・時間の合計を持たない
+  for (const r of rows) assert.deepEqual(Object.keys(r).sort(), ["bars", "endMin", "firstTimer", "slotName", "staffId", "startMin", "surname"]);
+  for (const r of rows) for (const b of r.bars) {
+    const others = r.bars.filter((o) => o !== b && o.task.startMin < b.task.endMin && b.task.startMin < o.task.endMin);
+    assert.equal(b.overlap, others.length > 0);
+  }
+  const lines = watchLines(s.state, s.date);
+  assert.ok(lines.some((l) => l.name === "東フロア"));
+  for (const l of lines) for (const seg of l.segments) assert.equal(seg.label === "", seg.surnames.length >= seg.task.headcount);
+  const unfilled = unfilledTasks(s.state, s.date);
+  assert.ok(unfilled.length > 0);
+  assert.ok(unfilled.every((u) => u.task.kind !== "break"));
+});

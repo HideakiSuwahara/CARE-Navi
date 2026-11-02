@@ -13,6 +13,8 @@ import { MorningBand } from "./MorningBand";
 import { TaskDetail } from "./TaskDetail";
 import { AssignPanel } from "./AssignPanel";
 import { BoardDnd, DropZone, useStaffDrag } from "./dnd";
+import { StaffSheetPrint, StaffView } from "./StaffView";
+import { BoardMenu } from "./BoardMenu";
 
 /** 1分あたりの高さ(px)。1時間=180px。30分の業務でも2行（名前／担当・バッジ・＋44px）が入る */
 const PX_PER_MIN = 3;
@@ -42,6 +44,21 @@ export function Board({ date = SAMPLE_DATE }: { date?: string }) {
   );
   const now = useNowMinutes();
   const [noteOpen, setNoteOpen] = useState(false);
+  // 横軸［グループ｜職員］。職員表示を印刷すると分担表
+  const [view, setView] = useState<"group" | "staff">("group");
+  const [printedAt, setPrintedAt] = useState("");
+  // 印刷時刻は印刷の直前に入れる（ブラウザの印刷メニューから印刷したときも）
+  useEffect(() => {
+    const stamp = () => {
+      const d = new Date();
+      setPrintedAt(`${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}`);
+    };
+    stamp();
+    window.addEventListener("beforeprint", stamp);
+    return () => window.removeEventListener("beforeprint", stamp);
+  }, []);
+  // 分担表は表示と関係なく印刷用に描いてあるので、画面の表示は切り替えない
+  const printSheet = () => window.print();
   const forceBoard = false;
   const scroller = useRef<HTMLDivElement>(null);
 
@@ -59,17 +76,34 @@ export function Board({ date = SAMPLE_DATE }: { date?: string }) {
   const updated = updatedAtLabel(state.days[date]?.updatedAt);
   const hasTasks = columns.some((c) => c.cards.length > 0);
 
-  // 開いたとき、現在時刻の1時間前へ寄せる（時間の切替ボタンは置かない）
+  // 開いたとき、現在時刻の1時間前へ寄せる（時間の切替ボタンは置かない）。グループ表示に戻ったときも寄せ直す
   const scrolled = useRef(false);
   useEffect(() => {
+    if (view !== "group") scrolled.current = false;
     if (!ready || now === null || scrolled.current || !scroller.current) return;
     scroller.current.scrollTop = Math.max(0, (now - 60 - VIEW_START) * PX_PER_MIN);
     scrolled.current = true;
-  }, [ready, now]);
+  }, [ready, now, view]);
 
   // 見出しの「担当未定 n件」を押すと、該当するカードへ順に移動する（押すたびに次へ）
   const jumpIndex = useRef<Record<string, number>>({});
+  // 職員表示から押したら、グループ表示に戻してから（描き終わったあとの effect で）カードへ寄せる
+  const pendingJump = useRef<string | null>(null);
   const jumpTo = (label: string) => {
+    if (view !== "group") {
+      pendingJump.current = label;
+      setView("group");
+      return;
+    }
+    jumpToCard(label);
+  };
+  useEffect(() => {
+    if (view !== "group" || !pendingJump.current) return;
+    const label = pendingJump.current;
+    pendingJump.current = null;
+    jumpToCard(label);
+  }, [view]);
+  function jumpToCard(label: string) {
     const root = scroller.current;
     if (!root) return;
     const cards = Array.from(root.querySelectorAll<HTMLElement>(`[data-task-id][data-badge="${label}"]`)).sort(
@@ -79,10 +113,17 @@ export function Board({ date = SAMPLE_DATE }: { date?: string }) {
     const i = (jumpIndex.current[label] ?? -1) + 1;
     jumpIndex.current[label] = i % cards.length;
     const el = cards[i % cards.length];
-    el.scrollIntoView({ block: "center", inline: "nearest", behavior: "smooth" });
+    // 動きを減らす設定では、滑らかなスクロールと光る枠を止め、枠を2秒だけ付ける
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    el.scrollIntoView({ block: "center", inline: "nearest", behavior: reduce ? "auto" : "smooth" });
     el.querySelector<HTMLButtonElement>("button")?.focus({ preventScroll: true });
-    el.animate([{ boxShadow: "0 0 0 4px var(--cn-alert-line)" }, { boxShadow: "0 0 0 0 transparent" }], { duration: 1200 });
-  };
+    if (reduce) {
+      el.style.outline = "3px solid var(--cn-alert-line)";
+      window.setTimeout(() => (el.style.outline = ""), 2000);
+    } else {
+      el.animate([{ boxShadow: "0 0 0 4px var(--cn-alert-line)" }, { boxShadow: "0 0 0 0 transparent" }], { duration: 1200 });
+    }
+  }
 
   // 操作のあとのお知らせ（トースト）。8秒で消えるが「元に戻す」はツールバーに残る
   const [toast, setToast] = useState<string | null>(null);
@@ -123,14 +164,14 @@ export function Board({ date = SAMPLE_DATE }: { date?: string }) {
     <>
       {/* スマホ幅: ボード（表）は出さず、1文と1ボタン（docs/screens.md §1） */}
       {!forceBoard && (
-        <div className="flex min-h-screen flex-col items-start gap-4 p-5 md:hidden">
+        <div className="flex min-h-screen flex-col items-start gap-4 p-5 md:hidden print:!hidden">
           <p className="text-[17px] font-bold">ボードは PC・タブレット用の画面です。</p>
           <p className="text-[16px] text-[var(--cn-ink-soft)]">PC かタブレット（横向き）で開いてください。スマホ用の「自分の予定」は次の版で入ります。</p>
         </div>
       )}
-    <div className={`${forceBoard ? "flex" : "hidden md:flex"} h-screen flex-col`}>
-      <a href="#staff-palette" className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-50 focus:rounded focus:bg-white focus:p-2">
-        出勤者一覧へ移動
+    <div className={`${forceBoard ? "flex" : "hidden md:flex"} h-screen flex-col print:!hidden`}>
+      <a href={view === "staff" ? "#watch-lines" : "#staff-palette"} className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-50 focus:rounded focus:bg-white focus:p-2">
+        {view === "staff" ? "見守りのつながりへ移動" : "出勤者一覧へ移動"}
       </a>
       {/* 上部バー（1段） */}
       <TopBar current="board">
@@ -141,7 +182,27 @@ export function Board({ date = SAMPLE_DATE }: { date?: string }) {
       {/* ツールバー（1段） */}
       <div className="flex shrink-0 flex-wrap items-center gap-3 px-5 py-2.5">
         {hasTasks && (
-          <div className="flex items-center gap-2" aria-live="polite">
+          <div role="group" aria-label="横軸" className="inline-flex rounded-lg border border-[var(--cn-card-line)] bg-white p-0.5">
+            {(
+              [
+                ["group", "グループ"],
+                ["staff", "職員"],
+              ] as const
+            ).map(([v, label]) => (
+              <button
+                key={v}
+                type="button"
+                aria-pressed={view === v}
+                onClick={() => setView(v)}
+                className={`h-[44px] min-w-[72px] rounded-md px-3 text-[15px] ${view === v ? "bg-[var(--cn-accent-soft)] font-bold text-[var(--cn-accent)]" : "text-[var(--cn-ink-soft)]"}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
+        {hasTasks && (
+          <div className="flex items-center gap-2" /* 件数の変化はトーストで知らせる（ここで読み上げると二重になる） */>
             {groups.map((g) => (
               <button
                 type="button"
@@ -168,15 +229,18 @@ export function Board({ date = SAMPLE_DATE }: { date?: string }) {
             {noteOpen && <span className="text-[14px] text-[var(--cn-ink-soft)]">予定の担当枠の差分です。ケアをしていない人数ではありません。</span>}
           </div>
         )}
+        <div className="ml-auto flex items-center gap-2">
         {lastUndo && (
           <button
             type="button"
             onClick={() => engine?.undo()}
-            className="ml-auto inline-flex h-[44px] items-center gap-2 rounded-lg border border-[var(--cn-card-line)] bg-white px-4 text-[14px]"
+            className="inline-flex h-[44px] items-center gap-2 rounded-lg border border-[var(--cn-card-line)] bg-white px-4 text-[14px]"
           >
             元に戻す<span className="text-[13px] text-[var(--cn-muted)]">（{lastUndo.label}）</span>
           </button>
         )}
+        {hasTasks && <BoardMenu state={state} engine={engine} date={date} dateShort={`${Number(date.slice(5, 7))}/${Number(date.slice(8))}`} onPrint={printSheet} onNotice={showNotice} />}
+        </div>
       </div>
 
       {/* 本体 */}
@@ -190,6 +254,8 @@ export function Board({ date = SAMPLE_DATE }: { date?: string }) {
             <div className="p-6 text-[var(--cn-muted)]">読み込んでいます…</div>
           ) : !hasTasks ? (
             <MorningBand state={state} date={date} />
+          ) : view === "staff" ? (
+            <StaffView state={state} date={date} now={now} onOpen={openDetail} />
           ) : (
             <div ref={scroller} className="h-full overflow-auto" data-testid="board-scroller">
               {/* 列見出し */}
@@ -251,8 +317,8 @@ export function Board({ date = SAMPLE_DATE }: { date?: string }) {
           )}
         </section>
 
-        {/* 右パレット */}
-        {hasTasks && (
+        {/* 右パレット（職員表示では行が職員なので出さない） */}
+        {hasTasks && view === "group" && (
         <aside id="staff-palette" aria-label="きょうの出勤者" className="flex w-[300px] shrink-0 flex-col gap-3 overflow-auto">
           <DropZone id="palette" data={{ kind: "palette" }}>
           <div className="rounded-xl border border-[var(--cn-border)] bg-white p-3.5">
@@ -326,6 +392,7 @@ export function Board({ date = SAMPLE_DATE }: { date?: string }) {
         )}
       </div>
     </div>
+      {ready && hasTasks && <StaffSheetPrint state={state} date={date} dateLabel={weekdayLabel(date)} printedAt={printedAt} />}
     </>
   );
 }

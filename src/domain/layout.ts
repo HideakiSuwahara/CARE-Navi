@@ -6,7 +6,7 @@
  */
 
 import type { ID, Minutes, State, TaskInstance } from "./types.ts";
-import { headcountLabel, tasksForDate } from "./checks.ts";
+import { assigneesOf, headcountLabel, taskLabel, tasksForDate } from "./checks.ts";
 
 export interface LaidOutCard {
   task: TaskInstance;
@@ -161,4 +161,113 @@ export function paletteRows(state: State, date: string): { working: PaletteRow[]
     (e.absent ? off : working).push(row);
   }
   return { working, off };
+}
+
+// ---------------------------------------------------------------------------
+// 職員表示（横軸＝職員）。印刷すると分担表。docs/screens.md §1
+// 件数・予定時間は出さない（決定記録 0003 §4）
+// ---------------------------------------------------------------------------
+
+export interface StaffBar {
+  task: TaskInstance;
+  /** 帯に書く短い名前（個別は様名つき。グループ名は付けない: 行の幅が狭いので） */
+  label: string;
+  /** 読み上げ・ツールチップ用（グループ名つき） */
+  fullLabel: string;
+  isBreak: boolean;
+  /** 同じ人のほかの帯と時間が重なる */
+  overlap: boolean;
+}
+
+export interface StaffViewRow {
+  staffId: ID;
+  surname: string;
+  slotName: string;
+  startMin: Minutes;
+  endMin: Minutes;
+  firstTimer: boolean;
+  bars: StaffBar[];
+}
+
+export interface WatchSegment {
+  task: TaskInstance;
+  /** 担当の名字（空なら担当未定） */
+  surnames: string[];
+  /** 未充足なら「担当未定」「担当あと n 人」。満たしていれば空 */
+  label: string;
+}
+
+export interface WatchLine {
+  groupId: ID;
+  name: string;
+  segments: WatchSegment[];
+}
+
+/**
+ * 見守りの業務か。見守りは区切って番ごとに持つので、職員表示の最下段でつながりを1段で見せる。
+ * 当面は業務の名前「見守り」で見る（個別の業務は除く）。施設が別の名前を付けた場合は段が出ない（docs/data-model.md）
+ */
+export function isWatchTask(task: TaskInstance): boolean {
+  return task.kind !== "break" && task.targetMode !== "individual" && task.name.startsWith("見守り");
+}
+
+export function staffViewRows(state: State, date: string): StaffViewRow[] {
+  const { working } = paletteRows(state, date);
+  const tasks = tasksForDate(state, date);
+  const byId = new Map(tasks.map((t) => [t.id, t]));
+  const mine = new Map<ID, TaskInstance[]>();
+  for (const a of Object.values(state.assignments)) {
+    const t = byId.get(a.taskId);
+    if (!t) continue;
+    if (!mine.has(a.staffId)) mine.set(a.staffId, []);
+    mine.get(a.staffId)!.push(t);
+  }
+  return working.map((r) => {
+    const list = (mine.get(r.staffId) ?? []).sort((a, b) => a.startMin - b.startMin || a.endMin - b.endMin);
+    const bars: StaffBar[] = list.map((t) => ({
+      task: t,
+      label: t.targetMode === "individual" ? taskLabel(state, t) : t.name,
+      fullLabel: taskLabel(state, t),
+      isBreak: t.kind === "break",
+      overlap: list.some((o) => o.id !== t.id && o.startMin < t.endMin && t.startMin < o.endMin),
+    }));
+    return {
+      staffId: r.staffId,
+      surname: r.surname,
+      slotName: r.slotName,
+      startMin: r.startMin,
+      endMin: r.endMin,
+      firstTimer: r.firstTimer,
+      bars,
+    };
+  });
+}
+
+/** グループごとの見守りのつながり。空いている区切りは「担当未定」 */
+export function watchLines(state: State, date: string): WatchLine[] {
+  const groups = Object.values(state.groups).sort((a, b) => a.sortOrder - b.sortOrder);
+  const watch = tasksForDate(state, date).filter(isWatchTask);
+  const out: WatchLine[] = [];
+  for (const g of groups) {
+    const segs = watch.filter((t) => t.groupId === g.id);
+    if (segs.length === 0) continue;
+    out.push({
+      groupId: g.id,
+      name: g.name,
+      segments: segs.map((t) => {
+        const surnames = assigneesOf(state, t.id).map((s) => s.surname);
+        const label = headcountLabel(t.headcount, surnames.length);
+        return { task: t, surnames, label: label === "OK" || label.endsWith("多め") ? "" : label };
+      }),
+    });
+  }
+  return out;
+}
+
+/** 分担表の下に並べる、担当未定・担当あと n 人の枠（休憩を除く。時刻順） */
+export function unfilledTasks(state: State, date: string): { task: TaskInstance; label: string; status: string }[] {
+  return tasksForDate(state, date)
+    .filter((t) => t.kind !== "break")
+    .map((t) => ({ task: t, label: taskLabel(state, t), status: headcountLabel(t.headcount, assigneesOf(state, t.id).length) }))
+    .filter((x) => x.status === "担当未定" || x.status.startsWith("担当あと"));
 }

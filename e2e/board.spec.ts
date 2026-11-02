@@ -93,7 +93,8 @@ test.describe("ボード（D1）", () => {
     const card = page.locator('[data-task-id][data-badge="担当未定"]').first();
     const id = await card.getAttribute("data-task-id");
     await page.waitForTimeout(300); // 開いたときの「現在時刻へ寄せる」が終わってから
-    await card.scrollIntoViewIfNeeded();
+    // 画面の端だとドラッグ中の自動スクロールでカードが動くので、真ん中へ寄せてから
+    await card.evaluate((el) => el.scrollIntoView({ block: "center" }));
     const who = page.getByRole("complementary", { name: "きょうの出勤者" }).getByRole("button", { name: /^\S+ / }).first();
     const from = (await who.boundingBox())!;
     const to = (await card.boundingBox())!;
@@ -102,6 +103,10 @@ test.describe("ボード（D1）", () => {
     await page.mouse.move(from.x + 40, from.y + from.height / 2, { steps: 4 });
     await page.waitForTimeout(100); // 持ち上げたあと、落とせる場所の測り直しを待つ
     await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 12 });
+    await page.waitForTimeout(100);
+    // 途中で時間割の端を通ると自動で送られてカードが動くので、測り直して真上へ
+    const at = (await card.boundingBox())!;
+    await page.mouse.move(at.x + at.width / 2, at.y + at.height / 2, { steps: 2 });
     await page.waitForTimeout(100);
     await page.mouse.up();
     await expect(page.locator(`[data-task-id="${id}"]`)).not.toHaveAttribute("data-badge", "担当未定");
