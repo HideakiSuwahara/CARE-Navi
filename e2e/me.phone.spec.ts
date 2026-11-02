@@ -16,14 +16,14 @@ test.describe("自分の予定（スマホ）", () => {
     await expect(page.getByRole("heading", { level: 1, name: /高橋 さん/ })).toBeVisible();
     await page.reload();
     await expect(page.getByRole("heading", { level: 1, name: /高橋 さん/ })).toBeVisible();
-    await page.getByRole("button", { name: "名前を切り替える" }).click();
+    await page.getByRole("button", { name: "自分ではない（名前を選び直す）" }).click();
     await expect(page.getByText("あなたの名前を選んでください")).toBeVisible();
   });
 
   test("いまの時間の予定・きょうの流れ・退勤。困ったらが上に出る。禁止の語・仕組みの言葉・バッジがない", async ({ page }) => {
     await pick(page, "10:12", "高橋");
     await expect(page.getByRole("heading", { name: "いまの時間の予定" })).toBeVisible();
-    await expect(page.getByRole("note", { name: "困ったら" })).toContainText("佐藤（リーダー） PHS 801");
+    await expect(page.getByRole("note")).toContainText("佐藤（リーダー） PHS 801");
     await expect(page.getByText("● いまの時間 10:12")).toBeVisible();
     await expect(page.getByText("退勤")).toBeVisible();
     const text = await page.locator("main").innerText();
@@ -47,9 +47,9 @@ test.describe("自分の予定（スマホ）", () => {
     await expect(page.getByRole("heading", { name: "この施設の手順" })).toBeVisible();
     const targets = page.getByRole("region", { name: /対象の方/ });
     await expect(targets.getByRole("listitem").first()).toHaveText(/^\d+ \S+様/);
-    await expect(page.getByRole("region", { name: "困ったら" })).toContainText("きょうのリーダー");
+    await expect(page.getByRole("region", { name: "困ったら" })).toContainText("いまの相談先");
     await expect(page.getByRole("button", { name: /記録|実施|完了/ })).toHaveCount(0); // wording-ok: 無いことの確認
-    await page.getByRole("link", { name: "‹ 自分の予定へ戻る" }).click();
+    await page.getByRole("link", { name: "自分の予定へ戻る" }).first().click();
     await expect(page.getByRole("heading", { name: "いまの時間の予定" })).toBeVisible();
   });
 
@@ -70,11 +70,32 @@ test.describe("自分の予定（スマホ）", () => {
     await expect(page.getByRole("heading", { name: "きょうの流れ" }).locator("..")).toContainText("面会対応", { timeout: 2000 });
   });
 
-  test("印刷: A4 縦で、操作のボタンが隠れる", async ({ page }) => {
+  test("業務詳細: 対象の方が多いときは「ほか n 人を見る」で全員を出せる", async ({ page }) => {
+    await pick(page, "12:50", "加藤");
+    await page.getByRole("link", { name: /口腔ケア/ }).first().click();
+    const targets = page.getByRole("region", { name: /対象の方/ });
+    const more = targets.getByRole("button", { name: /^ほか \d+ 人を見る$/ });
+    await expect(more).toBeVisible();
+    const total = Number((await targets.getByRole("heading").innerText()).match(/(\d+)人/)![1]);
+    await more.click();
+    await expect(targets.getByRole("listitem")).toHaveCount(total);
+  });
+
+  test("夜勤の人は、朝の時刻（6:30）に夜勤明けの予定が「いまの時間の予定」に出る", async ({ page }) => {
+    await pick(page, "6:30", "斉藤");
+    await expect(page.getByRole("heading", { name: "いまの時間の予定" })).toBeVisible();
+    await expect(page.getByText("● いまの時間 翌6:30")).toBeVisible();
+  });
+
+  test("印刷: A4 縦 1 枚で、操作のボタンが隠れる", async ({ page }) => {
     await pick(page, "10:12", "高橋");
     await page.emulateMedia({ media: "print" });
     await expect(page.getByRole("button", { name: "ほかの操作" })).toBeHidden();
     await expect(page.getByRole("heading", { name: "きょうの流れ" })).toBeVisible();
-    await page.screenshot({ path: "test-results/me-print.png", fullPage: true });
+    // A4 縦 1 枚に収まる（予定のいちばん多い早番A で）
+    await pick(page, "10:12", "佐藤");
+    await page.emulateMedia({ media: "print" });
+    const pdf = await page.pdf({ format: "A4", preferCSSPageSize: true });
+    expect((pdf.toString("latin1").match(/\/Type\s*\/Page[^s]/g) ?? []).length).toBe(1);
   });
 });

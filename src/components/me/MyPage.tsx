@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { rosterForDate } from "@/domain/checks";
-import { businessMinutes } from "@/domain/myday";
+import { viewerMinutes } from "@/domain/myday";
 import { fmtRange } from "@/domain/time";
 import type { ID } from "@/domain/types";
 import { useAppState, useNowMinutes } from "@/store/react";
@@ -35,7 +35,6 @@ function writeMe(id: ID | null) {
 export function MyPage({ taskId, date = SAMPLE_DATE }: { taskId?: string; date?: string }) {
   const { state, ready } = useAppState();
   const clock = useNowMinutes();
-  const now = clock === null ? null : businessMinutes(clock);
   const [me, setMe] = useState<ID | null>(null);
   const [loaded, setLoaded] = useState(false);
 
@@ -50,17 +49,19 @@ export function MyPage({ taskId, date = SAMPLE_DATE }: { taskId?: string; date?:
     window.scrollTo(0, 0);
   }, []);
 
-  if (!ready || !loaded || now === null) {
+  if (!ready || !loaded || clock === null) {
     return <p className="p-5 text-[16px] text-[var(--cn-muted)]">読み込んでいます…</p>;
   }
 
   const entry = me ? rosterForDate(state, date).find((e) => e.staffId === me && !e.absent) : undefined;
   if (!me || !state.staff[me] || !entry) return <NamePicker state={state} date={date} onChoose={choose} previous={me && state.staff[me] ? state.staff[me].surname : undefined} />;
 
+  // 夜勤の人は、勤務前の朝の時刻を「翌」として読む（夜勤明けの予定が出る）
+  const now = viewerMinutes(state, date, me, clock);
   if (taskId && state.tasks[taskId]) {
     return <PhoneTaskDetail state={state} date={date} taskId={taskId} me={me} now={now} />;
   }
-  return <MyDayView state={state} date={date} me={me} now={now} onSwitch={() => choose(null)} />;
+  return <MyDayView state={state} date={date} me={me} now={now} onSwitch={() => choose(null)} missingTask={Boolean(taskId)} />;
 }
 
 function NamePicker({
@@ -84,6 +85,14 @@ function NamePicker({
       <h1 className="text-[20px] font-bold">自分の予定</h1>
       {previous && <p className="text-[16px]">{previous}さんは、きょうの出勤に入っていません。名前を選び直してください。</p>}
       <p className="text-[16px] text-[var(--cn-ink-soft)]">あなたの名前を選んでください。この端末が覚えます。</p>
+      {entries.length === 0 && (
+        <div className="flex flex-col items-start gap-3 rounded-xl bg-white p-4">
+          <p>きょうの出勤者がまだ入っていません。リーダーが今日の時間割を作ると、ここに名前が出ます。</p>
+          <button type="button" onClick={() => window.location.reload()} className="h-[48px] rounded-xl border border-[var(--cn-control-line)] px-4 font-bold">
+            もう一度読み込む
+          </button>
+        </div>
+      )}
       <ul className="flex flex-col gap-2" aria-label="きょうの出勤者">
         {entries.map((e) => {
           const s = state.staff[e.staffId];
@@ -96,6 +105,7 @@ function NamePicker({
                 className="flex min-h-[56px] w-full items-center gap-3 rounded-xl border border-[var(--cn-control-line)] bg-white px-4 text-left"
               >
                 <span className="text-[18px] font-bold">{s.surname}</span>
+                {e.firstTimer && <span className="rounded border border-[var(--cn-control-line)] px-1.5 text-[14px]">初回</span>}
                 <span className="text-[14px] text-[var(--cn-muted)]">
                   {slot} {fmtRange(e.startMin, e.endMin)}
                 </span>

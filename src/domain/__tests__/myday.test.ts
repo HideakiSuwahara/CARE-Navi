@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 
 import { himawariSeed } from "../seed/index.ts";
 import { deterministicContext, stateFromSeed } from "../loadSeed.ts";
-import { businessMinutes, leaderContact, myDay, targetLines } from "../myday.ts";
+import { businessMinutes, leaderContact, leaderSchedule, myDay, targetLines, viewerMinutes } from "../myday.ts";
 import { tasksForDate } from "../checks.ts";
 import { toMin } from "../time.ts";
 
@@ -86,7 +86,43 @@ test("業務詳細の対象の方: サポートの1行は、担当の人に勤�
 });
 
 test("困ったら: リーダーの番が決まっていない施設では、番の並び順で見る", () => {
-  const s = state();
+  // 状態はシードのオブジェクトを共有しているので、複製してから変える
+  const s = structuredClone(state());
   for (const slot of Object.values(s.roleSlots)) delete slot.leaderRank;
-  assert.equal(leaderContact(s, DATE, toMin(10))?.leader.surname, "佐藤");
+  const c = leaderContact(s, DATE, toMin(10));
+  assert.equal(c?.leader.surname, "佐藤");
+  assert.equal(c?.isLeader, false, "リーダーの番が決まっていないので「リーダー」とは書かない");
+  assert.equal(c?.slotName, "早番A");
+});
+
+test("困ったら: 夜勤のリーダーが休憩中なら、もう一人の夜勤者が代わり（近くの職員へ、にしない）", () => {
+  const s = state();
+  const brk = tasksForDate(s, DATE).find((t) => t.kind === "break" && t.startMin >= toMin(24) && Object.values(s.assignments).some((a) => a.taskId === t.id && a.staffId === "stf-saito"));
+  assert.ok(brk, "斉藤さんの夜の休憩がある");
+  const c = leaderContact(s, DATE, brk!.startMin + 5);
+  assert.equal(c?.leader.surname, "斉藤");
+  assert.ok(c?.onBreak);
+  assert.equal(c?.substitute?.surname, "野口");
+});
+
+test("困ったら: 勤務中の人がいない時刻は undefined（画面は「近くの職員へ」）。まだ来ていない人を出さない", () => {
+  const s = state();
+  assert.equal(leaderContact(s, DATE, toMin(6, 30)), undefined);
+});
+
+test("夜勤の人は、勤務前の朝の時刻を「翌」として読む（夜勤明けの予定が出る）", () => {
+  const s = state();
+  assert.equal(viewerMinutes(s, DATE, "stf-saito", toMin(6, 30)), toMin(30, 30));
+  assert.equal(viewerMinutes(s, DATE, "stf-sato", toMin(6, 30)), toMin(6, 30));
+  assert.equal(viewerMinutes(s, DATE, "stf-saito", toMin(30, 30)), toMin(30, 30));
+  const d = myDay(s, DATE, "stf-saito", viewerMinutes(s, DATE, "stf-saito", toMin(6, 30)))!;
+  assert.equal(d.focusMode, "now");
+});
+
+test("印刷用の相談先の移り変わり: 早番A → 遅番 → 夜勤東", () => {
+  const s = state();
+  const sched = leaderSchedule(s, DATE, toMin(7), toMin(30));
+  const names = sched.map((x) => x.contact.leader.surname);
+  assert.deepEqual([...new Set(names)], ["佐藤", "木村", "斉藤"]);
+  for (let i = 1; i < sched.length; i++) assert.equal(sched[i - 1].endMin <= sched[i].startMin, true);
 });

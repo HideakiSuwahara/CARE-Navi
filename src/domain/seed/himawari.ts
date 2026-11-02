@@ -197,9 +197,9 @@ const roleSlots: RoleSlot[] = [
 const CAT_CORE = "core";
 const CAT_NONCORE = "noncore";
 // PHS は画面の「困ったら」で、その時刻のリーダーから出す（ここに番号を書くと夜に違う人を指す）
-const LEADER = "きょうのリーダー";
-const CONTACT_CARE = `同じ枠の常勤 ／ ${LEADER}`;
-const CONTACT_NURSE = `看護師 PHS 810 ／ ${LEADER}`;
+const LEADER = "いまのリーダー（画面の上の「困ったら」）";
+const CONTACT_CARE = "一緒に入る常勤の職員";
+const CONTACT_NURSE = "看護師（日中 PHS 810 ／ 夜間はオンコール: 詰所に掲示の番号）";
 
 const TPL_WAKEUP = "tpl-wakeup";
 const TPL_BREAKFAST = "tpl-breakfast";
@@ -246,7 +246,7 @@ const templates: TaskTemplate[] = [
     requiredTags: [],
     place: "各居室",
     scopeNote: "声かけ、着替えと整容の手伝い、食堂までの移動の見守り。",
-    outOfScopeNote: "移乗に不安がある方は一人で行わず、同じ枠の常勤と二人で行います。",
+    outOfScopeNote: "移乗に不安がある方は一人で行わず、近くの職員（夜間はもう一人の夜勤者）と二人で行います。",
     procedure: [
       "部屋の順番表（詰所の壁）に沿って回る",
       "カーテンを開け、名前を呼んで声をかけてから始める",
@@ -267,7 +267,7 @@ const templates: TaskTemplate[] = [
     requiredTags: [],
     place: "食堂",
     scopeNote: "配膳、エプロンの準備、食事中の見守りと声かけ、下膳。",
-    outOfScopeNote: "一口ごとの介助が必要な方は、担当表で決まった職員が行います。むせがあれば手を止めて常勤へ。",
+    outOfScopeNote: "一口ごとの介助が必要な方は、その方ごとに決まった職員が行います（誰かは、いまのリーダーへ）。むせがあれば手を止めて、近くの常勤の職員へ。",
     procedure: [
       "配膳車の名札と席札を照合してから配る",
       "食事中は食堂全体が見える位置に立つ",
@@ -291,7 +291,7 @@ const templates: TaskTemplate[] = [
     procedure: [
       "食事が終わった方から、席のまま行う",
       "名前つきのコップと歯ブラシを配る",
-      "ご自身でできる方は見守り。むせがあればすぐ常勤へ",
+      "ご自身でできる方は見守り。むせがあればすぐ近くの常勤の職員へ",
       "終わった用品はかごに戻し、洗浄して乾燥棚へ",
       "最後に食堂の床を確認（水こぼれ）",
     ],
@@ -431,7 +431,7 @@ const templates: TaskTemplate[] = [
     requiredTags: [],
     place: "食堂",
     scopeNote: "配膳、食事中の見守りと声かけ、下膳。",
-    outOfScopeNote: "一口ごとの介助が必要な方は、担当表で決まった職員が行います。",
+    outOfScopeNote: "一口ごとの介助が必要な方は、その方ごとに決まった職員が行います（誰かは、いまのリーダーへ）。",
     procedure: [
       "配膳車の名札と席札を照合してから配る",
       "食事中は食堂全体が見える位置に立つ",
@@ -467,7 +467,7 @@ const templates: TaskTemplate[] = [
     requiredTags: [],
     place: "食堂",
     scopeNote: "配膳、食事中の見守りと声かけ、下膳。",
-    outOfScopeNote: "一口ごとの介助が必要な方は、担当表で決まった職員が行います。",
+    outOfScopeNote: "一口ごとの介助が必要な方は、その方ごとに決まった職員が行います（誰かは、いまのリーダーへ）。",
     procedure: ["配膳車の名札と席札を照合してから配る", "食事中は食堂全体が見える位置に立つ", "下膳後にテーブルを拭く"],
     supplies: "エプロン・おしぼりは食堂入口のワゴン",
     contact: CONTACT_CARE,
@@ -627,7 +627,7 @@ const templates: TaskTemplate[] = [
     requiredTags: [],
     place: "リネン室",
     scopeNote: "乾いた洗濯物をたたみ、名前ごとに分けて居室へ戻す。",
-    outOfScopeNote: "名前の読めないものは常勤へ。",
+    outOfScopeNote: "名前の読めないものは、近くの常勤の職員へ。",
     procedure: ["名前タグで分ける", "居室のクローゼットの決まった段に戻す"],
     supplies: "たたみ台はリネン室",
     contact: CONTACT_CARE,
@@ -721,8 +721,8 @@ const templates: TaskTemplate[] = [
     defaultDurationMin: 15,
     defaultHeadcount: 2,
     requiredTags: [],
-    place: "玄関・詰所",
-    scopeNote: "一緒の担当（リーダー）と会い、更衣室・トイレ・詰所・非常口を一緒に回る。きょうの予定をスマホで確認する。",
+    place: "玄関（受付簿に記入）→ 詰所",
+    scopeNote: "詰所でリーダーと会い（PHS を受け取るまでは、近くの職員に声をかけてください）、更衣室・トイレ・詰所・非常口を一緒に回る。きょうの予定をスマホで確認する。",
     outOfScopeNote: "この時間は利用者の介助に入りません。案内が終わってから、次の予定へ。",
     procedure: [
       "玄関で受付簿に記入し、リーダーを呼ぶ",

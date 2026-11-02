@@ -17,7 +17,7 @@
 | `Group` | 管理グループ | `name`, `kind: unit/floor/common/other`, `sortOrder` | 「共通」は `kind=common` |
 | `Resident` | 利用者 | `displayName`, `surname`, `groupId`, `room` | 排泄状態・介助方法は持たない |
 | `Staff` | 職員 | `displayName`, `surname`, `role`（自由ラベル）, `tags[]`（担当条件）, `homeGroupId?` | 役職から可否を決めない。`tags` が条件 |
-| `RoleSlot` | 役割枠 | `name`, `defaultStartMin/EndMin`, `groupId?`, `sortOrder` | 早番A・日勤B・介護助手・看護・スポット… |
+| `RoleSlot` | 役割枠 | `name`, `defaultStartMin/EndMin`, `groupId?`, `sortOrder`, `leaderRank?` | 早番A・日勤B・介護助手・看護・スポット…。`leaderRank` はきょうのリーダーを持つ順（1が先、施設が決める）。「困ったら」の相談先に使う（決定記録 0006） |
 | `TaskTemplate` | 業務の型 | `name`, `kind: care/break`, `categoryId?`, `targetMode`, `defaultDurationMin`, `defaultHeadcount`, `requiredTags[]`, `place?`, `scopeNote?`, `outOfScopeNote?`, `procedure[]`, `supplies?`, `contact?` | 定義。当日の予定とは別 |
 | `DayPattern` / `DayPatternItem` | 一日の型 | item: `templateId`, `startMin/endMin`, `groupId?`, `targetRule: allInGroup/residents/none`, `residentIds?`, `headcount`, `slotIds[]` | `slotIds` が役割枠への束ね |
 | `RosterEntry` | 今日の出勤者 | `date`, `staffId`, `slotId?`, `startMin/endMin`, `firstTimer`, `absent` | 役割が時間を与え、個別に直せる。初回は当日の印 |
@@ -103,6 +103,13 @@ UI の「元に戻す」は直近 10 の batchId を対象にする。
 - **時間割の作り方**（`applyPatternEvents` → `splitRoutineTargets`）: 対象の方を、標準どおり → 一括の枠、開始が枠の中 → 一括の枠のまま（`TaskInstance.targetTimes[residentId]` に時刻）、枠の外 → 別の枠（開始時刻ごとにまとめる。同じ `routineId`・同じ番・必要人数は業務の種類の標準）、`skip` → 入れない、に振り分ける。その方だけの行は `extraRowsForDate` から個別の枠（番はその方のグループの番で時刻に合うもの）。
 - **今日を業務表として保存**（`patternFromDay`）は、日課から分かれた枠を残さない（日課ごとに対象の多い枠だけ）。
 - シートの変更は、次に時間割を作るときから入る。当日反映は作り直し（確認つき）。
+
+## 6C. 自分の予定の計算（`src/domain/myday.ts`）
+
+- `viewerMinutes`: 見ている人の業務日の時刻。夜勤の人は勤務前の朝の時刻を「翌」として読む（夜勤明けの予定が出る）。
+- `myDay`: いまの時間の予定（なければ最初の予定・つぎ）、きょうの流れ。過ぎた予定は `past` だけ（完了ではない）。
+- `leaderContact` / `leaderSchedule`: 「困ったら」の相談先と、その一日の移り変わり（決定記録 0006）。
+- `targetLines`: 業務詳細の対象の方。時刻が違う方 → サポートのある方 → 部屋番号の順。サポートは担当の人に勤務時間中だけ（0004 §4）。
 
 ## 6B. 職員表示（分担表）の計算（`src/domain/layout.ts`）
 
