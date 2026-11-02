@@ -15,9 +15,11 @@ import type {
   Group,
   ID,
   Resident,
+  ResidentSheet,
   RoleSlot,
   RosterEntry,
   SeedData,
+  SheetRow,
   Staff,
   TaskInstance,
   TaskTarget,
@@ -239,7 +241,7 @@ const templates: TaskTemplate[] = [
     categoryId: CAT_CORE,
     targetMode: "group",
     defaultDurationMin: 60,
-    defaultHeadcount: 2,
+    defaultHeadcount: 1,
     requiredTags: [],
     place: "各居室",
     scopeNote: "声かけ、着替えと整容の手伝い、食堂までの移動の見守り。",
@@ -789,6 +791,8 @@ interface ItemSpec {
   slots: ID[];
   hc: number;
   residents?: ID[];
+  /** 施設の日課（利用者全員にかかわる業務）の印。業務表が違っても同じ日課は同じ ID */
+  rt?: string;
 }
 
 /** targetRule は型の targetMode から決める（residents 指定があれば residents） */
@@ -806,6 +810,7 @@ const item = (spec: ItemSpec): DayPatternItem => {
     ...(spec.residents ? { residentIds: spec.residents } : {}),
     headcount: spec.hc,
     slotIds: spec.slots,
+    ...(spec.rt ? { routineId: spec.rt } : {}),
   };
 };
 
@@ -820,8 +825,9 @@ const item = (spec: ItemSpec): DayPatternItem => {
  */
 const dayCommon = (bathDay: boolean): ItemSpec[] => [
   { id: "handover-am", tpl: TPL_HANDOVER, start: t(7), end: t(7, 30), group: GRP_COMMON, slots: [SLOT_HAYABAN_A, SLOT_HAYABAN_B], hc: 2 },
-  { id: "wakeup-east", tpl: TPL_WAKEUP, start: t(7, 30), end: t(8), group: GRP_EAST, slots: [SLOT_HAYABAN_A, SLOT_HAYABAN_B], hc: 2 },
-  { id: "breakfast-east", tpl: TPL_BREAKFAST, start: t(8), end: t(9), group: GRP_EAST, slots: [SLOT_HAYABAN_A, SLOT_HAYABAN_B], hc: 2 },
+  // 東の起床介助は夜勤東が 6:00–7:00 に行う（夜勤帯の枠）。早番は朝食の食堂準備から
+  { id: "dining-prep-am", tpl: TPL_DINING_PREP, start: t(7, 30), end: t(8), group: GRP_EAST, slots: [SLOT_HAYABAN_A, SLOT_HAYABAN_B], hc: 2 },
+  { id: "breakfast-east", tpl: TPL_BREAKFAST, start: t(8), end: t(9), group: GRP_EAST, slots: [SLOT_HAYABAN_A, SLOT_HAYABAN_B], hc: 2, rt: "rt-breakfast-east" },
   // 見守り（東）
   { id: "watch-east-1", tpl: TPL_WATCH, start: t(9), end: t(11), group: GRP_EAST, slots: [SLOT_HAYABAN_A], hc: 1 },
   { id: "watch-east-2", tpl: TPL_WATCH, start: t(11), end: t(13), group: GRP_EAST, slots: [SLOT_OSOBAN], hc: 1 },
@@ -846,24 +852,24 @@ const dayCommon = (bathDay: boolean): ItemSpec[] => [
   { id: "linen", tpl: TPL_LINEN, start: t(9, 30), end: t(10), group: GRP_COMMON, slots: [SLOT_JOSHU], hc: 1 },
   bathDay
     ? { id: "diaper-east-am", tpl: TPL_DIAPER, start: t(10), end: t(10, 30), group: GRP_EAST, slots: [SLOT_NIKKIN_A, SLOT_NIKKIN_C], hc: 2 }
-    : { id: "diaper-east-am", tpl: TPL_DIAPER, start: t(10), end: t(10, 30), group: GRP_EAST, slots: [SLOT_NIKKIN_A, SLOT_NIKKIN_B, SLOT_NIKKIN_C], hc: 3 },
+    : { id: "diaper-east-am", tpl: TPL_DIAPER, start: t(10), end: t(10, 30), group: GRP_EAST, slots: [SLOT_NIKKIN_A, SLOT_NIKKIN_B, SLOT_NIKKIN_C], hc: 3, rt: "rt-diaper-east-am" },
   { id: "break-1", tpl: TPL_BREAK_1, start: t(11), end: t(12), group: GRP_COMMON, slots: [SLOT_HAYABAN_B, SLOT_NIKKIN_B], hc: 2 },
   { id: "dining-prep", tpl: TPL_DINING_PREP, start: t(11, 30), end: t(12), group: GRP_COMMON, slots: [SLOT_HAYABAN_A], hc: 1 },
   // 昼
-  { id: "lunch-east", tpl: TPL_LUNCH, start: t(12), end: t(13), group: GRP_EAST, slots: [SLOT_HAYABAN_A, SLOT_HAYABAN_B, SLOT_NIKKIN_A, SLOT_NIKKIN_B], hc: 4 },
-  { id: "lunch-sakura", tpl: TPL_LUNCH, start: t(12), end: t(13), group: GRP_SAKURA, slots: [SLOT_NIKKIN_SAKURA, SLOT_NIKKIN_C], hc: 2 },
+  { id: "lunch-east", tpl: TPL_LUNCH, start: t(12), end: t(13), group: GRP_EAST, slots: [SLOT_HAYABAN_A, SLOT_HAYABAN_B, SLOT_NIKKIN_A, SLOT_NIKKIN_B], hc: 4, rt: "rt-lunch-east" },
+  { id: "lunch-sakura", tpl: TPL_LUNCH, start: t(12), end: t(13), group: GRP_SAKURA, slots: [SLOT_NIKKIN_SAKURA, SLOT_NIKKIN_C], hc: 2, rt: "rt-lunch-sakura" },
   { id: "restock", tpl: TPL_RESTOCK, start: t(12), end: t(12, 30), group: GRP_COMMON, slots: [SLOT_JOSHU], hc: 1 },
   // 午後
   { id: "spot-arrival", tpl: TPL_ARRIVAL, start: t(13), end: t(13, 15), group: GRP_COMMON, slots: [SLOT_SPOT_PM, SLOT_HAYABAN_A], hc: 2 },
-  { id: "oral-east-pm", tpl: TPL_ORAL, start: t(13, 15), end: t(14), group: GRP_EAST, slots: [SLOT_SPOT_PM, SLOT_HAYABAN_A], hc: 2 },
-  { id: "oral-sakura-pm", tpl: TPL_ORAL, start: t(13), end: t(13, 30), group: GRP_SAKURA, slots: [SLOT_NIKKIN_SAKURA], hc: 1 },
+  { id: "oral-east-pm", tpl: TPL_ORAL, start: t(13, 15), end: t(14), group: GRP_EAST, slots: [SLOT_SPOT_PM, SLOT_HAYABAN_A], hc: 2, rt: "rt-oral-east" },
+  { id: "oral-sakura-pm", tpl: TPL_ORAL, start: t(13), end: t(13, 30), group: GRP_SAKURA, slots: [SLOT_NIKKIN_SAKURA], hc: 1, rt: "rt-oral-sakura" },
   { id: "break-2", tpl: TPL_BREAK_2, start: t(13), end: t(14), group: GRP_COMMON, slots: [SLOT_NIKKIN_A, SLOT_NIKKIN_C, SLOT_OSOBAN], hc: 3 },
   { id: "break-3", tpl: TPL_BREAK_3, start: t(14), end: t(15), group: GRP_COMMON, slots: [SLOT_HAYABAN_A, SLOT_NIKKIN_SAKURA], hc: 2 },
   { id: "snack-prep", tpl: TPL_SNACK_PREP, start: t(14, 30), end: t(15), group: GRP_COMMON, slots: [SLOT_NIKKIN_A], hc: 1 },
-  { id: "snack-east", tpl: TPL_SNACK, start: t(15), end: t(15, 30), group: GRP_EAST, slots: [SLOT_HAYABAN_A, SLOT_HAYABAN_B, SLOT_SPOT_PM], hc: 3 },
-  { id: "snack-sakura", tpl: TPL_SNACK, start: t(15), end: t(15, 30), group: GRP_SAKURA, slots: [SLOT_NIKKIN_SAKURA], hc: 1 },
-  { id: "hydration-east", tpl: TPL_HYDRATION, start: t(15, 30), end: t(16), group: GRP_EAST, slots: [SLOT_SPOT_PM, SLOT_HAYABAN_B], hc: 2 },
-  { id: "diaper-east-pm", tpl: TPL_DIAPER, start: t(16), end: t(16, 30), group: GRP_EAST, slots: [SLOT_OSOBAN, SLOT_SPOT_PM], hc: 2 },
+  { id: "snack-east", tpl: TPL_SNACK, start: t(15), end: t(15, 30), group: GRP_EAST, slots: [SLOT_HAYABAN_A, SLOT_HAYABAN_B, SLOT_SPOT_PM], hc: 3, rt: "rt-snack-east" },
+  { id: "snack-sakura", tpl: TPL_SNACK, start: t(15), end: t(15, 30), group: GRP_SAKURA, slots: [SLOT_NIKKIN_SAKURA], hc: 1, rt: "rt-snack-sakura" },
+  { id: "hydration-east", tpl: TPL_HYDRATION, start: t(15, 30), end: t(16), group: GRP_EAST, slots: [SLOT_SPOT_PM, SLOT_HAYABAN_B], hc: 2, rt: "rt-hydration-east" },
+  { id: "diaper-east-pm", tpl: TPL_DIAPER, start: t(16), end: t(16, 30), group: GRP_EAST, slots: [SLOT_OSOBAN, SLOT_SPOT_PM], hc: 2, rt: "rt-diaper-east-pm" },
   { id: "restock-pm", tpl: TPL_RESTOCK, start: t(16, 30), end: t(17), group: GRP_COMMON, slots: [SLOT_OSOBAN, SLOT_SPOT_PM], hc: 2 },
   { id: "toilet-tanaka-pm", tpl: TPL_TOILET, start: t(16), end: t(16, 30), group: GRP_SAKURA, slots: [SLOT_NIKKIN_B], hc: 1, residents: [RES_TANAKA] },
   // 日勤→夜勤の申し送りと、その間の見守り
@@ -876,31 +882,31 @@ const dayCommon = (bathDay: boolean): ItemSpec[] => [
 
 /** 夕方〜夜勤帯（全パターン共通） */
 const nightCommon: ItemSpec[] = [
-  { id: "dinner-east", tpl: TPL_DINNER, start: t(18), end: t(19), group: GRP_EAST, slots: [SLOT_OSOBAN, SLOT_YAKIN_EAST], hc: 2 },
-  { id: "dinner-sakura", tpl: TPL_DINNER, start: t(18), end: t(19), group: GRP_SAKURA, slots: [SLOT_YAKIN_SAKURA], hc: 1 },
-  { id: "bedtime-east", tpl: TPL_BEDTIME, start: t(20), end: t(21), group: GRP_EAST, slots: [SLOT_YAKIN_EAST], hc: 1 },
-  { id: "bedtime-sakura", tpl: TPL_BEDTIME, start: t(20), end: t(21), group: GRP_SAKURA, slots: [SLOT_YAKIN_SAKURA], hc: 1 },
-  { id: "rounds-east-22", tpl: TPL_ROUNDS, start: t(22), end: t(22, 30), group: GRP_EAST, slots: [SLOT_YAKIN_EAST], hc: 1 },
-  { id: "rounds-sakura-22", tpl: TPL_ROUNDS, start: t(22), end: t(22, 30), group: GRP_SAKURA, slots: [SLOT_YAKIN_SAKURA], hc: 1 },
-  { id: "rounds-east-00", tpl: TPL_ROUNDS, start: nx(0), end: nx(0, 30), group: GRP_EAST, slots: [SLOT_YAKIN_EAST], hc: 1 },
-  { id: "rounds-sakura-00", tpl: TPL_ROUNDS, start: nx(0), end: nx(0, 30), group: GRP_SAKURA, slots: [SLOT_YAKIN_SAKURA], hc: 1 },
+  { id: "dinner-east", tpl: TPL_DINNER, start: t(18), end: t(19), group: GRP_EAST, slots: [SLOT_OSOBAN, SLOT_YAKIN_EAST], hc: 2, rt: "rt-dinner-east" },
+  { id: "dinner-sakura", tpl: TPL_DINNER, start: t(18), end: t(19), group: GRP_SAKURA, slots: [SLOT_YAKIN_SAKURA], hc: 1, rt: "rt-dinner-sakura" },
+  { id: "bedtime-east", tpl: TPL_BEDTIME, start: t(20), end: t(21), group: GRP_EAST, slots: [SLOT_YAKIN_EAST], hc: 1, rt: "rt-bedtime-east" },
+  { id: "bedtime-sakura", tpl: TPL_BEDTIME, start: t(20), end: t(21), group: GRP_SAKURA, slots: [SLOT_YAKIN_SAKURA], hc: 1, rt: "rt-bedtime-sakura" },
+  { id: "rounds-east-22", tpl: TPL_ROUNDS, start: t(22), end: t(22, 30), group: GRP_EAST, slots: [SLOT_YAKIN_EAST], hc: 1, rt: "rt-rounds-east-22" },
+  { id: "rounds-sakura-22", tpl: TPL_ROUNDS, start: t(22), end: t(22, 30), group: GRP_SAKURA, slots: [SLOT_YAKIN_SAKURA], hc: 1, rt: "rt-rounds-sakura-22" },
+  { id: "rounds-east-00", tpl: TPL_ROUNDS, start: nx(0), end: nx(0, 30), group: GRP_EAST, slots: [SLOT_YAKIN_EAST], hc: 1, rt: "rt-rounds-east-00" },
+  { id: "rounds-sakura-00", tpl: TPL_ROUNDS, start: nx(0), end: nx(0, 30), group: GRP_SAKURA, slots: [SLOT_YAKIN_SAKURA], hc: 1, rt: "rt-rounds-sakura-00" },
   { id: "reposition-east-01", tpl: TPL_REPOSITION, start: nx(1), end: nx(1, 30), group: GRP_EAST, slots: [SLOT_YAKIN_EAST], hc: 1, residents: REPOSITION_EAST },
   { id: "reposition-sakura-01", tpl: TPL_REPOSITION, start: nx(1), end: nx(1, 30), group: GRP_SAKURA, slots: [SLOT_YAKIN_SAKURA], hc: 1, residents: REPOSITION_SAKURA },
   // 夜勤の休憩は交互。休憩中のユニットの巡視は、もう一人の夜勤者が行う。
   { id: "break-night-east", tpl: TPL_BREAK_NIGHT, start: nx(1, 30), end: nx(2, 30), group: GRP_COMMON, slots: [SLOT_YAKIN_EAST], hc: 1 },
-  { id: "rounds-sakura-0130", tpl: TPL_ROUNDS, start: nx(1, 30), end: nx(2), group: GRP_SAKURA, slots: [SLOT_YAKIN_SAKURA], hc: 1 },
-  { id: "rounds-east-02", tpl: TPL_ROUNDS, start: nx(2), end: nx(2, 30), group: GRP_EAST, slots: [SLOT_YAKIN_SAKURA], hc: 1 },
+  { id: "rounds-sakura-0130", tpl: TPL_ROUNDS, start: nx(1, 30), end: nx(2), group: GRP_SAKURA, slots: [SLOT_YAKIN_SAKURA], hc: 1, rt: "rt-rounds-sakura-0130" },
+  { id: "rounds-east-02", tpl: TPL_ROUNDS, start: nx(2), end: nx(2, 30), group: GRP_EAST, slots: [SLOT_YAKIN_SAKURA], hc: 1, rt: "rt-rounds-east-02" },
   { id: "reposition-sakura-0230", tpl: TPL_REPOSITION, start: nx(2, 30), end: nx(3), group: GRP_SAKURA, slots: [SLOT_YAKIN_SAKURA], hc: 1, residents: REPOSITION_SAKURA },
   { id: "break-night-sakura", tpl: TPL_BREAK_NIGHT, start: nx(3), end: nx(4), group: GRP_COMMON, slots: [SLOT_YAKIN_SAKURA], hc: 1 },
   { id: "reposition-east-03", tpl: TPL_REPOSITION, start: nx(3), end: nx(3, 30), group: GRP_EAST, slots: [SLOT_YAKIN_EAST], hc: 1, residents: REPOSITION_EAST },
-  { id: "rounds-sakura-0330", tpl: TPL_ROUNDS, start: nx(3, 30), end: nx(4), group: GRP_SAKURA, slots: [SLOT_YAKIN_EAST], hc: 1 },
-  { id: "rounds-east-04", tpl: TPL_ROUNDS, start: nx(4), end: nx(4, 30), group: GRP_EAST, slots: [SLOT_YAKIN_EAST], hc: 1 },
-  { id: "rounds-sakura-04", tpl: TPL_ROUNDS, start: nx(4), end: nx(4, 30), group: GRP_SAKURA, slots: [SLOT_YAKIN_SAKURA], hc: 1 },
-  { id: "diaper-east-night", tpl: TPL_DIAPER, start: nx(5), end: nx(6), group: GRP_EAST, slots: [SLOT_YAKIN_EAST], hc: 1 },
-  { id: "diaper-sakura-night", tpl: TPL_DIAPER, start: nx(5), end: nx(6), group: GRP_SAKURA, slots: [SLOT_YAKIN_SAKURA], hc: 1 },
-  { id: "wakeup-east-night", tpl: TPL_WAKEUP, start: nx(6), end: nx(7), group: GRP_EAST, slots: [SLOT_YAKIN_EAST], hc: 1 },
-  { id: "wakeup-sakura-night", tpl: TPL_WAKEUP, start: nx(6), end: nx(7), group: GRP_SAKURA, slots: [SLOT_YAKIN_SAKURA], hc: 1 },
-  { id: "breakfast-sakura-night", tpl: TPL_BREAKFAST, start: nx(7, 30), end: nx(8, 30), group: GRP_SAKURA, slots: [SLOT_YAKIN_SAKURA], hc: 1 },
+  { id: "rounds-sakura-0330", tpl: TPL_ROUNDS, start: nx(3, 30), end: nx(4), group: GRP_SAKURA, slots: [SLOT_YAKIN_EAST], hc: 1, rt: "rt-rounds-sakura-0330" },
+  { id: "rounds-east-04", tpl: TPL_ROUNDS, start: nx(4), end: nx(4, 30), group: GRP_EAST, slots: [SLOT_YAKIN_EAST], hc: 1, rt: "rt-rounds-east-04" },
+  { id: "rounds-sakura-04", tpl: TPL_ROUNDS, start: nx(4), end: nx(4, 30), group: GRP_SAKURA, slots: [SLOT_YAKIN_SAKURA], hc: 1, rt: "rt-rounds-sakura-04" },
+  { id: "diaper-east-night", tpl: TPL_DIAPER, start: nx(5), end: nx(6), group: GRP_EAST, slots: [SLOT_YAKIN_EAST], hc: 1, rt: "rt-diaper-east-early" },
+  { id: "diaper-sakura-night", tpl: TPL_DIAPER, start: nx(5), end: nx(6), group: GRP_SAKURA, slots: [SLOT_YAKIN_SAKURA], hc: 1, rt: "rt-diaper-sakura-early" },
+  { id: "wakeup-east-night", tpl: TPL_WAKEUP, start: nx(6), end: nx(7), group: GRP_EAST, slots: [SLOT_YAKIN_EAST], hc: 1, rt: "rt-wake-east" },
+  { id: "wakeup-sakura-night", tpl: TPL_WAKEUP, start: nx(6), end: nx(7), group: GRP_SAKURA, slots: [SLOT_YAKIN_SAKURA], hc: 1, rt: "rt-wake-sakura" },
+  { id: "breakfast-sakura-night", tpl: TPL_BREAKFAST, start: nx(7, 30), end: nx(8, 30), group: GRP_SAKURA, slots: [SLOT_YAKIN_SAKURA], hc: 1, rt: "rt-breakfast-sakura" },
   { id: "handover-night", tpl: TPL_HANDOVER, start: nx(8, 30), end: nx(9), group: GRP_COMMON, slots: [SLOT_YAKIN_EAST, SLOT_YAKIN_SAKURA], hc: 2 },
 ];
 
@@ -1059,6 +1065,334 @@ const extraTasks: TaskInstance[] = [
 const extraTargets: TaskTarget[] = [{ taskId: TASK_VISIT_MATSUMOTO, residentId: RES_MATSUMOTO }];
 
 // ---------------------------------------------------------------------------
+// 利用者の24時間シート（決定記録 0004）
+// 施設の日課との違い（時刻の変更・この方はなし・その方だけの行）と、4つの項目だけを持つ。
+// 書かない日課は標準どおり。医療的な判断・疾患・排泄の状態・採用品は書かない。
+// ---------------------------------------------------------------------------
+
+interface RowText {
+  rhythm?: string;
+  preference?: string;
+  canDo?: string;
+  support?: string;
+}
+
+/** 施設の日課への行（時刻を変えるときは at / until、この方はなしは skip） */
+const rr = (
+  room: string,
+  routineId: string,
+  text: RowText,
+  opts: { at?: number; until?: number; skip?: boolean } = {},
+): SheetRow => ({
+  id: `sh-${room}-${routineId.replace(/^rt-/, "")}`,
+  routineId,
+  ...(opts.at !== undefined ? { startMin: opts.at } : {}),
+  ...(opts.until !== undefined ? { endMin: opts.until } : {}),
+  ...(opts.skip ? { skip: true } : {}),
+  ...text,
+});
+
+/** その方だけの行（業務の種類なし＝参考の行。枠は作らない） */
+const own = (room: string, key: string, label: string, at: number, until: number, text: RowText): SheetRow => ({
+  id: `sh-${room}-${key}`,
+  label,
+  startMin: at,
+  endMin: until,
+  ...text,
+});
+
+const SHEET_UPDATED = "2026-10-20T10:00:00+09:00";
+const sheet = (residentId: ID, rows: SheetRow[]): ResidentSheet => ({ residentId, rows, updatedAt: SHEET_UPDATED });
+
+const sheets: ResidentSheet[] = [
+  // ---- さくらユニット（10人）: 生活の流れを一人ずつ ----
+  sheet("res-201-nishimura", [
+    rr("201", "rt-wake-sakura", {
+      rhythm: "6時ごろ自然に目が覚め、しばらく布団で過ごす",
+      preference: "起きたらまず窓を開けて外の様子を見たい",
+      canDo: "上着の着替えはご自身で。ボタンも留められる",
+      support: "靴下をはくときに手を添え、ふらつきに気を配る",
+    }),
+    rr("201", "rt-lunch-sakura", {
+      rhythm: "昼食はユニットの台所に近い席でゆっくり食べる",
+      preference: "汁物は温かいうちに。ご飯は少なめが好み",
+      canDo: "箸を使って一人で食べられる",
+      support: "食べ終わる時間がかかるので、急かさず声をかける",
+    }),
+    rr("201", "rt-bedtime-sakura", {
+      rhythm: "夕食後は居間でテレビを見て、8時ごろ部屋へ",
+      preference: "寝る前に家族の写真を枕元に置きたい",
+      canDo: "寝衣への着替えはほとんどご自身で",
+      support: "ベッドに入るまでそばにいて、灯りは足元だけ残す",
+    }),
+  ]),
+  sheet("res-202-fukuda", [
+    rr("202", "rt-wake-sakura", {
+      rhythm: "早起きで、6時前には目が覚めていることが多い",
+      preference: "起きたらすぐ温かいお茶を一杯飲みたい",
+      canDo: "顔を洗う・ひげをそるはご自身で",
+      support: "洗面台まで歩くときに、少し後ろで見守る",
+    }),
+    rr("202", "rt-breakfast-sakura", {
+      rhythm: "朝食は新聞を読み終えてから、と決めている",
+      preference: "パンよりご飯。味噌汁があるとうれしい",
+      canDo: "配膳されたものはご自身で食べられる",
+      support: "おかずの位置を声で伝えると食べやすい",
+    }),
+    own("202", "newspaper", "新聞を読む", t(10), t(10, 30), {
+      rhythm: "10時ごろ、居間の窓ぎわで新聞を読む",
+      preference: "決まった椅子で、静かに読みたい",
+      canDo: "新聞をめくって読むのはご自身で",
+      support: "新聞を手の届く所に置き、眼鏡の置き場を確かめる",
+    }),
+    own("202", "flowers", "ユニットの花の水やり", t(14), t(14, 30), {
+      rhythm: "14時ごろ、ユニットの鉢植えに水をやるのが日課",
+      preference: "花の様子を職員と話すのが楽しみ",
+      canDo: "じょうろで水をやるのはご自身で",
+      support: "じょうろの水は半分ほどにし、床がぬれたら拭く",
+    }),
+    rr("202", "rt-bedtime-sakura", {
+      rhythm: "夜は早めに休み、8時には部屋に戻る",
+      preference: "部屋は暗く、ドアは少し開けておきたい",
+      canDo: "着替えとベッドへの移動はご自身で",
+      support: "寝る前にナースコールの位置を一緒に確かめる",
+    }),
+  ]),
+  sheet("res-203-tanaka", [
+    // 起床をゆっくりに（枠の外: 6:00–7:00 の外。7:00–7:30 の別の枠になる。朝食は 7:30 から）
+    rr(
+      "203",
+      "rt-wake-sakura",
+      {
+        rhythm: "朝はゆっくり。7時ごろまで布団で過ごしたい",
+        preference: "起こすときは名前を呼び、カーテンは少しずつ",
+        canDo: "目が覚めたら、ご自身で起き上がろうとされる",
+        support: "起き上がるときは手すりのそばで、ゆっくり待つ",
+      },
+      { at: nx(7), until: nx(7, 30) },
+    ),
+    rr("203", "rt-breakfast-sakura", {
+      rhythm: "起きてすぐの朝食は少なめ。時間をかけて食べる",
+      preference: "朝は温かい飲み物から始めたい",
+      canDo: "スプーンを使って、ご自身で食べられる",
+      support: "食べ始めるまで少しそばにいて、声をかける",
+    }),
+    rr("203", "rt-snack-sakura", {
+      rhythm: "おやつの時間は居間でほかの方と過ごす",
+      preference: "甘いものが好き。お茶は熱すぎないもの",
+      canDo: "湯のみを両手で持って飲める",
+      support: "席を立つときは、職員が来るまで待ってもらう",
+    }),
+    rr("203", "rt-bedtime-sakura", {
+      rhythm: "夕食後は少し休んでから、8時ごろ部屋へ",
+      preference: "寝る前にラジオを小さく流したい",
+      canDo: "ラジオのスイッチはご自身で入れる",
+      support: "ベッドへ移るときは二人で。一人で始めない",
+    }),
+  ]),
+  sheet("res-204-ota", [
+    rr("204", "rt-wake-sakura", {
+      rhythm: "6時半ごろに起き、身支度に時間をかける",
+      preference: "髪をとかしてから部屋を出たい",
+      canDo: "髪をとかす・顔を拭くはご自身で",
+      support: "鏡の前の椅子に座ってもらってから始める",
+    }),
+    rr("204", "rt-lunch-sakura", {
+      rhythm: "昼食は同じテーブルの方と話しながら食べる",
+      preference: "魚料理が好き。量は普通",
+      canDo: "箸とスプーンを使い分けて食べられる",
+      support: "途中で手が止まったら、ひと声かける",
+    }),
+    rr("204", "rt-oral-sakura", {
+      rhythm: "昼食後はすぐに歯をみがきたい",
+      preference: "洗面台で、立ってみがくのが好み",
+      canDo: "歯みがきはご自身で最後まで",
+      support: "立っている間はそばで見守り、椅子を近くに置く",
+    }),
+    rr("204", "rt-bedtime-sakura", {
+      rhythm: "夜は8時過ぎに部屋へ。寝る前に日記を書く",
+      preference: "日記を書く間は一人にしてほしい",
+      canDo: "日記・着替えはご自身で",
+      support: "書き終えたころに声をかけ、灯りを落とす",
+    }),
+  ]),
+  sheet("res-205-kobayashi", [
+    // 起床を少し遅く（枠の中: 6:00–7:00 の一括の枠のまま、詳細に 6:30 と出る）
+    rr(
+      "205",
+      "rt-wake-sakura",
+      {
+        rhythm: "6時半ごろに声をかけると、気持ちよく起きられる",
+        preference: "起きたらまずラジオ体操の音楽を聞きたい",
+        canDo: "手の届く範囲の着替えはご自身で",
+        support: "ズボンをはくときは座ってもらい、足元を手伝う",
+      },
+      { at: nx(6, 30) },
+    ),
+    rr("205", "rt-breakfast-sakura", {
+      rhythm: "朝食はしっかり食べる。ご飯はおかわりしたい",
+      preference: "漬物があるとうれしい",
+      canDo: "ご自身で食べられる。食器の片付けも手伝える",
+      support: "食器を運ぶときは、ふらつきに気を配る",
+    }),
+    rr("205", "rt-snack-sakura", {
+      rhythm: "おやつの後に、居間で将棋の本を読む",
+      preference: "おやつは和菓子が好み",
+      canDo: "お茶を自分でついで飲める",
+      support: "ポットのお湯は職員がついで、熱さを伝える",
+    }),
+    rr("205", "rt-bedtime-sakura", {
+      rhythm: "夜は8時ごろ部屋に戻り、すぐに休む",
+      preference: "窓のカーテンはきっちり閉めたい",
+      canDo: "上着を脱ぐ・寝衣を着るはご自身で",
+      support: "ベッドに座るまでそばにいて、手すりを持ってもらう",
+    }),
+  ]),
+  sheet("res-206-miura", [
+    rr("206", "rt-wake-sakura", {
+      rhythm: "起きる時間は日によって違い、6時台に起きる",
+      preference: "起こすときは静かな声で、ゆっくりと",
+      canDo: "寝返りと起き上がりはご自身で",
+      support: "起きた直後はベッドに座って少し休んでもらう",
+    }),
+    rr("206", "rt-lunch-sakura", {
+      rhythm: "昼食は窓ぎわの明るい席で食べたい",
+      preference: "野菜の煮物が好き。冷たい物は苦手",
+      canDo: "スプーンを使って、ご自身で食べられる",
+      support: "器を手の届く位置に寄せ、食べ始めを見守る",
+    }),
+    rr("206", "rt-dinner-sakura", {
+      rhythm: "夕食は早めに済ませて、部屋でゆっくりしたい",
+      preference: "夕食は少なめでよい",
+      canDo: "食べ終えた食器をトレーにまとめられる",
+      support: "部屋へ戻るときは廊下を一緒に歩く",
+    }),
+  ]),
+  sheet("res-207-okamoto", [
+    rr("207", "rt-wake-sakura", {
+      rhythm: "6時ごろ起き、着替えてから居間に出る",
+      preference: "服は前の晩に自分で選んでおきたい",
+      canDo: "服を選ぶ・着替えるはご自身で",
+      support: "選んだ服が季節に合っているか一緒に見る",
+    }),
+    rr("207", "rt-snack-sakura", {
+      rhythm: "おやつの時間に、ほかの方とお茶を入れるのが好き",
+      preference: "みんなの湯のみを並べる役をしたい",
+      canDo: "湯のみを並べる・台ふきで拭くはご自身で",
+      support: "お湯をつぐところだけ職員が行う",
+    }),
+    rr("207", "rt-dinner-sakura", {
+      rhythm: "夕食はみんなと一緒に食べ、会話を楽しむ",
+      preference: "ご飯は柔らかめが好み",
+      canDo: "ご自身で食べ、下膳も手伝える",
+      support: "食後に席を立つとき、椅子を引いて手伝う",
+    }),
+    rr("207", "rt-bedtime-sakura", {
+      rhythm: "夜は8時ごろ部屋へ。翌日の服を選んで休む",
+      preference: "部屋の灯りは小さくつけておきたい",
+      canDo: "着替えとベッドに入るのはご自身で",
+      support: "服を選び終えたころに声をかけ、灯りを確かめる",
+    }),
+  ]),
+  sheet("res-208-matsuda", [
+    rr("208", "rt-wake-sakura", {
+      rhythm: "6時台に起き、まず窓ぎわで外を眺める",
+      preference: "朝は口数が少なめ。静かに過ごしたい",
+      canDo: "起き上がりと着替えはご自身で",
+      support: "居間へ移るときに、歩く速さに合わせて付き添う",
+    }),
+    rr("208", "rt-lunch-sakura", {
+      rhythm: "昼食はテレビのニュースを見ながら食べたい",
+      preference: "麺類が好き。量は多め",
+      canDo: "箸を使ってご自身で食べられる",
+      support: "テレビの音は小さめにし、食事に戻れるよう声をかける",
+    }),
+    // 就寝を遅く（枠の外: 20:00–21:00 の外。21:30–22:00 の別の枠になる）
+    rr(
+      "208",
+      "rt-bedtime-sakura",
+      {
+        rhythm: "夜はテレビの時代劇を見終えてから、21時半ごろ休む",
+        preference: "番組の最後まで見たい。途中で切り上げない",
+        canDo: "テレビの操作と寝衣への着替えはご自身で",
+        support: "番組が終わるころに声をかけ、部屋まで一緒に歩く",
+      },
+      { at: t(21, 30), until: t(22) },
+    ),
+  ]),
+  sheet("res-209-nakajima", [
+    rr("209", "rt-wake-sakura", {
+      rhythm: "6時ごろ起き、仏壇に手を合わせてから部屋を出る",
+      preference: "朝のお参りの時間を大切にしたい",
+      canDo: "お参り・身だしなみはご自身で",
+      support: "お参りが終わるまで待ち、急かさない",
+    }),
+    rr("209", "rt-breakfast-sakura", {
+      rhythm: "朝食はゆっくり。お茶を何杯か飲む",
+      preference: "お茶は濃いめが好き",
+      canDo: "ご自身で食べ、湯のみも持てる",
+      support: "お茶のおかわりを声をかけて聞く",
+    }),
+    rr("209", "rt-snack-sakura", {
+      rhythm: "おやつの後に、居間で歌の番組を見る",
+      preference: "昔の歌を一緒に口ずさむのが好き",
+      canDo: "歌詞の本を見ながら一緒に歌える",
+      support: "居間の席まで一緒に歩き、座るまで見守る",
+    }),
+    rr("209", "rt-bedtime-sakura", {
+      rhythm: "8時ごろ、仏壇に手を合わせてから休む",
+      preference: "夜のお参りも欠かさずしたい",
+      canDo: "着替えはほとんどご自身で",
+      support: "お参りの後、ベッドまで足元を照らして付き添う",
+    }),
+  ]),
+  sheet("res-210-harada", [
+    rr("210", "rt-wake-sakura", {
+      rhythm: "6時ごろ起き、ひげをそってから居間に出る",
+      preference: "ひげそりは毎朝欠かさずしたい",
+      canDo: "電気かみそりでのひげそりはご自身で",
+      support: "かみそりの置き場を決めておき、使った後に戻す",
+    }),
+    rr("210", "rt-lunch-sakura", {
+      rhythm: "昼食の前に、台所のお手伝いをするのが好き",
+      preference: "テーブルを拭く役を任されたい",
+      canDo: "テーブル拭き・箸並べはご自身で",
+      support: "手伝いの後に手を洗えるよう、洗面台まで案内する",
+    }),
+    rr("210", "rt-dinner-sakura", {
+      rhythm: "夕食は決まった席で、ゆっくり食べる",
+      preference: "肉料理が好き。味は濃いめが好み",
+      canDo: "ご自身で食べられる",
+      support: "食後は居間のソファまで一緒に歩く",
+    }),
+    rr("210", "rt-bedtime-sakura", {
+      rhythm: "夜は8時ごろ部屋に戻り、少し本を読んで休む",
+      preference: "枕元の灯りで本を読みたい",
+      canDo: "本を読む・灯りを消すはご自身で",
+      support: "ベッドに座るまで見守り、灯りの位置を確かめる",
+    }),
+  ]),
+
+  // ---- 東フロア（20人）: ほとんど標準どおり。違うところだけ ----
+  // 起床を少し遅く（枠の中: 6:00–7:00 の一括の枠のまま、詳細に 6:30 と出る）
+  sheet("res-108-ishikawa", [
+    rr("108", "rt-wake-east", { support: "起き上がるときは手すりのそばで、ゆっくり待つ" }, { at: nx(6, 30) }),
+  ]),
+  // 就寝を遅く（枠の外: 20:00–21:00 の外。21:00–22:00 の別の枠になる）
+  sheet("res-115-kondo", [
+    rr("115", "rt-bedtime-east", { rhythm: "夜はホールでテレビのニュースを見てから休む" }, { at: t(21) }),
+  ]),
+  // 昼の口腔ケアはなし（昼食後に居室の洗面台でご自身で行う）
+  sheet("res-112-goto", [
+    rr("112", "rt-oral-east", { canDo: "昼食後の歯みがきは、居室の洗面台でご自身で" }, { skip: true }),
+  ]),
+  sheet("res-103-inoue", [rr("103", "rt-lunch-east", { support: "食べ始めるまでそばにいて、ひと声かける" })]),
+  sheet("res-106-ikeda", [rr("106", "rt-wake-east", { support: "着替えは座ってもらってから、足元を手伝う" })]),
+  sheet("res-113-hasegawa", [rr("113", "rt-snack-east", { support: "席を立つときは、職員が来るまで待ってもらう" })]),
+  sheet("res-118-endo", [rr("118", "rt-bedtime-east", { support: "ナースコールを手の届く所に置き、一緒に確かめる" })]),
+];
+
+// ---------------------------------------------------------------------------
 // まとめ
 // ---------------------------------------------------------------------------
 
@@ -1087,6 +1421,7 @@ export const himawariSeed: SeedData = {
   roster,
   extraTasks,
   extraTargets,
+  sheets,
   dayPatterns: [
     { date: D1, patternId: PAT_BATH_DAY },
     { date: D2, patternId: PAT_WEEKDAY },

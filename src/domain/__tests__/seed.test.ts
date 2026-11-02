@@ -70,3 +70,19 @@ test("ひまわり苑: 禁止している表現をデータに含まない", () 
     assert.ok(!text.includes(ng), `禁止語: ${ng}`);
   }
 });
+
+test("ひまわり苑 11/3: 24時間シートで分かれた枠は同じ番の人が担当、どの方も一つの日課につき一つの枠だけ", () => {
+  const s = stateFromSeed(himawariSeed, deterministicContext("h"));
+  const tasks = tasksForDate(s, DATE).filter((t) => t.routineId);
+  const tanaka = tasks.find((t) => t.routineId === "rt-wake-sakura" && t.targetMode === "individual");
+  assert.ok(tanaka, "田中様の起床介助（枠の外）が別の枠");
+  assert.deepEqual(s.targets[tanaka!.id], ["res-203-tanaka"]);
+  assert.notEqual(headcountStatus(s, tanaka!.id).level, "unassigned");
+  const wakeMain = tasks.find((t) => t.routineId === "rt-wake-sakura" && t.targetMode === "group");
+  assert.equal(wakeMain?.targetTimes?.["res-205-kobayashi"] !== undefined, true, "小林様は枠の中（時刻を残す）");
+  const goto = tasks.find((t) => t.routineId === "rt-oral-east");
+  assert.ok(!(s.targets[goto!.id] ?? []).includes("res-112-goto"), "後藤様は昼の口腔ケアなし");
+  const byRoutine = new Map<string, string[]>();
+  for (const t of tasks) byRoutine.set(t.routineId!, [...(byRoutine.get(t.routineId!) ?? []), ...(s.targets[t.id] ?? [])]);
+  for (const [rt, ids] of byRoutine) assert.equal(new Set(ids).size, ids.length, `${rt} で二重に数えない`);
+});
