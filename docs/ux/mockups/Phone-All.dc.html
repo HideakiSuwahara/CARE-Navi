@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>ケアナビ 全体（リーダー）</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#1D5C8A}a:hover{color:#164766}
+</style>
+</helmet>
+<div style="font-family: 'Noto Sans JP', system-ui, sans-serif; width: 390px; height: 844px; box-sizing: border-box; background: #F3F3EF; color: #1C1F23; border-radius: 40px; border: 1px solid #D9DAD4; overflow: hidden; display: flex; flex-direction: column; font-size: 16px; line-height: 1.5; position: relative;">
+
+  <header style="padding: 50px 16px 10px; background: #FFFFFF; border-bottom: 1px solid #E3E3DE; display: flex; align-items: center; gap: 8px;">
+    <span style="font-size: 18px; font-weight: 700;">きょうの全体</span>
+    <span style="font-size: 14px; color: #5B6168;">更新 10:07</span>
+    <button type="button" style="margin-left: auto; height: 44px; padding: 0 12px; border: 2px dashed #B5651D; border-radius: 999px; background: #FFE7D6; color: #8A3B00; font-family: inherit; font-size: 15px; font-weight: 700; cursor: pointer;">担当未定 2件</button>
+  </header>
+
+  <main style="flex: 1 1 auto; overflow: auto; padding: 10px 12px 232px;">
+    <ol style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px;">
+      <li style="display: flex; align-items: center; gap: 8px; padding: 8px 6px 8px 12px; background: #E6F0F8; border: 1px solid #BFD6E8; border-radius: 12px;">
+        <span style="flex: 0 0 48px; font-weight: 700; color: #1D5C8A;">10:00</span>
+        <div style="flex: 1 1 auto; min-width: 0;"><div style="font-weight: 700;">おむつ交換 <span style="font-weight: 400; color: #3A4651;">東 20人</span></div><div style="font-size: 14px; color: #3A4651;">佐藤・鈴木・山本</div></div>
+        <button type="button" aria-label="おむつ交換の操作" style="flex: 0 0 44px; height: 44px; border: 1px solid #D9DAD4; border-radius: 10px; background: #FFFFFF; font-size: 18px; cursor: pointer;">⋯</button>
+      </li>
+      <li style="display: flex; align-items: center; gap: 8px; padding: 8px 6px 8px 12px; background: #FFFFFF; border: 1px solid #D9DAD4; border-radius: 12px;">
+        <span style="flex: 0 0 48px;">10:00</span>
+        <div style="flex: 1 1 auto; min-width: 0;"><div style="font-weight: 700;">排泄介助 田中様</div><div style="font-size: 14px; color: #3A4651;">小川</div></div>
+        <button type="button" aria-label="排泄介助の操作" style="flex: 0 0 44px; height: 44px; border: 1px solid #D9DAD4; border-radius: 10px; background: #FFFFFF; font-size: 18px; cursor: pointer;">⋯</button>
+      </li>
+      <li style="display: flex; align-items: center; gap: 8px; padding: 8px 6px 8px 12px; background: #FFFDF5; border: 2px solid #B5651D; border-radius: 12px;">
+        <span style="flex: 0 0 48px;">10:30</span>
+        <div style="flex: 1 1 auto; min-width: 0;"><div style="font-weight: 700;">入浴介助 <span style="font-weight: 400; color: #3A4651;">東 6人</span></div><div style="font-size: 14px; color: #3A4651;">山本・鈴木 ・ <span style="font-weight: 700; color: #6B4E00;">担当あと1人</span></div></div>
+        <button type="button" aria-label="入浴介助に担当を追加" style="flex: 0 0 44px; height: 44px; border: 2px solid #1D5C8A; border-radius: 10px; background: #FFFFFF; color: #1D5C8A; font-size: 20px; font-weight: 700; cursor: pointer;">＋</button>
+        <button type="button" aria-label="入浴介助の操作" style="flex: 0 0 44px; height: 44px; border: 1px solid #D9DAD4; border-radius: 10px; background: #FFFFFF; font-size: 18px; cursor: pointer;">⋯</button>
+      </li>
+      <li style="display: flex; align-items: center; gap: 8px; padding: 8px 6px 8px 12px; background: #FFF8F3; border: 2px dashed #B5651D; border-radius: 12px;">
+        <span style="flex: 0 0 48px;">10:30</span>
+        <div style="flex: 1 1 auto; min-width: 0;"><div style="font-weight: 700;">リネン回収</div><div style="font-size: 14px; font-weight: 700; color: #8A3B00;">担当未定</div></div>
+        <button type="button" aria-label="リネン回収に担当を追加" style="flex: 0 0 44px; height: 44px; border: 2px solid #1D5C8A; border-radius: 10px; background: #FFFFFF; color: #1D5C8A; font-size: 20px; font-weight: 700; cursor: pointer;">＋</button>
+        <button type="button" aria-label="リネン回収の操作" style="flex: 0 0 44px; height: 44px; border: 1px solid #D9DAD4; border-radius: 10px; background: #FFFFFF; font-size: 18px; cursor: pointer;">⋯</button>
+      </li>
+      <li style="display: flex; align-items: center; gap: 8px; padding: 8px 6px 8px 12px; background: #FFFFFF; border: 1px solid #D9DAD4; border-radius: 12px;">
+        <span style="flex: 0 0 48px;">10:30</span>
+        <div style="flex: 1 1 auto; min-width: 0;"><div style="font-weight: 700;">入浴介助 小林様</div><div style="font-size: 14px; color: #3A4651;">小川・伊藤</div></div>
+        <button type="button" aria-label="入浴介助 小林様の操作" style="flex: 0 0 44px; height: 44px; border: 1px solid #D9DAD4; border-radius: 10px; background: #FFFFFF; font-size: 18px; cursor: pointer;">⋯</button>
+      </li>
+      <li style="display: flex; align-items: center; gap: 8px; padding: 8px 6px 8px 12px; background: #FFFFFF; border: 1px solid #D9DAD4; border-radius: 12px;">
+        <span style="flex: 0 0 48px;">11:00</span>
+        <div style="flex: 1 1 auto; min-width: 0;"><div style="font-weight: 700;">見守り <span style="font-weight: 400; color: #3A4651;">東</span></div><div style="font-size: 14px; color: #3A4651;">木村</div></div>
+        <button type="button" aria-label="見守りの操作" style="flex: 0 0 44px; height: 44px; border: 1px solid #D9DAD4; border-radius: 10px; background: #FFFFFF; font-size: 18px; cursor: pointer;">⋯</button>
+      </li>
+    </ol>
+  </main>
+
+  <!-- 画面下: 元に戻す・クイック操作・自分/全体 -->
+  <div style="position: absolute; left: 0; right: 0; bottom: 0; background: #FFFFFF; border-top: 1px solid #E3E3DE; padding: 10px 12px 22px; display: flex; flex-direction: column; gap: 8px;">
+    <button type="button" style="min-height: 44px; display: flex; align-items: center; gap: 8px; padding: 0 12px; border: 1px solid #D9DAD4; border-radius: 10px; background: #FFFFFF; font-family: inherit; font-size: 15px; color: #1C1F23; text-align: left; cursor: pointer;"><span style="font-weight: 700;">元に戻す</span><span style="color: #3A4651; font-size: 14px;">山本さんを入浴介助に</span></button>
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px;">
+      <a href="Phone-All.dc.html" style="display: flex; align-items: center; justify-content: center; min-height: 56px; border-radius: 12px; background: #1D5C8A; color: #FFFFFF; text-decoration: none; font-size: 16px; font-weight: 700;">欠勤・早退</a>
+      <a href="Phone-Escort.dc.html" style="display: flex; align-items: center; justify-content: center; text-align: center; min-height: 56px; border-radius: 12px; background: #1D5C8A; color: #FFFFFF; text-decoration: none; font-size: 16px; font-weight: 700; line-height: 1.2;">付き添い<br>・外出</a>
+      <a href="Phone-All.dc.html" style="display: flex; align-items: center; justify-content: center; text-align: center; min-height: 56px; border-radius: 12px; background: #1D5C8A; color: #FFFFFF; text-decoration: none; font-size: 16px; font-weight: 700; line-height: 1.2;">休憩を<br>ずらす</a>
+    </div>
+    <nav aria-label="自分と全体" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;">
+      <a href="Phone-Mine.dc.html" style="display: flex; align-items: center; justify-content: center; min-height: 48px; border-radius: 12px; border: 1px solid #D9DAD4; color: #1C1F23; text-decoration: none;">自分</a>
+      <a href="Phone-All.dc.html" aria-current="page" style="display: flex; align-items: center; justify-content: center; min-height: 48px; border-radius: 12px; background: #1C1F23; color: #FFFFFF; text-decoration: none; font-weight: 700;">全体</a>
+    </nav>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

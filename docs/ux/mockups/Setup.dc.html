@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<title>ケアナビ はじめの設定</title>
+<title>ケアナビ 設定</title>
 <script src="./support.js"></script>
 </head>
 <body>
@@ -17,78 +17,69 @@ a{color:#1D5C8A}a:hover{color:#164766}
 </helmet>
 <div style="font-family: 'Noto Sans JP', system-ui, sans-serif; background: #F3F3EF; color: #1C1F23; min-height: 900px; display: flex; flex-direction: column; box-sizing: border-box; font-size: 15px; line-height: 1.5;">
 
-  <header style="display: flex; align-items: center; gap: 20px; padding: 0 20px; height: 56px; background: #FFFFFF; border-bottom: 1px solid #E3E3DE;">
+  <header style="display: flex; align-items: center; gap: 20px; padding: 0 20px; min-height: 60px; background: #FFFFFF; border-bottom: 1px solid #E3E3DE; flex-wrap: wrap;">
     <div style="display: flex; align-items: center; gap: 10px;">
       <svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true"><rect x="2" y="2" width="24" height="24" rx="7" fill="#1D5C8A"></rect><path d="M8 14h12M14 8v12" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" fill="none"></path></svg>
       <span style="font-weight: 700; font-size: 18px;">ケアナビ</span>
+      <span style="color: #5B6168; font-size: 14px;">ひまわり苑</span>
     </div>
-    <span style="color: #5B6168; font-size: 14px;">仕事に、人を付ける。</span>
+    <nav aria-label="主な画面" style="display: flex; gap: 4px;">
+      <a href="Main.dc.html" style="display: inline-flex; align-items: center; min-height: 44px; text-decoration: none; padding: 0 16px; border-radius: 8px; color: #3A4651;">ボード</a>
+      <a href="Review.dc.html" style="display: inline-flex; align-items: center; min-height: 44px; text-decoration: none; padding: 0 16px; border-radius: 8px; color: #3A4651;">業務の見直し</a>
+      <a href="Setup.dc.html" aria-current="page" style="display: inline-flex; align-items: center; min-height: 44px; text-decoration: none; padding: 0 16px; border-radius: 8px; background: #E6F0F8; color: #1D5C8A; font-weight: 700;">設定</a>
+    </nav>
   </header>
 
-  <main style="padding: 24px 20px; display: flex; flex-direction: column; gap: 20px; flex: 1 1 auto; max-width: 1200px; width: 100%; box-sizing: border-box; margin: 0 auto;">
+  <main style="display: flex; gap: 20px; padding: 20px; flex: 1 1 auto; flex-wrap: wrap; align-items: flex-start;">
 
-    <!-- 最初の2択 -->
-    <section aria-label="はじめかた" style="display: flex; gap: 16px; flex-wrap: wrap;">
-      <a href="Main.dc.html" style="flex: 1 1 380px; display: flex; flex-direction: column; gap: 10px; padding: 24px; background: #1D5C8A; color: #FFFFFF; border-radius: 16px; text-decoration: none; min-height: 150px; box-sizing: border-box;">
-        <span style="font-size: 22px; font-weight: 700;">サンプル施設で試す</span>
-        <span style="font-size: 15px; opacity: 0.92;">架空の「ひまわり苑」（東フロア20人・さくらユニット10人・職員12人）が入った状態で、すぐに時間割と配置を触れます。入力は要りません。</span>
-        <span style="margin-top: auto; font-size: 14px; font-weight: 700;">3回の操作で「担当あと1人」が消えるところまで →</span>
-      </a>
-      <div style="flex: 1 1 380px; display: flex; flex-direction: column; gap: 10px; padding: 24px; background: #FFFFFF; border: 1px solid #E3E3DE; border-radius: 16px; min-height: 150px; box-sizing: border-box;">
-        <span style="font-size: 22px; font-weight: 700;">自分の施設で始める</span>
-        <span style="font-size: 15px; color: #3A4651;">必須は3つだけ。施設とグループ、利用者、職員。業務の型は約20種が最初から入っていて、あとから直せます。目標10分。</span>
-        <span style="margin-top: auto; font-size: 13px; color: #5B6168;">↓ 下の3ステップ</span>
+    <!-- 左: はじめて開いたとき -->
+    <section aria-label="はじめて開いたとき" style="flex: 1 1 420px; max-width: 520px; display: flex; flex-direction: column; gap: 12px;">
+      <div style="font-size: 14px; color: #5B6168;">はじめて開いたときの画面</div>
+      <div style="background: #FFFFFF; border: 1px solid #E3E3DE; border-radius: 16px; padding: 28px 24px; display: flex; flex-direction: column; gap: 14px;">
+        <div style="font-size: 22px; font-weight: 700;">仕事に、人を付ける。</div>
+        <a href="Main.dc.html" style="display: flex; flex-direction: column; justify-content: center; gap: 4px; min-height: 88px; padding: 0 20px; border-radius: 14px; background: #1D5C8A; color: #FFFFFF; text-decoration: none;"><span style="font-size: 20px; font-weight: 700;">サンプル施設で試す</span><span style="font-size: 15px;">入力なしで、すぐ触れます</span></a>
+        <button type="button" style="min-height: 72px; padding: 0 20px; border: 1px solid #D9DAD4; border-radius: 14px; background: #FFFFFF; color: #1C1F23; font-family: inherit; font-size: 18px; font-weight: 700; text-align: left; cursor: pointer;">自分の施設で始める</button>
       </div>
     </section>
 
-    <!-- 3ステップ -->
-    <section aria-label="自分の施設の登録" style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px;">
-      <div style="background: #FFFFFF; border: 1px solid #E3E3DE; border-radius: 12px; padding: 18px; display: flex; flex-direction: column; gap: 10px;">
-        <div style="display: flex; align-items: center; gap: 10px;"><span style="width: 28px; height: 28px; border-radius: 50%; background: #1C1F23; color: #FFFFFF; display: inline-flex; align-items: center; justify-content: center; font-weight: 700;">1</span><span style="font-weight: 700;">施設とグループ</span></div>
-        <label style="display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: #3A4651;">施設の名前<input type="text" placeholder="例: ひまわり苑" style="height: 44px; border: 1px solid #D9DAD4; border-radius: 8px; padding: 0 12px; font-size: 15px; font-family: inherit;"></label>
-        <label style="display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: #3A4651;">グループ（1行に1つ。ユニット・フロアなど）<textarea rows="4" placeholder="東フロア&#10;さくらユニット&#10;共通" style="border: 1px solid #D9DAD4; border-radius: 8px; padding: 10px 12px; font-size: 15px; font-family: inherit; resize: vertical;"></textarea></label>
-        <div style="font-size: 12px; color: #5B6168;">「共通」は自動で入ります（対象者なしの業務・休憩の置き場）。</div>
-      </div>
-      <div style="background: #FFFFFF; border: 1px solid #E3E3DE; border-radius: 12px; padding: 18px; display: flex; flex-direction: column; gap: 10px;">
-        <div style="display: flex; align-items: center; gap: 10px;"><span style="width: 28px; height: 28px; border-radius: 50%; background: #1C1F23; color: #FFFFFF; display: inline-flex; align-items: center; justify-content: center; font-weight: 700;">2</span><span style="font-weight: 700;">利用者を貼り付け</span></div>
-        <label style="display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: #3A4651;">名前、グループ、部屋（表計算からコピーして貼る。区切りはカンマ・タブどちらでも）<textarea rows="6" placeholder="田中 ハナ, さくらユニット, 203&#10;小林 ヨシオ, さくらユニット, 205&#10;山田 キヨ, 東フロア, 101" style="border: 1px solid #D9DAD4; border-radius: 8px; padding: 10px 12px; font-size: 15px; font-family: inherit; resize: vertical;"></textarea></label>
-        <div style="font-size: 12px; color: #5B6168;">このツールは排泄状態や介助方法などの詳細を持ちません。名前・グループ・部屋だけです。</div>
-      </div>
-      <div style="background: #FFFFFF; border: 1px solid #E3E3DE; border-radius: 12px; padding: 18px; display: flex; flex-direction: column; gap: 10px;">
-        <div style="display: flex; align-items: center; gap: 10px;"><span style="width: 28px; height: 28px; border-radius: 50%; background: #1C1F23; color: #FFFFFF; display: inline-flex; align-items: center; justify-content: center; font-weight: 700;">3</span><span style="font-weight: 700;">職員を貼り付け</span></div>
-        <label style="display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: #3A4651;">名前、役職、担当条件（任意・複数可）<textarea rows="6" placeholder="佐藤 みき, 介護福祉士, 入浴担当可 喀痰吸引&#10;渡辺 さとし, 介護助手&#10;加藤 ゆい, スポット" style="border: 1px solid #D9DAD4; border-radius: 8px; padding: 10px 12px; font-size: 15px; font-family: inherit; resize: vertical;"></textarea></label>
-        <div style="font-size: 12px; color: #5B6168;">「誰が何をできるか」はここで決めます。役職から自動で決めつけません。</div>
-      </div>
-    </section>
+    <!-- 右: ふだんの設定 -->
+    <section aria-label="ふだんの設定" style="flex: 999 1 640px; min-width: 0; display: flex; flex-direction: column; gap: 12px;">
+      <div style="font-size: 14px; color: #5B6168;">ふだんの設定</div>
 
-    <!-- 最初から入るもの と 同期 -->
-    <section style="display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 16px;">
-      <div style="background: #FFFFFF; border: 1px solid #E3E3DE; border-radius: 12px; padding: 18px; display: flex; flex-direction: column; gap: 10px;">
-        <div style="font-weight: 700;">最初から入っているもの（あとから直せます）</div>
-        <div style="display: flex; flex-direction: column; gap: 8px; font-size: 14px;">
-          <div style="display: flex; gap: 10px; align-items: baseline;"><span style="min-width: 88px; color: #5B6168;">役割枠</span><div style="display: flex; flex-wrap: wrap; gap: 6px;"><span style="font-size: 13px; padding: 2px 10px; border-radius: 999px; background: #EEF1F4;">早番A</span><span style="font-size: 13px; padding: 2px 10px; border-radius: 999px; background: #EEF1F4;">早番B</span><span style="font-size: 13px; padding: 2px 10px; border-radius: 999px; background: #EEF1F4;">日勤A</span><span style="font-size: 13px; padding: 2px 10px; border-radius: 999px; background: #EEF1F4;">日勤B</span><span style="font-size: 13px; padding: 2px 10px; border-radius: 999px; background: #EEF1F4;">遅番</span><span style="font-size: 13px; padding: 2px 10px; border-radius: 999px; background: #EEF1F4;">夜勤</span><span style="font-size: 13px; padding: 2px 10px; border-radius: 999px; background: #EEF1F4;">介護助手</span><span style="font-size: 13px; padding: 2px 10px; border-radius: 999px; background: #EEF1F4;">看護</span><span style="font-size: 13px; padding: 2px 10px; border-radius: 999px; background: #EEF1F4;">スポット</span></div></div>
-          <div style="display: flex; gap: 10px; align-items: baseline;"><span style="min-width: 88px; color: #5B6168;">業務の型</span><span>約20種（排泄介助、おむつ交換、食事介助、入浴介助、見守り、口腔ケア、水分補給、リネン回収、物品補充、食堂準備、記録入力、休憩 …）。手順・物品の場所・相談先の雛形つき</span></div>
-          <div style="display: flex; gap: 10px; align-items: baseline;"><span style="min-width: 88px; color: #5B6168;">一日の型</span><span>従来型フロア用／ユニット用の「平日」「入浴日」「日曜」。役割枠に業務を束ねた状態</span></div>
-          <div style="display: flex; gap: 10px; align-items: baseline;"><span style="min-width: 88px; color: #5B6168;">区分</span><span>コア業務／ノンコア業務（名前と割り当ては施設が変えられます）</span></div>
-        </div>
-      </div>
-      <div style="background: #FFFFFF; border: 1px solid #E3E3DE; border-radius: 12px; padding: 18px; display: flex; flex-direction: column; gap: 10px;">
-        <div style="font-weight: 700;">スマホとつなぐ</div>
-        <div style="display: flex; gap: 14px; align-items: center;">
-          <div aria-label="QRコードの表示位置" style="width: 112px; height: 112px; border: 2px dashed #9AA0A6; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #5B6168; text-align: center;">施設コードの<br>QRコード</div>
-          <div style="display: flex; flex-direction: column; gap: 6px; font-size: 14px;">
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;">
+        <div style="background: #FFFFFF; border: 1px solid #E3E3DE; border-radius: 12px; padding: 16px; display: flex; gap: 14px; align-items: center;">
+          <div aria-label="施設コードのQRコードの表示位置" role="img" style="flex: 0 0 104px; height: 104px; border: 2px dashed #5B6168; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 13px; color: #3A4651; text-align: center;">QR</div>
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <div style="font-weight: 700;">スマホとつなぐ</div>
             <div>施設コード <span style="font-family: ui-monospace, monospace; font-weight: 700; font-size: 18px; letter-spacing: 0.08em;">HMWR-7K2Q</span></div>
-            <div style="font-size: 13px; color: #5B6168;">職員のスマホで読み取ると、同じ時間割が表示されます。ボードで直した担当はすぐ手元に反映されます。</div>
+            <div style="font-size: 14px; color: #5B6168;">職員のスマホで読み取ると、同じ時間割が出ます。</div>
           </div>
         </div>
-        <div style="font-size: 12px; color: #5B6168; border-top: 1px solid #EEEEEA; padding-top: 8px;">手元画面の利用者の表示名: <span style="font-weight: 700;">部屋番号＋姓</span>（設定で変更）。デモは施設コード方式。本番は認証と権限が必要です。</div>
+        <div style="background: #FFFFFF; border: 1px solid #E3E3DE; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 14px;">
+          <fieldset style="border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px;">
+            <legend style="font-weight: 700; padding: 0; margin-bottom: 6px;">スマホでの利用者の名前</legend>
+            <div role="radiogroup" style="display: inline-flex; border: 1px solid #D9DAD4; border-radius: 8px; overflow: hidden;">
+              <button type="button" role="radio" aria-checked="false" style="height: 44px; padding: 0 12px; border: 0; background: #FFFFFF; color: #3A4651; font-family: inherit; font-size: 15px; cursor: pointer;">田中 ハナ</button>
+              <button type="button" role="radio" aria-checked="true" style="height: 44px; padding: 0 12px; border: 0; background: #1C1F23; color: #FFFFFF; font-family: inherit; font-size: 15px; font-weight: 700; cursor: pointer;">203 田中</button>
+              <button type="button" role="radio" aria-checked="false" style="height: 44px; padding: 0 12px; border: 0; background: #FFFFFF; color: #3A4651; font-family: inherit; font-size: 15px; cursor: pointer;">203</button>
+            </div>
+          </fieldset>
+          <label style="display: flex; align-items: center; gap: 10px; min-height: 44px; cursor: pointer;"><input type="checkbox" checked style="width: 24px; height: 24px;"><span><span style="font-weight: 700;">初回の方だけの配置</span>を知らせる</span></label>
+        </div>
+      </div>
+
+      <div style="background: #FFFFFF; border: 1px solid #E3E3DE; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+        <div style="font-weight: 700;">名簿の貼り付け</div>
+        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;">
+          <label style="display: flex; flex-direction: column; gap: 6px; font-size: 15px;">利用者（名前, グループ, 部屋）<textarea rows="6" placeholder="田中 ハナ, さくらユニット, 203&#10;小林 ヨシオ, さくらユニット, 205" style="border: 1px solid #D9DAD4; border-radius: 8px; padding: 10px 12px; font-size: 15px; font-family: inherit; resize: vertical;"></textarea></label>
+          <label style="display: flex; flex-direction: column; gap: 6px; font-size: 15px;">職員（名前, 職種, 担当条件[任意], PHS[任意]）<textarea rows="6" placeholder="佐藤 みき, 介護福祉士, 入浴担当可, 201&#10;渡辺 さとし, 介護助手" style="border: 1px solid #D9DAD4; border-radius: 8px; padding: 10px 12px; font-size: 15px; font-family: inherit; resize: vertical;"></textarea></label>
+        </div>
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <span style="font-size: 14px; color: #5B6168;">表計算からそのまま貼れます（カンマ・タブ）。読めない行は行番号で知らせ、ほかは取り込みます。</span>
+          <button type="button" style="margin-left: auto; height: 48px; padding: 0 20px; border: 0; border-radius: 10px; background: #1D5C8A; color: #FFFFFF; font-family: inherit; font-size: 16px; font-weight: 700; cursor: pointer;">取り込む</button>
+        </div>
       </div>
     </section>
-
-    <div style="display: flex; justify-content: flex-end; gap: 10px;">
-      <button type="button" style="height: 48px; padding: 0 18px; border: 1px solid #D9DAD4; border-radius: 10px; background: #FFFFFF; color: #3A4651; font-size: 15px; cursor: pointer;">あとで続ける</button>
-      <a href="Morning.dc.html" style="display: inline-flex; align-items: center; height: 48px; padding: 0 22px; border-radius: 10px; background: #1D5C8A; color: #FFFFFF; font-size: 15px; font-weight: 700; text-decoration: none;">登録して、明日の準備へ</a>
-    </div>
   </main>
 </div>
 </x-dc>

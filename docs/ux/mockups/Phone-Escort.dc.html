@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>ケアナビ 付き添い・外出</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#1D5C8A}a:hover{color:#164766}
+</style>
+</helmet>
+<div style="font-family: 'Noto Sans JP', system-ui, sans-serif; width: 390px; height: 844px; box-sizing: border-box; background: #8E9196; color: #1C1F23; border-radius: 40px; border: 1px solid #D9DAD4; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; font-size: 16px; line-height: 1.5;">
+
+  <section aria-label="付き添い・外出" style="background: #FFFFFF; border-top-left-radius: 22px; border-top-right-radius: 22px; padding: 10px 16px 26px; display: flex; flex-direction: column; gap: 12px; max-height: 720px;">
+    <div aria-hidden="true" style="width: 40px; height: 4px; border-radius: 2px; background: #D9DAD4; margin: 0 auto;"></div>
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <span style="font-size: 18px; font-weight: 700;">付き添い・外出</span>
+      <span style="font-size: 14px; color: #5B6168;">小林様（さくら 205）</span>
+      <a href="Phone-All.dc.html" aria-label="閉じる" style="margin-left: auto; display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 10px; background: #F3F3EF; color: #1C1F23; text-decoration: none; font-size: 18px;">×</a>
+    </div>
+
+    <!-- 既定値（変えたいときだけ押す） -->
+    <div style="display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; padding: 10px 12px; background: #F7F9FB; border-radius: 12px;">
+      <span style="font-weight: 700;">受診の付き添い</span><span>10:15–11:45</span><span style="color: #3A4651;">担当 空き</span>
+      <span style="flex-basis: 100%; height: 0;"></span>
+      <a href="Phone-Escort.dc.html" style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 4px; font-size: 15px;">なにを変える</a>
+      <a href="Phone-Escort.dc.html" style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 4px; font-size: 15px;">いつを変える</a>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 12px; border: 1px solid #D9DAD4; border-radius: 12px;">
+      <span style="font-size: 14px; color: #1E6B3A; font-weight: 700;">問題なしの人</span>
+      <span style="font-weight: 700;">伊藤</span><span style="font-size: 14px; color: #5B6168;">日勤B</span>
+      <button type="button" style="margin-left: auto; height: 44px; padding: 0 14px; border: 1px solid #1D5C8A; border-radius: 10px; background: #E6F0F8; color: #1D5C8A; font-family: inherit; font-size: 15px; font-weight: 700; cursor: pointer;">付ける</button>
+    </div>
+
+    <div style="border: 1px solid #E3E3DE; border-radius: 12px; overflow: hidden;">
+      <div style="padding: 8px 12px; background: #F7F7F4; font-size: 14px; font-weight: 700; color: #3A4651;">こう変わります</div>
+      <label style="display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-top: 1px solid #EEEEEA; min-height: 44px;"><input type="checkbox" checked disabled style="width: 24px; height: 24px; margin-top: 2px; flex: 0 0 auto;"><span><span style="font-weight: 700;">追加</span> 受診の付き添い 小林様 10:15–11:45</span></label>
+      <label style="display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-top: 1px solid #EEEEEA; min-height: 44px;"><input type="checkbox" style="width: 24px; height: 24px; margin-top: 2px; flex: 0 0 auto;"><span><span style="font-weight: 700;">中止の候補</span> 入浴介助 小林様 10:30–11:30（同じ時間のため）</span></label>
+      <div style="display: flex; gap: 10px; align-items: center; padding: 10px 12px; border-top: 1px solid #EEEEEA; background: #FFF8F3;"><span style="font-size: 14px; font-weight: 700; padding: 2px 8px; border-radius: 6px; background: #FFE7D6; color: #8A3B00; flex: 0 0 auto;">担当未定</span><span>受診の付き添い（あとで付けられます）</span></div>
+    </div>
+
+    <button type="button" style="min-height: 60px; border: 0; border-radius: 14px; background: #1D5C8A; color: #FFFFFF; font-family: inherit; font-size: 18px; font-weight: 700; cursor: pointer;">この内容で決定</button>
+    <div style="text-align: center; font-size: 14px; color: #5B6168;">決定のあとも「元に戻す」で戻せます</div>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

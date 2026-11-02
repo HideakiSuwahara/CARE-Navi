@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>ケアナビ 業務詳細</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#1D5C8A}a:hover{color:#164766}
+</style>
+</helmet>
+<div style="font-family: 'Noto Sans JP', system-ui, sans-serif; width: 390px; height: 844px; box-sizing: border-box; background: #F3F3EF; color: #1C1F23; border-radius: 40px; border: 1px solid #D9DAD4; overflow: hidden; display: flex; flex-direction: column; font-size: 16px; line-height: 1.5;">
+
+  <header style="padding: 50px 16px 12px; background: #FFFFFF; border-bottom: 1px solid #E3E3DE; display: flex; flex-direction: column; gap: 6px;">
+    <a href="Phone-FirstTimer.dc.html" aria-label="自分の予定へ戻る" style="align-self: flex-start; display: inline-flex; align-items: center; justify-content: center; min-width: 44px; height: 44px; padding: 0 12px; border-radius: 10px; background: #F3F3EF; color: #1C1F23; text-decoration: none; font-size: 15px;">‹ 戻る</a>
+    <div style="display: flex; align-items: baseline; gap: 8px;"><span style="font-size: 22px; font-weight: 700;">口腔ケア</span><span style="color: #3A4651;">20人</span></div>
+    <div>13:15–13:45 ・ 東フロア 食堂</div>
+  </header>
+
+  <main style="flex: 1 1 auto; overflow: auto; padding: 14px 16px 24px; display: flex; flex-direction: column; gap: 12px;">
+    <section style="background: #FFFFFF; border: 2px solid #1D5C8A; border-radius: 14px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px;">
+      <div><div style="font-size: 14px; font-weight: 700; color: #1D5C8A;">あなたにお願いすること</div><div>用品を配り、ご自分でできる方への声かけと見守り。終わった用品を回収して洗う。</div></div>
+      <div style="border-top: 1px solid #EEEEEA; padding-top: 10px;"><div style="font-size: 14px; font-weight: 700; color: #3A4651;">お願いしないこと</div><div>義歯の着脱と口の中の清拭は木村が行います。迷ったら手を止めて、木村に声をかけてください。</div></div>
+    </section>
+
+    <section style="background: #FFFFFF; border: 1px solid #D9DAD4; border-radius: 14px; padding: 14px 16px;">
+      <div style="font-size: 14px; font-weight: 700; color: #5B6168;">物品の場所</div>
+      <div>食堂奥の棚、2段目のかご。コップは名前つき。</div>
+    </section>
+
+    <section style="background: #FFFFFF; border: 1px solid #D9DAD4; border-radius: 14px; padding: 14px 16px;">
+      <div style="font-size: 14px; font-weight: 700; color: #5B6168;">この施設の手順</div>
+      <ol style="margin: 4px 0 0; padding-left: 22px; display: flex; flex-direction: column; gap: 4px;">
+        <li>食事が終わった方から、席のまま行う</li>
+        <li>名前つきのコップと歯ブラシを配る</li>
+        <li>むせがあれば、すぐ木村へ</li>
+        <li>用品はかごに戻し、洗って乾燥棚へ</li>
+      </ol>
+    </section>
+
+    <section style="background: #FFFFFF; border: 1px solid #D9DAD4; border-radius: 14px; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px;">
+      <div style="font-size: 14px; font-weight: 700; color: #5B6168;">対象の方 20人</div>
+      <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; font-size: 15px;">
+        <span style="padding: 8px; background: #F3F3EF; border-radius: 8px;">101 山田</span><span style="padding: 8px; background: #F3F3EF; border-radius: 8px;">102 松本</span><span style="padding: 8px; background: #F3F3EF; border-radius: 8px;">103 井上</span>
+        <span style="padding: 8px; background: #F3F3EF; border-radius: 8px;">104 清水</span><span style="padding: 8px; background: #F3F3EF; border-radius: 8px;">105 森田</span><span style="padding: 8px; background: #F3F3EF; border-radius: 8px;">106 池田</span>
+      </div>
+      <button type="button" style="min-height: 44px; border: 1px solid #D9DAD4; border-radius: 10px; background: #FFFFFF; color: #1D5C8A; font-family: inherit; font-size: 15px; font-weight: 700; cursor: pointer;">ほか 14人</button>
+      <div style="font-size: 14px; color: #3A4651;">利用者ごとの介助方法は、相談先に確認してください。</div>
+    </section>
+
+    <section style="background: #FFF8F3; border: 1px solid #B5651D; border-radius: 14px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px;">
+      <div style="font-size: 14px; font-weight: 700; color: #8A3B00;">困ったら</div>
+      <div style="display: flex; align-items: center; gap: 8px;"><span style="font-weight: 700;">木村</span><span style="color: #3A4651;">一緒に入る人</span><span style="margin-left: auto; font-family: ui-monospace, monospace; font-weight: 700;">PHS 207</span></div>
+      <div style="display: flex; align-items: center; gap: 8px;"><span style="font-weight: 700;">高橋</span><span style="color: #3A4651;">リーダーの代わり（佐藤は休憩中）</span><span style="margin-left: auto; font-family: ui-monospace, monospace; font-weight: 700;">PHS 202</span></div>
+    </section>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>
