@@ -10,7 +10,7 @@ import type { Event } from "./events.ts";
 import { applyEvents } from "./reducer.ts";
 import { metaOf, type EventContext } from "./pattern.ts";
 import { assignmentsOf, headcountStatus, rosterOf, taskLabel, tasksOfStaff } from "./checks.ts";
-import { fmtRange, overlaps } from "./time.ts";
+import { fmtMin, fmtRange, overlaps } from "./time.ts";
 import type { DateKey, ID, Minutes, State, TaskInstance } from "./types.ts";
 
 export interface PreviewLine {
@@ -129,12 +129,14 @@ function relocateBreak(
   blockEndMin: Minutes,
   busy: { startMin: Minutes; endMin: Minutes }[],
   ctx: EventContext,
-): { events: Event[]; text: string } {
+): { events: Event[]; text: string; fits: boolean } {
   const name = state.staff[staffId]?.surname ?? "";
   const length = brk.endMin - brk.startMin;
   const myTasks = tasksOfStaff(state, brk.date, staffId).filter((t) => t.id !== brk.id);
+  // 休憩は勤務時間の中に限る（退勤後に休憩を作らない）
+  const shiftEnd = rosterOf(state, brk.date, staffId)?.endMin ?? brk.endMin;
   const free = (s: Minutes, e: Minutes) =>
-    !myTasks.some((t) => overlaps(s, e, t.startMin, t.endMin)) && !busy.some((b) => overlaps(s, e, b.startMin, b.endMin));
+    e <= shiftEnd && !myTasks.some((t) => overlaps(s, e, t.startMin, t.endMin)) && !busy.some((b) => overlaps(s, e, b.startMin, b.endMin));
   const removeEvs = unassignEvents(state, brk.id, staffId, ctx);
 
   const later = Object.values(state.tasks)
@@ -145,11 +147,20 @@ function relocateBreak(
     return {
       events: [...removeEvs, ...assignEvents(later.id, staffId, ctx)],
       text: `ずらす: ${name} の休憩 ${fmtRange(brk.startMin, brk.endMin)} → 「${later.name}」${fmtRange(later.startMin, later.endMin)}`,
+      fits: true,
     };
   }
 
   let start = ceil15(blockEndMin);
-  while (!free(start, start + length) && start + length < 2880) start += 15;
+  while (!free(start, start + length) && start + length < shiftEnd) start += 15;
+  if (!free(start, start + length)) {
+    // 勤務内に収まらない: 休憩からは外すが、新しい休憩は作らない。リーダーが決める
+    return {
+      events: removeEvs,
+      text: `${name} の休憩 ${fmtRange(brk.startMin, brk.endMin)} は勤務内に取り直せません（休憩の時間はリーダーが決めてください）`,
+      fits: false,
+    };
+  }
   const taskId = ctx.newId();
   const own: TaskInstance = {
     ...brk,
@@ -168,6 +179,7 @@ function relocateBreak(
       ...assignEvents(taskId, staffId, ctx),
     ],
     text: `ずらす: ${name} の休憩 ${fmtRange(brk.startMin, brk.endMin)} → ${fmtRange(start, start + length)}`,
+    fits: true,
   };
 }
 
@@ -247,7 +259,7 @@ export function escortPreview(state: State, input: EscortInput, ctx: EventContex
       if (t.kind === "break") {
         const moved = relocateBreak(state, input.staffId, t, input.endMin, [{ startMin: input.startMin, endMin: input.endMin }], ctx);
         events.push(...moved.events);
-        lines.push({ kind: "move", text: moved.text, eventIds: moved.events.map((e) => e.eventId), optional: true });
+        lines.push({ kind: moved.fits ? "move" : "effect", text: moved.text, eventIds: moved.events.map((e) => e.eventId), optional: moved.fits });
         continue;
       }
       for (const ev of unassignEvents(state, t.id, input.staffId, ctx)) {
@@ -262,7 +274,7 @@ export function escortPreview(state: State, input: EscortInput, ctx: EventContex
     }
   }
 
-  // 同じ利用者の同じ時間の個別業務（入浴など）は中止の候補
+  // 同じ利用者の同じ時間の個別業務（入浴など）は中止にする（本人が不在のため。外したい行はチェックを外す）
   for (const t of Object.values(state.tasks)) {
     if (t.date !== input.date || t.status !== "planned" || t.targetMode !== "individual") continue;
     if (!(state.targets[t.id] ?? []).includes(input.residentId)) continue;
@@ -271,10 +283,9 @@ export function escortPreview(state: State, input: EscortInput, ctx: EventContex
     events.push(...evs);
     lines.push({
       kind: "cancel",
-      text: `中止: 「${taskLabel(state, t)} ${fmtRange(t.startMin, t.endMin)}」（同じ時間のため）`,
+      text: `中止する: 「${taskLabel(state, t)} ${fmtRange(t.startMin, t.endMin)}」（${resident ? `${resident.surname}様` : "ご本人"}が不在のため）`,
       eventIds: evs.map((e) => e.eventId),
       optional: true,
-      defaultOn: false,
     });
   }
 
@@ -324,23 +335,56 @@ export function absencePreview(state: State, date: DateKey, staffId: ID, ctx: Ev
   return { title: leaveAtMin === undefined ? "欠勤" : "早退", lines, events };
 }
 
-/** 休憩をずらす（既定 +30分）。重なる人を知らせる */
-export function shiftBreakPreview(state: State, taskId: ID, deltaMin: Minutes, ctx: EventContext): Preview {
+/**
+ * 休憩をずらす（既定 +30分）。
+ * - staffId を渡すと、その人だけを動かす（休憩カードは複数人で共有しているため。決定記録 0003 / loop2）
+ *   その人を休憩カードから外し、ずらした時刻に自分の休憩を作る。勤務内に限る。
+ * - staffId を省くと、休憩カードごと動かす（全員が動く）。
+ */
+export function shiftBreakPreview(state: State, taskId: ID, deltaMin: Minutes, ctx: EventContext, staffId?: ID): Preview {
   const t = state.tasks[taskId];
   if (!t) return { title: "休憩をずらす", lines: [], events: [] };
+  const to = { startMin: t.startMin + deltaMin, endMin: t.endMin + deltaMin };
+
+  if (staffId) {
+    const name = state.staff[staffId]?.surname ?? "";
+    const shiftEnd = rosterOf(state, t.date, staffId)?.endMin ?? to.endMin;
+    if (to.endMin > shiftEnd) {
+      return {
+        title: "休憩をずらす",
+        lines: [{ kind: "effect", text: `${name} の勤務は ${fmtMin(shiftEnd)} までのため、${fmtRange(to.startMin, to.endMin)} には取れません`, eventIds: [], optional: false }],
+        events: [],
+      };
+    }
+    const ownId = ctx.newId();
+    const own: TaskInstance = { ...t, id: ownId, name: `休憩（${name}）`, ...to, headcount: 1, slotIds: [], origin: "manual" };
+    const events: Event[] = [
+      ...unassignEvents(state, taskId, staffId, ctx),
+      { ...metaOf(ctx), type: "task.add", task: own, residentIds: [] },
+      ...assignEvents(ownId, staffId, ctx),
+    ];
+    const lines: PreviewLine[] = [
+      { kind: "move", text: `${name} の休憩を ${fmtRange(t.startMin, t.endMin)} → ${fmtRange(to.startMin, to.endMin)} にする`, eventIds: events.map((e) => e.eventId), optional: false },
+    ];
+    for (const o of tasksOfStaff(state, t.date, staffId)) {
+      if (o.id !== taskId && overlaps(to.startMin, to.endMin, o.startMin, o.endMin)) {
+        lines.push({ kind: "effect", text: `${name} は「${taskLabel(state, o)} ${fmtRange(o.startMin, o.endMin)}」と重なります`, eventIds: [], optional: false });
+      }
+    }
+    return { title: "休憩をずらす", lines, events };
+  }
+
   const events = shiftTaskEvents(state, taskId, deltaMin, ctx);
   const lines: PreviewLine[] = [
     {
       kind: "move",
-      text: `「${t.name}」を ${fmtRange(t.startMin, t.endMin)} → ${fmtRange(t.startMin + deltaMin, t.endMin + deltaMin)} にする`,
+      text: `「${t.name}」を ${fmtRange(t.startMin, t.endMin)} → ${fmtRange(to.startMin, to.endMin)} にする（全員）`,
       eventIds: events.map((e) => e.eventId),
       optional: false,
     },
   ];
   for (const a of assignmentsOf(state, taskId)) {
-    const others = tasksOfStaff(state, t.date, a.staffId).filter(
-      (o) => o.id !== taskId && overlaps(t.startMin + deltaMin, t.endMin + deltaMin, o.startMin, o.endMin),
-    );
+    const others = tasksOfStaff(state, t.date, a.staffId).filter((o) => o.id !== taskId && overlaps(to.startMin, to.endMin, o.startMin, o.endMin));
     for (const o of others) {
       lines.push({
         kind: "effect",

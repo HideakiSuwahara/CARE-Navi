@@ -139,7 +139,7 @@ const STF_KIMURA = "stf-kimura";
 const STF_KATO = "stf-kato";
 const STF_WATANABE = "stf-watanabe";
 const STF_SAITO = "stf-saito";
-const STF_MORI = "stf-mori";
+const STF_NOGUCHI = "stf-noguchi";
 
 const staff: Staff[] = [
   s(STF_SATO, "佐藤", "みき", "介護福祉士", ["介護福祉士", "入浴担当可"], GRP_EAST, "201"),
@@ -151,9 +151,9 @@ const staff: Staff[] = [
   s(STF_NAKAMURA, "中村", "さおり", "看護師", ["看護師"], undefined, "210"),
   s(STF_KIMURA, "木村", "しょう", "介護職員", ["入浴担当可"], GRP_EAST, "207"),
   s(STF_KATO, "加藤", "ゆい", "スポット", []),
-  s(STF_WATANABE, "渡辺", "さとし", "介護助手", []),
+  s(STF_WATANABE, "渡辺", "さとし", "介護助手", ["入浴担当可"]),
   s(STF_SAITO, "斉藤", "りく", "介護職員", ["入浴担当可"], GRP_EAST, "208"),
-  s(STF_MORI, "森", "ちえ", "介護福祉士", ["介護福祉士"], GRP_SAKURA, "209"),
+  s(STF_NOGUCHI, "野口", "ちえ", "介護福祉士", ["介護福祉士"], GRP_SAKURA, "209"),
 ];
 
 // ---------------------------------------------------------------------------
@@ -229,6 +229,7 @@ const TPL_ARRIVAL = "tpl-arrival";
 const TPL_BREAK_1 = "tpl-break-1";
 const TPL_BREAK_2 = "tpl-break-2";
 const TPL_BREAK_3 = "tpl-break-3";
+const TPL_BREAK_NIGHT = "tpl-break-night";
 
 const templates: TaskTemplate[] = [
   {
@@ -710,7 +711,7 @@ const templates: TaskTemplate[] = [
   },
   {
     id: TPL_ARRIVAL,
-    name: "到着・案内（リーダーと）",
+    name: "到着・案内",
     kind: "care",
     categoryId: CAT_NONCORE,
     targetMode: "none",
@@ -718,7 +719,7 @@ const templates: TaskTemplate[] = [
     defaultHeadcount: 2,
     requiredTags: [],
     place: "玄関・詰所",
-    scopeNote: "リーダーと会い、更衣室・トイレ・詰所・非常口を一緒に回る。きょうの予定をスマホで確認する。",
+    scopeNote: "一緒の担当（リーダー）と会い、更衣室・トイレ・詰所・非常口を一緒に回る。きょうの予定をスマホで確認する。",
     outOfScopeNote: "この時間は利用者の介助に入りません。案内が終わってから、次の予定へ。",
     procedure: [
       "玄関で受付簿に記入し、リーダーを呼ぶ",
@@ -758,6 +759,17 @@ const templates: TaskTemplate[] = [
     targetMode: "none",
     defaultDurationMin: 60,
     defaultHeadcount: 2,
+    requiredTags: [],
+    place: "休憩室",
+    procedure: [],
+  },
+  {
+    id: TPL_BREAK_NIGHT,
+    name: "休憩（夜勤）",
+    kind: "break",
+    targetMode: "none",
+    defaultDurationMin: 60,
+    defaultHeadcount: 1,
     requiredTags: [],
     place: "休憩室",
     procedure: [],
@@ -803,7 +815,7 @@ const item = (spec: ItemSpec): DayPatternItem => {
  * 束ね方の決まり（この施設の設定）:
  * - 同じ番に、時間の重なる枠を束ねない（休憩も含む）。
  * - 早番A（リーダー）は入浴に入らない。午前は東フロアの見守り（ホール全体が見える）と食堂準備。
- * - 東フロア・さくらユニットとも、9:00–17:00 は見守りの担当が切れ目なくいる。
+ * - 9:00–17:00、東フロアは見守りの担当が切れ目なくいる。さくらユニットは見守りか、日勤さくらの食堂での業務で切れ目なくいる。
  * - おむつ交換（東・午前）は、その時間に東フロアにいて見守りでない番の全員。
  */
 const dayCommon = (bathDay: boolean): ItemSpec[] => [
@@ -816,13 +828,21 @@ const dayCommon = (bathDay: boolean): ItemSpec[] => [
   { id: "watch-east-3", tpl: TPL_WATCH, start: t(13), end: t(15), group: GRP_EAST, slots: [SLOT_NIKKIN_B], hc: 1 },
   { id: "watch-east-4", tpl: TPL_WATCH, start: t(15), end: t(17), group: GRP_EAST, slots: [SLOT_NIKKIN_A], hc: 1 },
   // 見守り（さくら）
-  { id: "watch-sakura-1", tpl: TPL_WATCH, start: t(9), end: t(11), group: GRP_SAKURA, slots: [SLOT_HAYABAN_B], hc: 1 },
-  { id: "watch-sakura-2", tpl: TPL_WATCH, start: t(11), end: t(13), group: GRP_SAKURA, slots: [SLOT_NIKKIN_SAKURA], hc: 1 },
-  { id: "watch-sakura-3", tpl: TPL_WATCH, start: t(13), end: t(15), group: GRP_SAKURA, slots: [SLOT_HAYABAN_B], hc: 1 },
-  { id: "watch-sakura-4", tpl: TPL_WATCH, start: t(15), end: t(17), group: GRP_SAKURA, slots: [SLOT_NIKKIN_B], hc: 1 },
+  // 見守り（さくら）: 日勤さくらが持つ。食事・口腔ケア・おやつは日勤さくらが食堂で行うので見守りを置かない。
+  // 東の番がさくらを見るのは、小林様の入浴中（入浴日 10–11）と日勤さくらの休憩中（14–15）だけ。
+  ...(bathDay
+    ? [
+        { id: "watch-sakura-1", tpl: TPL_WATCH, start: t(9), end: t(10), group: GRP_SAKURA, slots: [SLOT_NIKKIN_SAKURA], hc: 1 },
+        { id: "watch-sakura-1b", tpl: TPL_WATCH, start: t(10), end: t(11), group: GRP_SAKURA, slots: [SLOT_HAYABAN_B], hc: 1 },
+      ]
+    : [{ id: "watch-sakura-1", tpl: TPL_WATCH, start: t(9), end: t(11), group: GRP_SAKURA, slots: [SLOT_NIKKIN_SAKURA], hc: 1 }]),
+  { id: "watch-sakura-2", tpl: TPL_WATCH, start: t(11), end: t(12), group: GRP_SAKURA, slots: [SLOT_NIKKIN_SAKURA], hc: 1 },
+  { id: "watch-sakura-3", tpl: TPL_WATCH, start: t(13, 30), end: t(14), group: GRP_SAKURA, slots: [SLOT_NIKKIN_SAKURA], hc: 1 },
+  { id: "watch-sakura-3b", tpl: TPL_WATCH, start: t(14), end: t(15), group: GRP_SAKURA, slots: [SLOT_HAYABAN_B], hc: 1 },
+  { id: "watch-sakura-4", tpl: TPL_WATCH, start: t(15, 30), end: t(17), group: GRP_SAKURA, slots: [SLOT_NIKKIN_SAKURA], hc: 1 },
   // 午前
   { id: "vitals-tanaka", tpl: TPL_VITALS, start: t(9), end: t(9, 30), group: GRP_SAKURA, slots: [SLOT_KANGO], hc: 1, residents: [RES_TANAKA] },
-  { id: "toilet-tanaka-am", tpl: TPL_TOILET, start: t(9, 30), end: t(10), group: GRP_SAKURA, slots: [SLOT_NIKKIN_SAKURA], hc: 1, residents: [RES_TANAKA] },
+  { id: "toilet-tanaka-am", tpl: TPL_TOILET, start: t(9, 30), end: t(10), group: GRP_SAKURA, slots: [SLOT_NIKKIN_B], hc: 1, residents: [RES_TANAKA] },
   { id: "linen", tpl: TPL_LINEN, start: t(9, 30), end: t(10), group: GRP_COMMON, slots: [SLOT_JOSHU], hc: 1 },
   bathDay
     ? { id: "diaper-east-am", tpl: TPL_DIAPER, start: t(10), end: t(10, 30), group: GRP_EAST, slots: [SLOT_NIKKIN_A, SLOT_NIKKIN_C], hc: 2 }
@@ -830,21 +850,22 @@ const dayCommon = (bathDay: boolean): ItemSpec[] => [
   { id: "break-1", tpl: TPL_BREAK_1, start: t(11), end: t(12), group: GRP_COMMON, slots: [SLOT_HAYABAN_B, SLOT_NIKKIN_B], hc: 2 },
   { id: "dining-prep", tpl: TPL_DINING_PREP, start: t(11, 30), end: t(12), group: GRP_COMMON, slots: [SLOT_HAYABAN_A], hc: 1 },
   // 昼
-  { id: "lunch-east", tpl: TPL_LUNCH, start: t(12), end: t(13), group: GRP_EAST, slots: [SLOT_HAYABAN_A, SLOT_HAYABAN_B, SLOT_NIKKIN_A], hc: 3 },
-  { id: "lunch-sakura", tpl: TPL_LUNCH, start: t(12), end: t(13), group: GRP_SAKURA, slots: [SLOT_NIKKIN_B, SLOT_NIKKIN_C], hc: 2 },
+  { id: "lunch-east", tpl: TPL_LUNCH, start: t(12), end: t(13), group: GRP_EAST, slots: [SLOT_HAYABAN_A, SLOT_HAYABAN_B, SLOT_NIKKIN_A, SLOT_NIKKIN_B], hc: 4 },
+  { id: "lunch-sakura", tpl: TPL_LUNCH, start: t(12), end: t(13), group: GRP_SAKURA, slots: [SLOT_NIKKIN_SAKURA, SLOT_NIKKIN_C], hc: 2 },
   { id: "restock", tpl: TPL_RESTOCK, start: t(12), end: t(12, 30), group: GRP_COMMON, slots: [SLOT_JOSHU], hc: 1 },
   // 午後
   { id: "spot-arrival", tpl: TPL_ARRIVAL, start: t(13), end: t(13, 15), group: GRP_COMMON, slots: [SLOT_SPOT_PM, SLOT_HAYABAN_A], hc: 2 },
-  { id: "oral-east-pm", tpl: TPL_ORAL, start: t(13, 15), end: t(13, 45), group: GRP_EAST, slots: [SLOT_SPOT_PM, SLOT_HAYABAN_A], hc: 2 },
+  { id: "oral-east-pm", tpl: TPL_ORAL, start: t(13, 15), end: t(14), group: GRP_EAST, slots: [SLOT_SPOT_PM, SLOT_HAYABAN_A], hc: 2 },
   { id: "oral-sakura-pm", tpl: TPL_ORAL, start: t(13), end: t(13, 30), group: GRP_SAKURA, slots: [SLOT_NIKKIN_SAKURA], hc: 1 },
   { id: "break-2", tpl: TPL_BREAK_2, start: t(13), end: t(14), group: GRP_COMMON, slots: [SLOT_NIKKIN_A, SLOT_NIKKIN_C, SLOT_OSOBAN], hc: 3 },
   { id: "break-3", tpl: TPL_BREAK_3, start: t(14), end: t(15), group: GRP_COMMON, slots: [SLOT_HAYABAN_A, SLOT_NIKKIN_SAKURA], hc: 2 },
   { id: "snack-prep", tpl: TPL_SNACK_PREP, start: t(14, 30), end: t(15), group: GRP_COMMON, slots: [SLOT_NIKKIN_A], hc: 1 },
-  { id: "snack-east", tpl: TPL_SNACK, start: t(15), end: t(15, 30), group: GRP_EAST, slots: [SLOT_HAYABAN_A, SLOT_HAYABAN_B], hc: 2 },
+  { id: "snack-east", tpl: TPL_SNACK, start: t(15), end: t(15, 30), group: GRP_EAST, slots: [SLOT_HAYABAN_A, SLOT_HAYABAN_B, SLOT_SPOT_PM], hc: 3 },
   { id: "snack-sakura", tpl: TPL_SNACK, start: t(15), end: t(15, 30), group: GRP_SAKURA, slots: [SLOT_NIKKIN_SAKURA], hc: 1 },
   { id: "hydration-east", tpl: TPL_HYDRATION, start: t(15, 30), end: t(16), group: GRP_EAST, slots: [SLOT_SPOT_PM, SLOT_HAYABAN_B], hc: 2 },
   { id: "diaper-east-pm", tpl: TPL_DIAPER, start: t(16), end: t(16, 30), group: GRP_EAST, slots: [SLOT_OSOBAN, SLOT_SPOT_PM], hc: 2 },
-  { id: "toilet-tanaka-pm", tpl: TPL_TOILET, start: t(16), end: t(16, 30), group: GRP_SAKURA, slots: [SLOT_NIKKIN_SAKURA], hc: 1, residents: [RES_TANAKA] },
+  { id: "restock-pm", tpl: TPL_RESTOCK, start: t(16, 30), end: t(17), group: GRP_COMMON, slots: [SLOT_OSOBAN, SLOT_SPOT_PM], hc: 2 },
+  { id: "toilet-tanaka-pm", tpl: TPL_TOILET, start: t(16), end: t(16, 30), group: GRP_SAKURA, slots: [SLOT_NIKKIN_B], hc: 1, residents: [RES_TANAKA] },
   { id: "records", tpl: TPL_RECORDS, start: t(17), end: t(18), group: GRP_COMMON, slots: [SLOT_NIKKIN_A, SLOT_NIKKIN_B, SLOT_NIKKIN_C], hc: 3 },
 ];
 
@@ -860,10 +881,14 @@ const nightCommon: ItemSpec[] = [
   { id: "rounds-sakura-00", tpl: TPL_ROUNDS, start: nx(0), end: nx(0, 30), group: GRP_SAKURA, slots: [SLOT_YAKIN_SAKURA], hc: 1 },
   { id: "reposition-east-01", tpl: TPL_REPOSITION, start: nx(1), end: nx(1, 30), group: GRP_EAST, slots: [SLOT_YAKIN_EAST], hc: 1, residents: REPOSITION_EAST },
   { id: "reposition-sakura-01", tpl: TPL_REPOSITION, start: nx(1), end: nx(1, 30), group: GRP_SAKURA, slots: [SLOT_YAKIN_SAKURA], hc: 1, residents: REPOSITION_SAKURA },
-  { id: "rounds-east-02", tpl: TPL_ROUNDS, start: nx(2), end: nx(2, 30), group: GRP_EAST, slots: [SLOT_YAKIN_EAST], hc: 1 },
-  { id: "rounds-sakura-02", tpl: TPL_ROUNDS, start: nx(2), end: nx(2, 30), group: GRP_SAKURA, slots: [SLOT_YAKIN_SAKURA], hc: 1 },
+  // 夜勤の休憩は交互。休憩中のユニットの巡視は、もう一人の夜勤者が行う。
+  { id: "break-night-east", tpl: TPL_BREAK_NIGHT, start: nx(1, 30), end: nx(2, 30), group: GRP_COMMON, slots: [SLOT_YAKIN_EAST], hc: 1 },
+  { id: "rounds-sakura-0130", tpl: TPL_ROUNDS, start: nx(1, 30), end: nx(2), group: GRP_SAKURA, slots: [SLOT_YAKIN_SAKURA], hc: 1 },
+  { id: "rounds-east-02", tpl: TPL_ROUNDS, start: nx(2), end: nx(2, 30), group: GRP_EAST, slots: [SLOT_YAKIN_SAKURA], hc: 1 },
+  { id: "reposition-sakura-0230", tpl: TPL_REPOSITION, start: nx(2, 30), end: nx(3), group: GRP_SAKURA, slots: [SLOT_YAKIN_SAKURA], hc: 1, residents: REPOSITION_SAKURA },
+  { id: "break-night-sakura", tpl: TPL_BREAK_NIGHT, start: nx(3), end: nx(4), group: GRP_COMMON, slots: [SLOT_YAKIN_SAKURA], hc: 1 },
   { id: "reposition-east-03", tpl: TPL_REPOSITION, start: nx(3), end: nx(3, 30), group: GRP_EAST, slots: [SLOT_YAKIN_EAST], hc: 1, residents: REPOSITION_EAST },
-  { id: "reposition-sakura-03", tpl: TPL_REPOSITION, start: nx(3), end: nx(3, 30), group: GRP_SAKURA, slots: [SLOT_YAKIN_SAKURA], hc: 1, residents: REPOSITION_SAKURA },
+  { id: "rounds-sakura-0330", tpl: TPL_ROUNDS, start: nx(3, 30), end: nx(4), group: GRP_SAKURA, slots: [SLOT_YAKIN_EAST], hc: 1 },
   { id: "rounds-east-04", tpl: TPL_ROUNDS, start: nx(4), end: nx(4, 30), group: GRP_EAST, slots: [SLOT_YAKIN_EAST], hc: 1 },
   { id: "rounds-sakura-04", tpl: TPL_ROUNDS, start: nx(4), end: nx(4, 30), group: GRP_SAKURA, slots: [SLOT_YAKIN_SAKURA], hc: 1 },
   { id: "diaper-east-night", tpl: TPL_DIAPER, start: nx(5), end: nx(6), group: GRP_EAST, slots: [SLOT_YAKIN_EAST], hc: 1 },
@@ -883,7 +908,7 @@ const bathOnly: ItemSpec[] = [
 /** 平日・入浴日の午後の雑務 */
 const weekdayChores: ItemSpec[] = [
   { id: "rec-prep-short", tpl: TPL_REC_PREP, start: t(14), end: t(14, 30), group: GRP_COMMON, slots: [SLOT_NIKKIN_A], hc: 1 },
-  { id: "laundry", tpl: TPL_LAUNDRY, start: t(14), end: t(15), group: GRP_COMMON, slots: [SLOT_NIKKIN_C], hc: 1 },
+  { id: "laundry", tpl: TPL_LAUNDRY, start: t(14), end: t(15), group: GRP_COMMON, slots: [SLOT_NIKKIN_C, SLOT_SPOT_PM], hc: 2 },
   { id: "room-clean-east", tpl: TPL_ROOM_CLEAN, start: t(15), end: t(16), group: GRP_EAST, slots: [SLOT_OSOBAN], hc: 1 },
 ];
 
@@ -965,7 +990,7 @@ const roster: RosterEntry[] = [
   ros(D0, STF_NAKAMURA, SLOT_KANGO),
   ros(D0, STF_KIMURA, SLOT_OSOBAN),
   ros(D0, STF_SAITO, SLOT_YAKIN_EAST),
-  ros(D0, STF_MORI, SLOT_YAKIN_SAKURA),
+  ros(D0, STF_NOGUCHI, SLOT_YAKIN_SAKURA),
   ros(D0, STF_WATANABE, SLOT_JOSHU),
   // 11/3（火）入浴日。介護助手は休み、スポットが午後に初回。
   ros(D1, STF_SATO, SLOT_HAYABAN_A),
@@ -978,7 +1003,7 @@ const roster: RosterEntry[] = [
   ros(D1, STF_KIMURA, SLOT_OSOBAN),
   ros(D1, STF_KATO, SLOT_SPOT_PM, { firstTimer: true }),
   ros(D1, STF_SAITO, SLOT_YAKIN_EAST),
-  ros(D1, STF_MORI, SLOT_YAKIN_SAKURA),
+  ros(D1, STF_NOGUCHI, SLOT_YAKIN_SAKURA),
   ros(D1, STF_WATANABE, SLOT_JOSHU, { absent: true }),
   // 11/4（水）平日。介護助手が出勤、スポットなし。
   ros(D2, STF_SATO, SLOT_HAYABAN_A),
@@ -990,7 +1015,7 @@ const roster: RosterEntry[] = [
   ros(D2, STF_NAKAMURA, SLOT_KANGO),
   ros(D2, STF_KIMURA, SLOT_OSOBAN),
   ros(D2, STF_SAITO, SLOT_YAKIN_EAST),
-  ros(D2, STF_MORI, SLOT_YAKIN_SAKURA),
+  ros(D2, STF_NOGUCHI, SLOT_YAKIN_SAKURA),
   ros(D2, STF_WATANABE, SLOT_JOSHU),
 ];
 

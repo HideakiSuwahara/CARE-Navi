@@ -19,8 +19,10 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
   projects: [
-    { name: "pc", use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } } },
-    { name: "phone", use: { ...devices["Pixel 7"] } },
+    // ボード・業務の見直し・設定（PC）。スマホ用の画面は *.phone.spec.ts に分ける
+    { name: "pc", testIgnore: /\.phone\.spec\.ts$/, use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } } },
+    // 自分の予定・業務詳細・全体（スマホ）
+    { name: "phone", testMatch: /\.phone\.spec\.ts$/, use: { ...devices["Pixel 7"] } },
   ],
   webServer: process.env.E2E_BASE_URL
     ? undefined

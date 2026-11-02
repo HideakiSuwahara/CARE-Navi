@@ -54,18 +54,20 @@ export function TaskCard({
       data-task-id={task.id}
       data-level={isBreak ? "break" : status.level}
     >
-      <div className={`flex min-w-0 items-baseline gap-x-2 ${compact ? "shrink" : "flex-wrap"} ${rail ? "flex-col gap-0" : ""}`}>
+      <div className={`flex min-w-0 flex-col ${compact ? "shrink" : ""}`}>
         <button
           type="button"
           onClick={() => onOpen?.(task.id)}
-          className={`min-w-0 truncate text-left text-[15px] font-bold hover:underline ${isBreak ? "text-[var(--cn-break-ink)]" : ""}`}
+          className={`-my-[10px] block min-h-[44px] min-w-0 truncate py-[10px] text-left text-[15px] font-bold leading-6 hover:underline ${
+            isBreak ? "text-[var(--cn-break-ink)]" : ""
+          }`}
         >
           {title}
         </button>
-        <span className="shrink-0 text-[13px] text-[var(--cn-muted)]">{fmtRange(task.startMin, task.endMin)}</span>
-        {task.targetMode === "group" && targets.length > 0 && (
-          <span className="shrink-0 text-[13px] text-[var(--cn-muted)]">{targets.length}人</span>
-        )}
+        <span className="truncate text-[13px] leading-5 text-[var(--cn-muted)]">
+          {fmtRange(task.startMin, task.endMin)}
+          {task.targetMode === "group" && targets.length > 0 && ` ・ ${targets.length}人`}
+        </span>
       </div>
 
       <div className={`flex min-w-0 items-center gap-1.5 ${compact ? "ml-auto shrink-0" : "flex-wrap"}`}>
@@ -73,7 +75,7 @@ export function TaskCard({
           <button
             key={id}
             type="button"
-            className="inline-flex h-[32px] items-center gap-1 rounded-full bg-[var(--cn-accent-soft)] px-3 text-[14px] text-[var(--cn-accent)]"
+            className="relative inline-flex h-[32px] items-center gap-1 rounded-full border border-[var(--cn-accent)] bg-[var(--cn-accent-soft)] px-3 text-[14px] text-[var(--cn-accent)] before:absolute before:-inset-y-[6px] before:inset-x-0 before:content-['']"
             aria-label={`${staff!.surname}${firstTimer ? "（初回）" : ""}`}
           >
             {staff!.surname}

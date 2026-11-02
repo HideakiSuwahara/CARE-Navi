@@ -34,6 +34,11 @@ body {
   line-height: 1.5;
 }
 
+:focus-visible {
+  outline: 3px solid var(--cn-accent);
+  outline-offset: 2px;
+}
+
 @media print {
   html,
   body {

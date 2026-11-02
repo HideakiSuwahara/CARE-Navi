@@ -93,7 +93,7 @@ export function boardColumns(state: State, date: string): BoardColumn[] {
     return {
       id: g.id,
       name: g.name,
-      sub: g.kind === "common" ? "対象なし・休憩" : `${residentsIn(g.id)}人`,
+      sub: g.kind === "common" ? "" : `${residentsIn(g.id)}人`,
       cards,
       hasRail,
     };

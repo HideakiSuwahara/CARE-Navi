@@ -309,7 +309,7 @@ test("付き添い: 重なる業務からは外し、休憩は外さず後ろへ
   assert.equal(checkAssignment(s2, findTask(s2, "見守り").id, "s-suzuki").some((i) => i.code === "onBreak"), false);
 });
 
-test("付き添い: 担当を選ばなければ担当未定で作る。同じ利用者の同じ時間の個別業務は中止の候補（最初はチェックなし）", () => {
+test("付き添い: 担当を選ばなければ担当未定で作る。同じ利用者の同じ時間の個別業務は中止する（外せる）", () => {
   let s = miniState();
   const bathOne: Event = {
     eventId: "b1",
@@ -337,11 +337,12 @@ test("付き添い: 担当を選ばなければ担当未定で作る。同じ利
   const preview = escortPreview(s, { date: DATE, residentId: "r-101", startMin, endMin }, deterministicContext("e2"));
   assert.ok(preview.lines.some((l) => l.kind === "effect" && l.text.includes("担当未定")));
   const cancel = preview.lines.find((l) => l.kind === "cancel")!;
-  assert.equal(cancel.defaultOn, false);
+  assert.notEqual(cancel.defaultOn, false, "ご本人が不在なので、既定で中止する");
+  assert.match(cancel.text, /中止する: 「入浴介助 山田様 11:00–11:30」（山田様が不在のため）/);
   const s2 = applyEvents(s, selectPreview(preview, defaultUnchecked(preview)));
-  assert.equal(s2.tasks["task-bath-yamada"].status, "planned", "既定では中止しない");
-  const s3 = applyEvents(s, preview.events);
-  assert.equal(s3.tasks["task-bath-yamada"].status, "cancelled");
+  assert.equal(s2.tasks["task-bath-yamada"].status, "cancelled");
+  const s3 = applyEvents(s, selectPreview(preview, new Set(cancel.eventIds)));
+  assert.equal(s3.tasks["task-bath-yamada"].status, "planned", "チェックを外せば中止しない");
 });
 
 test("欠勤: 本日の担当をすべて外し、空く枠を示す", () => {
@@ -356,6 +357,37 @@ test("欠勤: 本日の担当をすべて外し、空く枠を示す", () => {
   // 欠勤にした人は候補で「欠勤」と出る
   const issues = checkAssignment(s2, findTask(s2, "見守り").id, "s-sato");
   assert.equal(issues[0].code, "absent");
+});
+
+test("付き添い: 勤務内に休憩を取り直せないときは、新しい休憩を作らずリーダーに任せる", () => {
+  const base = miniState();
+  // 鈴木の勤務を 12:30 までにする → 12:00 以降に1時間の休憩は取れない
+  const s: State = { ...base, roster: { ...base.roster, "ro-suzuki": { ...base.roster["ro-suzuki"], endMin: toMin(12, 30) } } };
+  const preview = escortPreview(s, { date: DATE, residentId: "r-101", startMin: toMin(10, 30), endMin: toMin(12), staffId: "s-suzuki" }, deterministicContext("x"));
+  const line = preview.lines.find((l) => l.text.includes("勤務内に取り直せません"));
+  assert.ok(line);
+  assert.equal(line!.optional, false);
+  const s2 = applyEvents(s, preview.events);
+  assert.equal(Object.values(s2.tasks).some((t) => t.name === "休憩（鈴木）"), false, "退勤後に休憩を作らない");
+});
+
+test("休憩をずらす: 人を選べば、その人だけが動く（休憩カードの他の人は動かない）", async () => {
+  const { shiftBreakPreview } = await import("../commands.ts");
+  let s = miniState();
+  // 休憩①（11:00–12:00）に佐藤も入れて2人にする
+  s = applyEvents(s, assignEvents(findTask(s, "休憩①").id, "s-sato", deterministicContext("p")));
+  const brk = findTask(s, "休憩①");
+  const pv = shiftBreakPreview(s, brk.id, 30, deterministicContext("q"), "s-suzuki");
+  const s2 = applyEvents(s, pv.events);
+  assert.equal(s2.tasks[brk.id].startMin, toMin(11), "休憩カードそのものは動かない");
+  const own = Object.values(s2.tasks).find((t) => t.name === "休憩（鈴木）")!;
+  assert.equal(fmtRange(own.startMin, own.endMin), "11:30–12:30");
+  const left = Object.values(s2.assignments).filter((a) => a.taskId === brk.id).map((a) => a.staffId);
+  assert.deepEqual(left, ["s-sato"]);
+  // 勤務を超えるずらしは作らない
+  const tooLate = shiftBreakPreview(s, brk.id, 7 * 60, deterministicContext("r"), "s-suzuki");
+  assert.equal(tooLate.events.length, 0);
+  assert.match(tooLate.lines[0].text, /18:00 までのため/);
 });
 
 test("早退: 勤務中なら今の時刻（15分切り上げ）で早退にし、それ以降の担当だけ外す", () => {
@@ -373,15 +405,16 @@ test("朝: 先週の同じ曜日の番を写し、曜日の業務表を選び、
   // 今日の時間割と出勤者を消し、先週（10/27）の出勤者だけがある状態にする
   const lastWeek = "2026-10-27";
   const roster = Object.fromEntries(
-    Object.values(base.roster).map((e) => [`lw-${e.id}`, { ...e, id: `lw-${e.id}`, date: lastWeek, firstTimer: true, absent: e.staffId === "s-watanabe" }]),
+    Object.values(base.roster).map((e) => [`lw-${e.id}`, { ...e, id: `lw-${e.id}`, date: lastWeek, firstTimer: e.staffId === "s-kato", absent: e.staffId === "s-watanabe" }]),
   );
   const s: State = { ...base, tasks: {}, targets: {}, assignments: {}, days: {}, roster, patterns: { "p-day": { ...base.patterns["p-day"], weekdays: [2] } } };
   let n = 0;
   const draft = morningDraft(s, DATE, () => `new-${++n}`);
   assert.equal(draft.source, "lastWeek");
   assert.equal(draft.patternId, "p-day", "火曜の業務表");
-  assert.equal(draft.entries.length, 4);
-  assert.ok(draft.entries.every((e) => e.date === DATE && !e.firstTimer && !e.absent), "初回・休みは引き継がない");
+  assert.equal(draft.entries.length, 3, "スポット（先週が初回の加藤）は写さない");
+  assert.ok(draft.entries.every((e) => e.date === DATE && !e.firstTimer && !e.absent), "初回・休みの印は引き継がない");
+  assert.ok(draft.entries.every((e) => e.carriedFrom === lastWeek), "先週から写したことを示す");
 
   const ctx = deterministicContext("m", "2026-11-03T07:00:00+09:00", "batch-morning");
   const evs = createDayEvents(s, draft, ctx);
@@ -389,6 +422,7 @@ test("朝: 先週の同じ曜日の番を写し、曜日の業務表を選び、
   const s2 = applyEvents(s, evs);
   assert.equal(tasksForDate(s2, DATE).length, 5);
   assert.equal(headcountStatus(s2, findTask(s2, "リネン回収").id).label, "OK", "渡辺も出勤なので介護助手の枠が埋まる");
+  assert.equal(headcountStatus(s2, findTask(s2, "口腔ケア").id).label, "担当未定", "スポットの枠は、その日に入る人を足すまで担当未定");
 });
 
 // ---------------------------------------------------------------------------

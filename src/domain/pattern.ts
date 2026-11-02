@@ -202,16 +202,22 @@ export interface MorningDraft {
 
 /**
  * 朝の下書き。先週の同じ曜日の出勤者を、今日の日付・初回なし・休みなしで写す。
- * 番（役割枠）の既定の勤務時間があればそれに合わせる。
+ * - 写した行には carriedFrom（先週の日付）を付ける。画面で「先週 10/27 から」と出し、休みの人を外してもらう。
+ * - スポット・応援（職種が「スポット」、または先週が初回だった人）は写さない。毎回入る人ではないため。
+ * - 番（役割枠）の既定の勤務時間があればそれに合わせる。
  */
 export function morningDraft(state: State, date: DateKey, newId: () => ID): MorningDraft {
   const today = rosterForDate(state, date);
   const patternId = patternForDate(state, date);
   if (today.length > 0) return { date, patternId, entries: today.map((e) => ({ ...e })), source: "today" };
-  const prev = rosterForDate(state, addDays(date, -7));
+  const lastWeek = addDays(date, -7);
+  const prev = rosterForDate(state, lastWeek);
   if (prev.length === 0) return { date, patternId, entries: [], source: "none" };
   const entries = prev
-    .filter((e) => state.staff[e.staffId])
+    .filter((e) => {
+      const staff = state.staff[e.staffId];
+      return staff && staff.role !== "スポット" && !e.firstTimer;
+    })
     .map((e) => {
       const slot = e.slotId ? state.roleSlots[e.slotId] : undefined;
       return {
@@ -223,6 +229,7 @@ export function morningDraft(state: State, date: DateKey, newId: () => ID): Morn
         endMin: slot?.defaultEndMin ?? e.endMin,
         firstTimer: false,
         absent: false,
+        carriedFrom: lastWeek,
       };
     });
   return { date, patternId, entries, source: "lastWeek" };

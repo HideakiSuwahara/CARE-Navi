@@ -38,13 +38,10 @@ export function templateSummary(tpl: TaskTemplate): string {
   return `${tpl.name}（${target}・${tpl.defaultDurationMin}分・${tpl.defaultHeadcount}人）`;
 }
 
-/** 見出しに出す更新時刻。名前は出さない（履歴で見る） */
-export function updatedAtLabel(iso: string | undefined, now: Date = new Date()): string {
+/** 見出しに出す更新時刻。時刻のみ（docs/screens.md §0.8）。名前は出さない（履歴で見る） */
+export function updatedAtLabel(iso: string | undefined): string {
   if (!iso) return "";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
-  const sameDay = d.toDateString() === now.toDateString();
-  const hh = d.getHours();
-  const mm = d.getMinutes().toString().padStart(2, "0");
-  return sameDay ? `更新 ${hh}:${mm}` : `更新 ${d.getMonth() + 1}/${d.getDate()} ${hh}:${mm}`;
+  return `更新 ${d.getHours()}:${d.getMinutes().toString().padStart(2, "0")}`;
 }

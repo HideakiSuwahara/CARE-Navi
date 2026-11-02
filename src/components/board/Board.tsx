@@ -1,14 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
-import { useAppState, useNowMinutes } from "@/store/react";
+import { useAppState, useEngine, useNowMinutes } from "@/store/react";
 import { SAMPLE_DATE } from "@/store/sample";
 import { boardColumns, paletteRows } from "@/domain/layout";
 import { shortageGroups } from "@/domain/checks";
 import { fmtMin, fmtRange } from "@/domain/time";
 import { updatedAtLabel } from "@/domain/display";
 import { TaskCard } from "./TaskCard";
+import { MorningBand } from "./MorningBand";
 
 /** 1分あたりの高さ(px)。1時間=180px。30分の業務でも2行（名前／担当・バッジ・＋44px）が入る */
 const PX_PER_MIN = 3;
@@ -26,7 +27,15 @@ function weekdayLabel(date: string): string {
 
 export function Board({ date = SAMPLE_DATE }: { date?: string }) {
   const { state, ready } = useAppState();
+  const engine = useEngine();
+  const lastUndo = useSyncExternalStore(
+    (cb) => (engine ? engine.subscribe(cb) : () => {}),
+    () => engine?.lastUndo ?? null,
+    () => null,
+  );
   const now = useNowMinutes();
+  const [noteOpen, setNoteOpen] = useState(false);
+  const [forceBoard, setForceBoard] = useState(false);
   const scroller = useRef<HTMLDivElement>(null);
 
   const columns = useMemo(() => (ready ? boardColumns(state, date) : []), [state, date, ready]);
@@ -48,22 +57,36 @@ export function Board({ date = SAMPLE_DATE }: { date?: string }) {
   const nowInView = now !== null && now >= VIEW_START && now < VIEW_END;
 
   return (
-    <div className="flex h-screen flex-col">
+    <>
+      {/* スマホ幅: ボード（表）は出さず、1文と1ボタン（docs/screens.md §1） */}
+      {!forceBoard && (
+        <div className="flex min-h-screen flex-col items-start gap-4 p-5 md:hidden">
+          <p className="text-[17px] font-bold">ボードは PC・タブレット用の画面です。</p>
+          <p className="text-[16px] text-[var(--cn-ink-soft)]">スマホでは「自分の予定」を使います（この画面は次の版で入ります）。</p>
+          <button type="button" onClick={() => setForceBoard(true)} className="h-[48px] rounded-xl border border-[var(--cn-card-line)] bg-white px-5 text-[16px]">
+            このままボードを見る
+          </button>
+        </div>
+      )}
+    <div className={`${forceBoard ? "flex" : "hidden md:flex"} h-screen flex-col`}>
+      <a href="#staff-palette" className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-50 focus:rounded focus:bg-white focus:p-2">
+        出勤者一覧へ移動
+      </a>
       {/* 上部バー（1段） */}
       <header className="flex h-14 shrink-0 items-center gap-5 border-b border-[var(--cn-border)] bg-white px-5">
-        <div className="flex items-center gap-2.5">
+        <h1 className="flex items-center gap-2.5">
           <span aria-hidden="true" className="inline-block h-7 w-7 rounded-lg bg-[var(--cn-accent)]" />
           <span className="text-[18px] font-bold">ケアナビ</span>
-          <span className="text-[14px] text-[var(--cn-muted)]">{state.facility?.name ?? ""}</span>
-        </div>
+          <span className="text-[14px] font-normal text-[var(--cn-muted)]">{state.facility?.name ?? ""}</span>
+        </h1>
         <nav aria-label="主な画面" className="flex gap-1">
-          <Link href="/board" aria-current="page" className="rounded-lg bg-[var(--cn-accent-soft)] px-3.5 py-2.5 font-bold text-[var(--cn-accent)]">
+          <Link href="/board" aria-current="page" className="inline-flex min-h-[44px] items-center rounded-lg bg-[var(--cn-accent-soft)] px-3.5 font-bold text-[var(--cn-accent)]">
             ボード
           </Link>
-          <Link href="/review" className="rounded-lg px-3.5 py-2.5 text-[var(--cn-ink-soft)]">
+          <Link href="/review" className="inline-flex min-h-[44px] items-center rounded-lg px-3.5 text-[var(--cn-ink-soft)]">
             業務の見直し
           </Link>
-          <Link href="/setup" className="rounded-lg px-3.5 py-2.5 text-[var(--cn-ink-soft)]">
+          <Link href="/setup" className="inline-flex min-h-[44px] items-center rounded-lg px-3.5 text-[var(--cn-ink-soft)]">
             設定
           </Link>
         </nav>
@@ -75,14 +98,6 @@ export function Board({ date = SAMPLE_DATE }: { date?: string }) {
 
       {/* ツールバー（1段） */}
       <div className="flex shrink-0 flex-wrap items-center gap-3 px-5 py-2.5">
-        <div role="group" aria-label="横軸" className="inline-flex overflow-hidden rounded-lg border border-[var(--cn-card-line)] bg-white">
-          <button type="button" aria-pressed="true" className="h-[44px] bg-[var(--cn-ink)] px-4 text-[14px] font-bold text-white">
-            グループ
-          </button>
-          <button type="button" aria-pressed="false" className="h-[44px] px-4 text-[14px] text-[var(--cn-ink-soft)]">
-            職員
-          </button>
-        </div>
         {hasTasks && (
           <div className="flex items-center gap-2" aria-live="polite">
             {groups.map((g) => (
@@ -96,8 +111,26 @@ export function Board({ date = SAMPLE_DATE }: { date?: string }) {
               </span>
             ))}
             {groups.length === 0 && <span className="text-[14px] text-[var(--cn-muted)]">すべての枠に担当が付いています</span>}
-            <span className="text-[13px] text-[var(--cn-muted)]">予定の担当枠の差分です（ケアの未実施ではありません）</span>
+            <button
+              type="button"
+              aria-expanded={noteOpen}
+              aria-label="この数字について"
+              onClick={() => setNoteOpen((v) => !v)}
+              className="inline-flex h-[44px] w-[44px] items-center justify-center rounded-full text-[16px] text-[var(--cn-muted)] hover:bg-white"
+            >
+              ⓘ
+            </button>
+            {noteOpen && <span className="text-[14px] text-[var(--cn-ink-soft)]">予定の担当枠の差分です。ケアをしていない人数ではありません。</span>}
           </div>
+        )}
+        {lastUndo && (
+          <button
+            type="button"
+            onClick={() => engine?.undo()}
+            className="ml-auto inline-flex h-[44px] items-center gap-2 rounded-lg border border-[var(--cn-card-line)] bg-white px-4 text-[14px]"
+          >
+            元に戻す<span className="text-[13px] text-[var(--cn-muted)]">（{lastUndo.label}）</span>
+          </button>
         )}
       </div>
 
@@ -107,10 +140,7 @@ export function Board({ date = SAMPLE_DATE }: { date?: string }) {
           {!ready ? (
             <div className="p-6 text-[var(--cn-muted)]">読み込んでいます…</div>
           ) : !hasTasks ? (
-            <div className="flex flex-col items-start gap-3 p-6">
-              <p className="text-[16px]">この日の時間割はまだありません。</p>
-              <p className="text-[14px] text-[var(--cn-muted)]">出勤者に番を付けて、業務表から作ります。</p>
-            </div>
+            <MorningBand state={state} date={date} />
           ) : (
             <div ref={scroller} className="h-full overflow-auto" data-testid="board-scroller">
               {/* 列見出し */}
@@ -120,9 +150,9 @@ export function Board({ date = SAMPLE_DATE }: { date?: string }) {
               >
                 <div className="px-2 py-2.5 text-[13px] text-[var(--cn-muted)]">時刻</div>
                 {columns.map((c) => (
-                  <div key={c.id} className="border-l border-[var(--cn-grid)] px-3 py-2.5 font-bold">
-                    <span>{c.name}</span> <span className="text-[13px] font-normal text-[var(--cn-muted)]">{c.sub}</span>
-                  </div>
+                  <h2 key={c.id} className="border-l border-[var(--cn-grid)] px-3 py-2.5 font-bold">
+                    <span>{c.name}</span> {c.sub && <span className="text-[13px] font-normal text-[var(--cn-muted)]">{c.sub}</span>}
+                  </h2>
                 ))}
               </div>
               {/* 時間割 */}
@@ -173,7 +203,8 @@ export function Board({ date = SAMPLE_DATE }: { date?: string }) {
         </section>
 
         {/* 右パレット */}
-        <aside aria-label="きょうの出勤者" className="flex w-[300px] shrink-0 flex-col gap-3 overflow-auto">
+        {hasTasks && (
+        <aside id="staff-palette" aria-label="きょうの出勤者" className="flex w-[300px] shrink-0 flex-col gap-3 overflow-auto">
           <div className="rounded-xl border border-[var(--cn-border)] bg-white p-3.5">
             <div className="flex items-baseline gap-2">
               <span className="font-bold">きょうの出勤者</span>
@@ -204,20 +235,22 @@ export function Board({ date = SAMPLE_DATE }: { date?: string }) {
             </ul>
           </div>
           {palette.off.length > 0 && (
-            <div className="rounded-xl border border-[var(--cn-border)] bg-white p-3.5">
-              <div className="font-bold">休み</div>
+            <section aria-labelledby="off-title" className="rounded-xl border border-[var(--cn-border)] bg-white p-3.5">
+              <h2 id="off-title" className="font-bold">休み</h2>
               <ul className="mt-2 flex flex-col gap-1.5">
                 {palette.off.map((r) => (
                   <li key={r.staffId} className="rounded-[10px] bg-[var(--cn-ground)] px-3 py-2 text-[14px] text-[var(--cn-ink-soft)]">
                     <span className="font-bold">{r.surname}</span> {r.slotName}
-                    {r.unfilledSlotTasks > 0 && <span className="block text-[13px]">この人の番の枠 {r.unfilledSlotTasks}件が担当未定</span>}
+                    {r.unfilledSlotTasks > 0 && <span className="block text-[13px]">{r.surname}さんの分 {r.unfilledSlotTasks}件が担当未定</span>}
                   </li>
                 ))}
               </ul>
-            </div>
+            </section>
           )}
         </aside>
+        )}
       </main>
     </div>
+    </>
   );
 }
