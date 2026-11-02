@@ -1,0 +1,109 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { rosterForDate } from "@/domain/checks";
+import { businessMinutes } from "@/domain/myday";
+import { fmtRange } from "@/domain/time";
+import type { ID } from "@/domain/types";
+import { useAppState, useNowMinutes } from "@/store/react";
+import { SAMPLE_DATE } from "@/store/sample";
+import { MyDayView } from "./MyDayView";
+import { PhoneTaskDetail } from "./PhoneTaskDetail";
+
+/**
+ * 自分の予定（スマホ）。docs/screens.md §4
+ * 共有端末: はじめに名前を選ぶ（その端末が覚える）。名前の横の「切替」で変えられる。
+ */
+const ME_KEY = "cn-me-staff";
+
+function readMe(): ID | null {
+  try {
+    return window.localStorage.getItem(ME_KEY);
+  } catch {
+    return null;
+  }
+}
+function writeMe(id: ID | null) {
+  try {
+    if (id) window.localStorage.setItem(ME_KEY, id);
+    else window.localStorage.removeItem(ME_KEY);
+  } catch {
+    // 保存できない端末（プライベートモードなど）では、開いている間だけ覚える
+  }
+}
+
+export function MyPage({ taskId, date = SAMPLE_DATE }: { taskId?: string; date?: string }) {
+  const { state, ready } = useAppState();
+  const clock = useNowMinutes();
+  const now = clock === null ? null : businessMinutes(clock);
+  const [me, setMe] = useState<ID | null>(null);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    setMe(readMe());
+    setLoaded(true);
+  }, []);
+
+  const choose = useCallback((id: ID | null) => {
+    writeMe(id);
+    setMe(id);
+    window.scrollTo(0, 0);
+  }, []);
+
+  if (!ready || !loaded || now === null) {
+    return <p className="p-5 text-[16px] text-[var(--cn-muted)]">読み込んでいます…</p>;
+  }
+
+  const entry = me ? rosterForDate(state, date).find((e) => e.staffId === me && !e.absent) : undefined;
+  if (!me || !state.staff[me] || !entry) return <NamePicker state={state} date={date} onChoose={choose} previous={me && state.staff[me] ? state.staff[me].surname : undefined} />;
+
+  if (taskId && state.tasks[taskId]) {
+    return <PhoneTaskDetail state={state} date={date} taskId={taskId} me={me} now={now} />;
+  }
+  return <MyDayView state={state} date={date} me={me} now={now} onSwitch={() => choose(null)} />;
+}
+
+function NamePicker({
+  state,
+  date,
+  onChoose,
+  previous,
+}: {
+  state: ReturnType<typeof useAppState>["state"];
+  date: string;
+  onChoose: (id: ID) => void;
+  /** 覚えていた人が、きょうは出勤していないとき */
+  previous?: string;
+}) {
+  const slotOrder = (id?: ID) => (id ? (state.roleSlots[id]?.sortOrder ?? 999) : 999);
+  const entries = rosterForDate(state, date)
+    .filter((e) => !e.absent && state.staff[e.staffId])
+    .sort((a, b) => slotOrder(a.slotId) - slotOrder(b.slotId) || a.startMin - b.startMin);
+  return (
+    <main className="mx-auto flex min-h-screen max-w-[480px] flex-col gap-4 bg-[var(--cn-ground)] px-4 py-5 text-[16px]">
+      <h1 className="text-[20px] font-bold">自分の予定</h1>
+      {previous && <p className="text-[16px]">{previous}さんは、きょうの出勤に入っていません。名前を選び直してください。</p>}
+      <p className="text-[16px] text-[var(--cn-ink-soft)]">あなたの名前を選んでください。この端末が覚えます。</p>
+      <ul className="flex flex-col gap-2" aria-label="きょうの出勤者">
+        {entries.map((e) => {
+          const s = state.staff[e.staffId];
+          const slot = e.slotId ? state.roleSlots[e.slotId]?.name : "";
+          return (
+            <li key={e.id}>
+              <button
+                type="button"
+                onClick={() => onChoose(s.id)}
+                className="flex min-h-[56px] w-full items-center gap-3 rounded-xl border border-[var(--cn-control-line)] bg-white px-4 text-left"
+              >
+                <span className="text-[18px] font-bold">{s.surname}</span>
+                <span className="text-[14px] text-[var(--cn-muted)]">
+                  {slot} {fmtRange(e.startMin, e.endMin)}
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </main>
+  );
+}

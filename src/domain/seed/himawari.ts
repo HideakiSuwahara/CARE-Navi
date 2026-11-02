@@ -176,14 +176,14 @@ const SLOT_KANGO = "slot-kango";
 const SLOT_SPOT_PM = "slot-spot-pm";
 
 const roleSlots: RoleSlot[] = [
-  { id: SLOT_HAYABAN_A, name: "早番A", defaultStartMin: t(7), defaultEndMin: t(16), groupId: GRP_EAST, sortOrder: 0 },
+  { id: SLOT_HAYABAN_A, name: "早番A", defaultStartMin: t(7), defaultEndMin: t(16), groupId: GRP_EAST, sortOrder: 0, leaderRank: 1 },
   { id: SLOT_HAYABAN_B, name: "早番B", defaultStartMin: t(7), defaultEndMin: t(16), groupId: GRP_EAST, sortOrder: 1 },
   { id: SLOT_NIKKIN_A, name: "日勤A", defaultStartMin: t(9), defaultEndMin: t(18), groupId: GRP_EAST, sortOrder: 2 },
   { id: SLOT_NIKKIN_B, name: "日勤B", defaultStartMin: t(9), defaultEndMin: t(18), groupId: GRP_EAST, sortOrder: 3 },
   { id: SLOT_NIKKIN_C, name: "日勤C", defaultStartMin: t(9), defaultEndMin: t(18), groupId: GRP_EAST, sortOrder: 4 },
   { id: SLOT_NIKKIN_SAKURA, name: "日勤さくら", defaultStartMin: t(9), defaultEndMin: t(18), groupId: GRP_SAKURA, sortOrder: 5 },
-  { id: SLOT_OSOBAN, name: "遅番", defaultStartMin: t(11), defaultEndMin: t(20), groupId: GRP_EAST, sortOrder: 6 },
-  { id: SLOT_YAKIN_EAST, name: "夜勤東", defaultStartMin: t(17), defaultEndMin: nx(9), groupId: GRP_EAST, sortOrder: 7 },
+  { id: SLOT_OSOBAN, name: "遅番", defaultStartMin: t(11), defaultEndMin: t(20), groupId: GRP_EAST, sortOrder: 6, leaderRank: 2 },
+  { id: SLOT_YAKIN_EAST, name: "夜勤東", defaultStartMin: t(17), defaultEndMin: nx(9), groupId: GRP_EAST, sortOrder: 7, leaderRank: 3 },
   { id: SLOT_YAKIN_SAKURA, name: "夜勤さくら", defaultStartMin: t(17), defaultEndMin: nx(9), groupId: GRP_SAKURA, sortOrder: 8 },
   { id: SLOT_JOSHU, name: "介護助手", defaultStartMin: t(9), defaultEndMin: t(13), sortOrder: 9 },
   { id: SLOT_KANGO, name: "看護", defaultStartMin: t(9), defaultEndMin: t(18), sortOrder: 10 },
@@ -196,7 +196,8 @@ const roleSlots: RoleSlot[] = [
 
 const CAT_CORE = "core";
 const CAT_NONCORE = "noncore";
-const LEADER = "きょうのリーダー PHS 801";
+// PHS は画面の「困ったら」で、その時刻のリーダーから出す（ここに番号を書くと夜に違う人を指す）
+const LEADER = "きょうのリーダー";
 const CONTACT_CARE = `同じ枠の常勤 ／ ${LEADER}`;
 const CONTACT_NURSE = `看護師 PHS 810 ／ ${LEADER}`;
 

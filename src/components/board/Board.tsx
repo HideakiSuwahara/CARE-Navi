@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { TopBar } from "@/components/TopBar";
 import { useAppState, useEngine, useNowMinutes } from "@/store/react";
@@ -166,7 +167,10 @@ export function Board({ date = SAMPLE_DATE }: { date?: string }) {
       {!forceBoard && (
         <div className="flex min-h-screen flex-col items-start gap-4 p-5 md:hidden print:!hidden">
           <p className="text-[17px] font-bold">ボードは PC・タブレット用の画面です。</p>
-          <p className="text-[16px] text-[var(--cn-ink-soft)]">PC かタブレット（横向き）で開いてください。スマホ用の「自分の予定」は次の版で入ります。</p>
+          <p className="text-[16px] text-[var(--cn-ink-soft)]">スマホでは、きょうの自分の予定を見られます。</p>
+          <Link href="/me" className="inline-flex h-[48px] items-center rounded-xl bg-[var(--cn-accent)] px-5 text-[16px] font-bold text-white">
+            自分の予定を開く
+          </Link>
         </div>
       )}
     <div className={`${forceBoard ? "flex" : "hidden md:flex"} h-screen flex-col print:!hidden`}>

@@ -194,11 +194,12 @@ test.describe("ボードの見え方", () => {
     expect(top).toBeGreaterThan(1000); // 6:00 起点で 13:00 は 7時間×180px
   });
 
-  test("スマホ幅ではボードを出さず、案内だけを出す", async ({ page }) => {
+  test("スマホ幅ではボードを出さず、1文と「自分の予定を開く」を出す", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/board");
     await expect(page.getByText("ボードは PC・タブレット用の画面です。")).toBeVisible();
-    await expect(page.getByText(/PC かタブレット（横向き）で開いてください/)).toBeVisible();
+    await page.getByRole("link", { name: "自分の予定を開く" }).click();
+    await expect(page).toHaveURL(/\/me/);
   });
 
   test("ボタン・リンクは 44px 以上（ナビ・カードの名前・＋）", async ({ page }) => {
