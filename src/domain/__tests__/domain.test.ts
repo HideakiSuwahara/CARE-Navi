@@ -42,6 +42,21 @@ test("parseTime", () => {
   assert.equal(parseTime("abc"), null);
 });
 
+test("parseClockInput: 730・0730・7時30分・7.30・全角も 7:30 と読む", async () => {
+  const { parseClockInput } = await import("../time.ts");
+  for (const t of ["7:30", "07:30", "730", "0730", "7時30分", "7時30", "7時半", "7.30", "７：３０", " 7:30 "]) {
+    assert.equal(parseClockInput(t), 450, t);
+  }
+  assert.equal(parseClockInput("7"), 420);
+  assert.equal(parseClockInput("7時"), 420);
+  assert.equal(parseClockInput("1000"), 600);
+  assert.equal(parseClockInput("翌2:00"), 1560);
+  assert.equal(parseClockInput("翌200"), 1560);
+  for (const bad of ["", "abc", "2500", "7:60", "12345", "7:3", "24時"]) {
+    assert.equal(parseClockInput(bad), null, bad);
+  }
+});
+
 test("overlaps は半開区間", () => {
   assert.equal(overlaps(600, 630, 630, 660), false); // 10:00–10:30 と 10:30–11:00 は重ならない
   assert.equal(overlaps(600, 660, 630, 700), true);

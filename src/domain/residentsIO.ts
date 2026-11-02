@@ -15,6 +15,8 @@ export interface PastedResident {
   surname: string;
   groupId: ID;
   room: string;
+  /** グループの列がなく、選んでいるグループに入れた */
+  defaultedGroup?: boolean;
 }
 
 export interface PasteResult {
@@ -22,38 +24,65 @@ export interface PasteResult {
   errors: { line: number; reason: string }[];
 }
 
-/** 名簿の貼り付け: 1行1人「名前, グループ, 部屋」。区切りはカンマ・タブ・全角カンマ。姓は名前の空白の前 */
-export function parseResidentPaste(state: State, text: string): PasteResult {
+/**
+ * 名簿の貼り付け: 1行1人「名前, グループ, 部屋」。区切りはカンマ・タブ・全角カンマ。姓は名前の空白の前。
+ * defaultGroupId を渡すと、グループの列がない行（「名前」だけ、「名前, 部屋」、グループが空欄）はそのグループに入れる。
+ */
+export function parseResidentPaste(state: State, text: string, defaultGroupId?: ID): PasteResult {
   const groups = Object.values(state.groups);
+  const fallback = defaultGroupId ? state.groups[defaultGroupId] : undefined;
   const out: PasteResult = { residents: [], errors: [] };
   text.split(/\r?\n/).forEach((raw, i) => {
     const line = i + 1;
     if (!raw.trim()) return;
     const cells = raw.split(/[,\t，、]/).map((c) => c.trim());
-    const [name = "", groupName = "", room = ""] = cells;
+    const [name = "", second = "", third = ""] = cells;
     if (!name) {
       out.errors.push({ line, reason: "名前がありません" });
       return;
     }
-    if (!groupName) {
-      out.errors.push({ line, reason: "グループがありません（名前, グループ, 部屋 の順）" });
-      return;
+    let group = second ? groups.find((g) => g.name === second) : undefined;
+    let room = third;
+    let defaulted = false;
+    if (!group && fallback) {
+      if (!second) {
+        group = fallback;
+        defaulted = true;
+      } else if (cells.length === 2 && /\d/.test(second)) {
+        // 「名前, 部屋」: 2つ目が部屋番号らしいときは、グループの列がないと読む
+        group = fallback;
+        room = second;
+        defaulted = true;
+      }
     }
-    const group = groups.find((g) => g.name === groupName);
     if (!group) {
-      out.errors.push({ line, reason: `グループ「${groupName}」が見つかりません（${groups.map((g) => g.name).join("・")}）` });
+      out.errors.push({
+        line,
+        reason: second
+          ? `グループ「${second}」が見つかりません（${groups.map((g) => g.name).join("・")}）`
+          : "グループがありません（名前, グループ, 部屋 の順）",
+      });
       return;
     }
+    const gid = group.id;
     const displayName = name.replace(/[\s　]+/g, " ");
     const surname = displayName.split(" ")[0];
-    const dup = Object.values(state.residents).some((r) => r.displayName === displayName && r.groupId === group.id);
-    if (dup || out.residents.some((r) => r.displayName === displayName && r.groupId === group.id)) {
+    const dup = Object.values(state.residents).some((r) => r.displayName === displayName && r.groupId === gid);
+    if (dup || out.residents.some((r) => r.displayName === displayName && r.groupId === gid)) {
       out.errors.push({ line, reason: `${displayName}様はすでに登録されています` });
       return;
     }
-    out.residents.push({ line, displayName, surname, groupId: group.id, room });
+    out.residents.push({ line, displayName, surname, groupId: gid, room, ...(defaulted ? { defaultedGroup: true } : {}) });
   });
   return out;
+}
+
+/** ISO の日時 → "2026/11/3"。無ければ「—」 */
+export function dateOfIso(iso: string | undefined): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
 }
 
 function csvCell(v: string): string {
@@ -84,8 +113,8 @@ export function sheetCsvRows(state: State, residentId: ID): string[][] {
   if (!r) return [];
   const group = state.groups[r.groupId]?.name ?? "";
   const rows: string[][] = [
-    ["利用者", `${r.displayName}様`, "部屋", r.room, "グループ", group],
-    ["時刻", "業務・日課", "状態", "生活リズム", "意向・好み", "自分でできること", "サポートが必要なこと"],
+    ["利用者", `${r.displayName}様`, "部屋", r.room, "グループ", group, "更新日", dateOfIso(sheetOf(state, residentId).updatedAt)],
+    ["時刻", "生活の流れ", "状態", "生活リズム", "意向・好み", "自分でできること", "サポートが必要なこと"],
   ];
   for (const l of sheetLines(state, residentId)) {
     rows.push([
@@ -104,7 +133,7 @@ export function sheetCsvRows(state: State, residentId: ID): string[][] {
 /** 一覧の CSV の行: 利用者×日課の時刻。標準どおりは空欄、なしは「なし」 */
 export function routineGridCsvRows(state: State, groupId: ID): string[][] {
   const routines = routinesOf(state, groupId);
-  const header = ["部屋", "名前", ...routines.map((x) => `${x.name}（標準 ${clockLabel(x.startMin)}）`)];
+  const header = ["部屋", "名前", ...routines.map((x) => `${x.name}（標準 ${clockLabel(x.startMin)}）`), "更新日"];
   const rows: string[][] = [header];
   for (const r of residentsOfGroup(state, groupId)) {
     rows.push([
@@ -115,6 +144,7 @@ export function routineGridCsvRows(state: State, groupId: ID): string[][] {
         if (row?.skip) return "なし";
         return row?.startMin !== undefined ? clockLabel(row.startMin) : "";
       }),
+      state.sheets[r.id]?.updatedAt ? dateOfIso(state.sheets[r.id]!.updatedAt) : "",
     ]);
   }
   return rows;

@@ -2,9 +2,11 @@
 
 import { useEffect, useRef } from "react";
 import { assigneesOf, headcountStatus } from "@/domain/checks";
+import { cancelTaskEvents, shiftTaskEvents, unassignEvents } from "@/domain/commands";
 import { sheetRowFor } from "@/domain/routine";
 import { clockLabel, fmtRange } from "@/domain/time";
 import type { ID, State } from "@/domain/types";
+import type { Engine } from "@/store/engine";
 
 /**
  * 業務の詳細（ボードでカードの名前を押すと右に開く）。
@@ -12,7 +14,19 @@ import type { ID, State } from "@/domain/types";
  * - お願いすること／しないこと・手順・物品・相談先は業務の種類から
  * ボード（施設の PC）なので利用者はフルネームで出す。手元画面（自分の予定）は表示名の設定に従う（D3）。
  */
-export function TaskDetail({ state, taskId, onClose, onAdd }: { state: State; taskId: ID; onClose: () => void; onAdd?: (taskId: ID) => void }) {
+export function TaskDetail({
+  state,
+  engine,
+  taskId,
+  onClose,
+  onAdd,
+}: {
+  state: State;
+  engine?: Engine | null;
+  taskId: ID;
+  onClose: () => void;
+  onAdd?: (taskId: ID) => void;
+}) {
   const task = state.tasks[taskId];
   const closeRef = useRef<HTMLButtonElement>(null);
 
@@ -30,7 +44,23 @@ export function TaskDetail({ state, taskId, onClose, onAdd }: { state: State; ta
   const assignees = assigneesOf(state, task.id);
   const targets = (state.targets[task.id] ?? []).map((rid) => state.residents[rid]).filter(Boolean);
   const group = task.groupId ? state.groups[task.groupId] : undefined;
-  const short = task.kind !== "break" && (status.level === "unassigned" || status.level === "short");
+  const isBreak = task.kind === "break";
+  const short = !isBreak && (status.level === "unassigned" || status.level === "short");
+
+  const unassign = (staffId: ID, surname: string) => {
+    if (!engine) return;
+    engine.dispatch(unassignEvents(engine.state, task.id, staffId, engine.context()), `${surname}さんを「${task.name}」の担当から外しました`);
+  };
+  const shift = (delta: number) => {
+    if (!engine) return;
+    const word = `${Math.abs(delta)}分${delta > 0 ? "後へ" : "前へ"}`;
+    engine.dispatch(shiftTaskEvents(engine.state, task.id, delta, engine.context()), `「${task.name}」を${word}ずらしました`);
+  };
+  const cancel = () => {
+    if (!engine) return;
+    engine.dispatch(cancelTaskEvents(task.id, engine.context()), `「${task.name}」を中止にしました`);
+    onClose();
+  };
 
   return (
     <aside
@@ -68,10 +98,21 @@ export function TaskDetail({ state, taskId, onClose, onAdd }: { state: State; ta
           </h3>
           <div className="flex flex-wrap items-center gap-2">
             {assignees.map((s) => (
-              <span key={s.id} className="inline-flex h-[32px] items-center rounded-full border border-[var(--cn-accent)] bg-[var(--cn-accent-soft)] px-3 text-[15px] text-[var(--cn-accent)]">
+              <span key={s.id} className="inline-flex h-[44px] items-center gap-1 rounded-full border border-[var(--cn-accent)] bg-[var(--cn-accent-soft)] pl-3 text-[15px] text-[var(--cn-accent)]">
                 {s.surname}
+                {engine && (
+                  <button
+                    type="button"
+                    onClick={() => unassign(s.id, s.surname)}
+                    aria-label={`${s.surname}さんを担当から外す`}
+                    className="inline-flex h-[44px] w-[40px] items-center justify-center rounded-full text-[17px]"
+                  >
+                    ×
+                  </button>
+                )}
               </span>
             ))}
+            {assignees.length === 0 && <span className="text-[15px] text-[var(--cn-ink-soft)]">まだいません</span>}
             {short && (
               <span
                 className={`inline-flex h-[32px] items-center rounded-md px-2.5 text-[14px] font-bold ${
@@ -88,6 +129,25 @@ export function TaskDetail({ state, taskId, onClose, onAdd }: { state: State; ta
             )}
           </div>
         </section>
+
+        {engine && (
+          <section aria-labelledby="d-ops" className="flex flex-wrap items-center gap-2">
+            <h3 id="d-ops" className="sr-only">
+              時刻と中止
+            </h3>
+            <button type="button" onClick={() => shift(-30)} className="h-[44px] rounded-lg border border-[var(--cn-control-line)] px-3 text-[15px]">
+              30分前へ
+            </button>
+            <button type="button" onClick={() => shift(30)} className="h-[44px] rounded-lg border border-[var(--cn-control-line)] px-3 text-[15px]">
+              30分後へ
+            </button>
+            {!isBreak && (
+              <button type="button" onClick={cancel} className="ml-auto h-[44px] rounded-lg border border-[var(--cn-control-line)] px-3 text-[15px]">
+                この業務を中止
+              </button>
+            )}
+          </section>
+        )}
 
         {(task.scopeNote || task.outOfScopeNote) && (
           <section className="rounded-xl border-2 border-[var(--cn-accent)] p-3">
@@ -127,7 +187,9 @@ export function TaskDetail({ state, taskId, onClose, onAdd }: { state: State; ta
                 );
               })}
             </ul>
-            <p className="mt-1.5 text-[13px] text-[var(--cn-muted)]">時刻のある方は、標準と違う時刻です。サポートは24時間シートから出しています。</p>
+            {(Object.keys(task.targetTimes ?? {}).length > 0 || targets.some((r) => task.routineId && sheetRowFor(state, r.id, task.routineId)?.support)) && (
+              <p className="mt-1.5 text-[14px] text-[var(--cn-muted)]">右の時刻は、いつもと違う時刻の方です。サポートは24時間シートから出しています。</p>
+            )}
           </section>
         )}
 

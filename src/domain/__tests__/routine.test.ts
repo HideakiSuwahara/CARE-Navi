@@ -163,3 +163,20 @@ test("sheet.upsert は元に戻せる", async () => {
   const s2 = applyEvents(s1, invertEvent(ev, s0));
   assert.equal(s2.sheets["r-101"].rows.length, 0);
 });
+
+test("時間帯（朝 5:00–11:00・昼 11:00–17:00・夜 17:00–翌5:00）と、枠の中・外", async () => {
+  const { bandOf, isWithinRoutine } = await import("../routine.ts");
+  assert.equal(bandOf(toMin(5)), "morning");
+  assert.equal(bandOf(toMin(10, 59)), "morning");
+  assert.equal(bandOf(1440 + toMin(6)), "morning", "翌6:00 の起床も朝");
+  assert.equal(bandOf(toMin(11)), "day");
+  assert.equal(bandOf(toMin(16, 30)), "day");
+  assert.equal(bandOf(toMin(17)), "night");
+  assert.equal(bandOf(toMin(20)), "night");
+  assert.equal(bandOf(1440 + toMin(4, 30)), "night", "翌4:30 は夜");
+  const wake = { startMin: toMin(7), endMin: toMin(8) };
+  assert.equal(isWithinRoutine(wake, toMin(7)), true);
+  assert.equal(isWithinRoutine(wake, toMin(7, 30)), true);
+  assert.equal(isWithinRoutine(wake, toMin(8)), false);
+  assert.equal(isWithinRoutine(wake, toMin(6, 45)), false);
+});

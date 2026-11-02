@@ -851,7 +851,7 @@ const dayCommon = (bathDay: boolean): ItemSpec[] => [
   { id: "toilet-tanaka-am", tpl: TPL_TOILET, start: t(9, 30), end: t(10), group: GRP_SAKURA, slots: [SLOT_NIKKIN_B], hc: 1, residents: [RES_TANAKA] },
   { id: "linen", tpl: TPL_LINEN, start: t(9, 30), end: t(10), group: GRP_COMMON, slots: [SLOT_JOSHU], hc: 1 },
   bathDay
-    ? { id: "diaper-east-am", tpl: TPL_DIAPER, start: t(10), end: t(10, 30), group: GRP_EAST, slots: [SLOT_NIKKIN_A, SLOT_NIKKIN_C], hc: 2 }
+    ? { id: "diaper-east-am", tpl: TPL_DIAPER, start: t(10), end: t(10, 30), group: GRP_EAST, slots: [SLOT_NIKKIN_A, SLOT_NIKKIN_C], hc: 2, rt: "rt-diaper-east-am" }
     : { id: "diaper-east-am", tpl: TPL_DIAPER, start: t(10), end: t(10, 30), group: GRP_EAST, slots: [SLOT_NIKKIN_A, SLOT_NIKKIN_B, SLOT_NIKKIN_C], hc: 3, rt: "rt-diaper-east-am" },
   { id: "break-1", tpl: TPL_BREAK_1, start: t(11), end: t(12), group: GRP_COMMON, slots: [SLOT_HAYABAN_B, SLOT_NIKKIN_B], hc: 2 },
   { id: "dining-prep", tpl: TPL_DINING_PREP, start: t(11, 30), end: t(12), group: GRP_COMMON, slots: [SLOT_HAYABAN_A], hc: 1 },

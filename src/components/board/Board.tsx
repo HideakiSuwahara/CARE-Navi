@@ -11,6 +11,8 @@ import { updatedAtLabel } from "@/domain/display";
 import { TaskCard } from "./TaskCard";
 import { MorningBand } from "./MorningBand";
 import { TaskDetail } from "./TaskDetail";
+import { AssignPanel } from "./AssignPanel";
+import { BoardDnd, DropZone, useStaffDrag } from "./dnd";
 
 /** 1分あたりの高さ(px)。1時間=180px。30分の業務でも2行（名前／担当・バッジ・＋44px）が入る */
 const PX_PER_MIN = 3;
@@ -85,14 +87,23 @@ export function Board({ date = SAMPLE_DATE }: { date?: string }) {
   // 操作のあとのお知らせ（トースト）。8秒で消えるが「元に戻す」はツールバーに残る
   const [toast, setToast] = useState<string | null>(null);
   // 業務の詳細（カードの名前を押すと開く）
-  const [openTaskId, setOpenTaskId] = useState<string | null>(null);
+  // ドラッグで止めたときのお知らせ（元に戻すものはないので、ボタンなし）
+  const [notice, setNotice] = useState<string | null>(null);
+  const showNotice = useCallback((text: string) => {
+    setNotice(text);
+    window.setTimeout(() => setNotice(null), 6000);
+  }, []);
+  // 右のパネル: 業務の詳細（カードの名前）／担当の追加（カードの「＋」）
+  const [panel, setPanel] = useState<{ mode: "detail" | "assign"; taskId: string } | null>(null);
   const openerRef = useRef<HTMLElement | null>(null);
-  const openDetail = (id: string) => {
-    openerRef.current = document.activeElement as HTMLElement | null;
-    setOpenTaskId(id);
+  const openPanel = (mode: "detail" | "assign", taskId: string) => {
+    if (!panel) openerRef.current = document.activeElement as HTMLElement | null;
+    setPanel({ mode, taskId });
   };
-  const closeDetail = useCallback(() => {
-    setOpenTaskId(null);
+  const openDetail = (id: string) => openPanel("detail", id);
+  const openAssign = (id: string) => openPanel("assign", id);
+  const closePanel = useCallback(() => {
+    setPanel(null);
     openerRef.current?.focus();
   }, []);
   const lastLabel = lastUndo ? `${lastUndo.batchId}` : "";
@@ -169,6 +180,7 @@ export function Board({ date = SAMPLE_DATE }: { date?: string }) {
       </div>
 
       {/* 本体 */}
+      <BoardDnd engine={engine} onNotice={showNotice}>
       <main className="flex min-h-0 flex-1 gap-4 px-5 pb-5">
         <section aria-label="時間割" className="min-w-0 flex-1 overflow-hidden rounded-xl border border-[var(--cn-border)] bg-white">
           <h2 id="board-title" tabIndex={-1} className="sr-only">
@@ -221,9 +233,9 @@ export function Board({ date = SAMPLE_DATE }: { date?: string }) {
                       const left = areaLeft + (areaWidth * lane) / lanes;
                       const width = areaWidth / lanes;
                       return (
-                        <div key={task.id} className="absolute p-[3px]" style={{ top, height, left: `${left}%`, width: `${width}%` }}>
-                          <TaskCard state={state} task={task} variant={rail ? "rail" : height < 80 ? "mini" : height < 150 ? "compact" : "normal"} onOpen={openDetail} onAdd={openDetail} />
-                        </div>
+                        <DropZone key={task.id} id={`task:${task.id}`} data={{ kind: "task", taskId: task.id }} className="absolute p-[3px]" style={{ top, height, left: `${left}%`, width: `${width}%` }}>
+                          <TaskCard state={state} task={task} variant={rail ? "rail" : height < 80 ? "mini" : height < 150 ? "compact" : "normal"} onOpen={openDetail} onAdd={openAssign} />
+                        </DropZone>
                       );
                     })}
                   </div>
@@ -242,6 +254,7 @@ export function Board({ date = SAMPLE_DATE }: { date?: string }) {
         {/* 右パレット */}
         {hasTasks && (
         <aside id="staff-palette" aria-label="きょうの出勤者" className="flex w-[300px] shrink-0 flex-col gap-3 overflow-auto">
+          <DropZone id="palette" data={{ kind: "palette" }}>
           <div className="rounded-xl border border-[var(--cn-border)] bg-white p-3.5">
             <div className="flex items-baseline gap-2">
               <span className="font-bold">きょうの出勤者</span>
@@ -252,25 +265,21 @@ export function Board({ date = SAMPLE_DATE }: { date?: string }) {
                 const later = now !== null && r.startMin > now;
                 return (
                   <li key={r.staffId}>
-                    <button
-                      type="button"
-                      className={`flex min-h-[44px] w-full items-center gap-2.5 rounded-[10px] border px-3 py-2 text-left ${
-                        later ? "border-[var(--cn-border)] bg-[var(--cn-ground)]" : "border-[var(--cn-card-line)] bg-white"
-                      }`}
-                      aria-label={`${r.surname} ${r.slotName} ${fmtRange(r.startMin, r.endMin)}${r.firstTimer ? " 初回" : ""}`}
-                    >
+                    <PaletteStaff staffId={r.staffId} later={later} label={`${r.surname} ${r.slotName} ${fmtRange(r.startMin, r.endMin)}${r.firstTimer ? " 初回" : ""}`}>
                       <span className="shrink-0 font-bold">{r.surname}</span>
                       {r.firstTimer && <span className="shrink-0 rounded border border-[var(--cn-card-line)] bg-white px-1.5 text-[13px]">初回</span>}
                       <span className="min-w-0 truncate text-[13px] text-[var(--cn-muted)]">{r.slotName}</span>
                       <span className="ml-auto shrink-0 whitespace-nowrap text-[13px] text-[var(--cn-muted)]">
                         {later ? `${fmtMin(r.startMin)}から` : fmtRange(r.startMin, r.endMin)}
                       </span>
-                    </button>
+                    </PaletteStaff>
                   </li>
                 );
               })}
             </ul>
+            <p className="mt-2 text-[13px] text-[var(--cn-muted)]">名前をカードへ動かすと担当になります。カードの名前をここへ戻すと外れます。</p>
           </div>
+          </DropZone>
           {palette.off.length > 0 && (
             <section aria-labelledby="off-title" className="rounded-xl border border-[var(--cn-border)] bg-white p-3.5">
               <h2 id="off-title" className="font-bold">休み</h2>
@@ -293,8 +302,13 @@ export function Board({ date = SAMPLE_DATE }: { date?: string }) {
         </aside>
         )}
       </main>
-      {openTaskId && <TaskDetail state={state} taskId={openTaskId} onClose={closeDetail} />}
-      <div role="status" aria-live="polite" className="pointer-events-none fixed bottom-5 left-1/2 z-40 -translate-x-1/2">
+      </BoardDnd>
+      {panel?.mode === "detail" && <TaskDetail key={panel.taskId} state={state} engine={engine} taskId={panel.taskId} onClose={closePanel} onAdd={openAssign} />}
+      {panel?.mode === "assign" && <AssignPanel key={panel.taskId} state={state} engine={engine} taskId={panel.taskId} onClose={closePanel} onDetail={openDetail} />}
+      <div id="board-toast" role="status" aria-live="polite" className="pointer-events-none fixed bottom-5 left-1/2 z-40 -translate-x-1/2">
+        {notice && !toast && (
+          <div className="pointer-events-auto rounded-[10px] bg-[var(--cn-ink)] px-4 py-3 text-[15px] text-white shadow-lg">{notice}</div>
+        )}
         {toast && (
           <div className="pointer-events-auto flex items-center gap-3 rounded-[10px] bg-[var(--cn-ink)] px-4 py-3 text-[15px] text-white shadow-lg">
             <span>{toast}</span>
@@ -313,5 +327,25 @@ export function Board({ date = SAMPLE_DATE }: { date?: string }) {
       </div>
     </div>
     </>
+  );
+}
+
+/** パレットの出勤者（ドラッグしてカードへ） */
+function PaletteStaff({ staffId, later, label, children }: { staffId: string; later: boolean; label: string; children: React.ReactNode }) {
+  const { dragProps, setNodeRef, style, isDragging } = useStaffDrag(`staff:${staffId}`, { kind: "staff", staffId });
+  return (
+    <button
+      ref={setNodeRef}
+      type="button"
+      {...dragProps}
+      style={style}
+      aria-label={label}
+      aria-roledescription="ドラッグできる職員"
+      className={`flex min-h-[44px] w-full cursor-grab touch-none items-center gap-2.5 rounded-[10px] border px-3 py-2 text-left ${
+        later ? "border-[var(--cn-border)] bg-[var(--cn-ground)]" : "border-[var(--cn-card-line)] bg-white"
+      } ${isDragging ? "shadow-lg" : ""}`}
+    >
+      {children}
+    </button>
   );
 }

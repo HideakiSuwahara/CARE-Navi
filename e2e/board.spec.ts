@@ -61,6 +61,53 @@ test.describe("ボード（D1）", () => {
     await expect(panel).toHaveCount(0);
   });
 
+  test("担当の追加: ＋ → 「問題なし」の人の「追加」で、バッジが消え、元に戻せる（2操作）", async ({ page }) => {
+    const card = page.locator('[data-task-id][data-badge="担当未定"]').first();
+    const id = await card.getAttribute("data-task-id");
+    await card.scrollIntoViewIfNeeded();
+    await card.getByRole("button", { name: /に担当を追加$/ }).click();
+    const panel = page.getByRole("dialog", { name: /.+/ });
+    await expect(panel.getByText(/^問題なし \d+人$/)).toBeVisible();
+    await expect(panel.getByRole("button", { name: /^ほかの人（注意 \d+・勤務外 \d+）/ })).toBeVisible();
+    await panel.getByRole("button", { name: /さんを追加$/ }).first().click();
+    const after = page.locator(`[data-task-id="${id}"]`);
+    await expect(after).not.toHaveAttribute("data-badge", "担当未定");
+    await expect(page.locator("#board-toast")).toContainText("担当にしました");
+    await page.locator("#board-toast").getByRole("button", { name: "元に戻す" }).click();
+    await expect(after).toHaveAttribute("data-badge", "担当未定");
+  });
+
+  test("詳細パネル: 担当を外すと、バッジが出る", async ({ page }) => {
+    const card = page.locator('[data-task-id][data-level="ok"]').first();
+    const id = await card.getAttribute("data-task-id");
+    await card.scrollIntoViewIfNeeded();
+    await card.locator("[data-card-title]").click();
+    const panel = page.getByRole("dialog");
+    const removes = panel.getByRole("button", { name: /さんを担当から外す$/ });
+    const n = await removes.count();
+    for (let k = 0; k < n; k++) await removes.first().click();
+    await expect(page.locator(`[data-task-id="${id}"]`)).toHaveAttribute("data-badge", /担当/);
+  });
+
+  test("D&D: 出勤者をカードへ落とすと担当になり、バッジが消える（1操作）", async ({ page }) => {
+    const card = page.locator('[data-task-id][data-badge="担当未定"]').first();
+    const id = await card.getAttribute("data-task-id");
+    await page.waitForTimeout(300); // 開いたときの「現在時刻へ寄せる」が終わってから
+    await card.scrollIntoViewIfNeeded();
+    const who = page.getByRole("complementary", { name: "きょうの出勤者" }).getByRole("button", { name: /^\S+ / }).first();
+    const from = (await who.boundingBox())!;
+    const to = (await card.boundingBox())!;
+    await page.mouse.move(from.x + 20, from.y + from.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(from.x + 40, from.y + from.height / 2, { steps: 4 });
+    await page.waitForTimeout(100); // 持ち上げたあと、落とせる場所の測り直しを待つ
+    await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 12 });
+    await page.waitForTimeout(100);
+    await page.mouse.up();
+    await expect(page.locator(`[data-task-id="${id}"]`)).not.toHaveAttribute("data-badge", "担当未定");
+    await expect(page.locator("#board-toast")).toContainText(/担当にしました/);
+  });
+
   test("見出しの件数を押すと、該当する枠へ移動する", async ({ page }) => {
     await page.goto("/board?now=7:00");
     await page.getByRole("button", { name: /^担当未定 \d+件。押すと次の枠へ移動/ }).click();
@@ -116,7 +163,7 @@ test.describe("今日の時間割を作る（1タップ）", () => {
     await watanabe.getByRole("button", { name: "休み" }).click();
     await expect(watanabe.getByRole("button", { name: "出勤に戻す" })).toBeVisible();
     await band.getByRole("button", { name: "この内容で作る" }).click();
-    await expect(page.getByRole("status")).toContainText("今日の時間割を作りました");
+    await expect(page.locator("#board-toast")).toContainText("今日の時間割を作りました");
     await expect(page.locator("#board-title")).toBeFocused();
     await expect(page.getByRole("region", { name: "休み" }).getByText(/渡辺さんの分 \d+件（担当未定 \d+/)).toBeVisible();
   });

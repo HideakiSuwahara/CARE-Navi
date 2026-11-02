@@ -92,3 +92,38 @@ export function alignToSheetDay(clockMin: Minutes): Minutes {
   const base = ((clockMin % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY;
   return base < SHEET_DAY_START ? base + MINUTES_PER_DAY : base;
 }
+
+/**
+ * 人が打った時刻を読む（入力欄用）。parseTime の書き方に加えて、
+ * 「730」「0730」「7時30分」「7時半」「7時」「7.30」「7：30」（全角）も 7:30 のように読む。不正なら null。
+ */
+export function parseClockInput(text: string): Minutes | null {
+  const t = text
+    .trim()
+    .replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0))
+    .replace(/[：﹕]/g, ":")
+    .replace(/[．。]/g, ".")
+    .replace(/\s+/g, "");
+  const next = t.startsWith("翌");
+  const body = next ? t.slice(1) : t;
+  let h: number;
+  let mm: number;
+  let m: RegExpExecArray | null;
+  if ((m = /^(\d{1,2})[:.](\d{2})$/.exec(body))) {
+    h = Number(m[1]);
+    mm = Number(m[2]);
+  } else if ((m = /^(\d{1,2})時(?:(\d{1,2})分?|(半))?$/.exec(body))) {
+    h = Number(m[1]);
+    mm = m[3] ? 30 : m[2] ? Number(m[2]) : 0;
+  } else if ((m = /^(\d{3,4})$/.exec(body))) {
+    h = Number(m[1].slice(0, -2));
+    mm = Number(m[1].slice(-2));
+  } else if ((m = /^(\d{1,2})$/.exec(body))) {
+    h = Number(m[1]);
+    mm = 0;
+  } else {
+    return null;
+  }
+  if (h > 23 || mm > 59) return null;
+  return (next ? MINUTES_PER_DAY : 0) + h * 60 + mm;
+}

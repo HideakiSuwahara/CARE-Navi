@@ -30,7 +30,7 @@ test.describe("利用者（0004）", () => {
   });
 
   test("一覧が出る（利用者×日課）。上部のナビに利用者がある", async ({ page }) => {
-    await expect(page.getByText("ここで直した時刻は、次に時間割を作るときから入ります")).toBeVisible();
+    await expect(page.getByText("次に時間割を作るときから入ります")).toBeVisible();
     await expect(page.getByRole("navigation", { name: "主な画面" }).getByRole("link", { name: "利用者" })).toHaveAttribute("aria-current", "page");
     await openGroupOf(page, "田中");
     await expect(page.locator("thead").getByText("起床介助")).toBeVisible();
@@ -90,7 +90,7 @@ test.describe("利用者（0004）", () => {
     await page.getByRole("navigation", { name: /の利用者$/ }).getByRole("button", { name: /田中/ }).click();
     const sheet = page.getByRole("region", { name: /田中.*様の24時間シート/ });
     await expect(sheet).toBeVisible();
-    for (const label of ["時刻", "業務・日課", "生活リズム", "意向・好み", "自分でできること", "サポートが必要なこと"]) {
+    for (const label of ["時刻", "生活の流れ", "生活リズム", "意向・好み", "自分でできること", "サポートが必要なこと"]) {
       await expect(sheet.getByRole("columnheader", { name: label, exact: true })).toBeVisible();
     }
     const box = sheet.getByRole("textbox", { name: /起床介助 の意向・好み$/ });
@@ -146,5 +146,92 @@ test.describe("利用者（0004）", () => {
     await expect(row).toBeVisible();
     await expect(row.locator('[data-state="standard"]').first()).toBeVisible();
     expect(await row.locator('[data-state]:not([data-state="standard"])').count()).toBe(0);
+  });
+
+  test("見出しと、一覧の時間帯の切替（列の見出しに標準の時刻の幅）", async ({ page }) => {
+    await expect(page.getByRole("heading", { level: 1, name: "利用者の日課" })).toBeVisible();
+    await openGroupOf(page, "田中");
+    const bands = page.getByRole("group", { name: "時間帯" });
+    await expect(page.locator("thead").getByText("起床介助")).toBeVisible();
+    await expect(page.locator("thead th").filter({ hasText: "起床介助" }).first()).toContainText(/標準 \d{1,2}:\d{2}–\d{1,2}:\d{2}/);
+    await bands.getByRole("button", { name: /^夜/ }).click();
+    await expect(bands.getByRole("button", { name: /^夜/ })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator("thead").getByText("就寝介助")).toBeVisible();
+    await expect(page.locator("thead").getByText("起床介助")).toHaveCount(0);
+    await bands.getByRole("button", { name: /^朝/ }).click();
+    await expect(page.locator("thead").getByText("起床介助")).toBeVisible();
+    await expect(page.locator("thead").getByText("就寝介助")).toHaveCount(0);
+    await bands.getByRole("button", { name: "すべて" }).click();
+    await expect(page.locator("thead").getByText("就寝介助")).toBeVisible();
+  });
+
+  test("マスのパネル: 「930」と打っても読め、枠の中・外を1文で知らせる", async ({ page }) => {
+    await openGroupOf(page, "小林");
+    const cell = await wakeCell(page, "小林");
+    const before = (await cell.textContent()) ?? "";
+    await cell.click();
+    const dialog = page.getByRole("dialog");
+    const input = dialog.getByLabel("開始");
+    const std = (await dialog.getByText(/^標準 /).textContent()) ?? "";
+    const startText = /標準 (\d{1,2}:\d{2})/.exec(std)![1];
+    await input.fill(startText.replace(":", ""));
+    await expect(dialog.getByText("この時刻で、いつもの枠に入ります")).toBeVisible();
+    await input.fill("2時");
+    await expect(dialog.getByText("枠の外なので、別の枠になります")).toBeVisible();
+    await input.fill("930");
+    await dialog.getByRole("button", { name: "この内容で決定" }).click();
+    await expect(cell.locator("strong")).toHaveText("9:30");
+    await page.getByRole("status").getByRole("button", { name: "元に戻す" }).click();
+    await expect(cell).toHaveText(before);
+  });
+
+  test("24時間シート: 書きかけは「未保存」と出て、欄を離れると消える", async ({ page }) => {
+    await openGroupOf(page, "小林");
+    await page.getByRole("button", { name: "24時間シート" }).click();
+    await page.getByRole("navigation", { name: /の利用者$/ }).getByRole("button", { name: /小林/ }).click();
+    const box = page.getByRole("textbox", { name: /起床介助 の生活リズム$/ });
+    await box.fill(`書きかけ ${Date.now()}`);
+    const cell = page.locator("td").filter({ has: box });
+    await expect(cell.getByText("未保存")).toBeVisible();
+    await box.blur();
+    await expect(page.getByRole("status")).toContainText("生活リズムを保存しました");
+    await expect(page.locator('[data-unsaved="true"]')).toHaveCount(0);
+  });
+
+  test("この方だけの行: ボタンのすぐ下に開き、時刻が空では決定できない", async ({ page }) => {
+    await openGroupOf(page, "小林");
+    await page.getByRole("button", { name: "24時間シート" }).click();
+    await page.getByRole("navigation", { name: /の利用者$/ }).getByRole("button", { name: /小林/ }).click();
+    const open = page.getByRole("button", { name: "＋ この方だけの行を足す" });
+    await open.click();
+    await expect(open).toHaveAttribute("aria-expanded", "true");
+    const form = page.getByRole("form", { name: "この方だけの行を足す" });
+    const b = (await open.boundingBox())!;
+    const f = (await form.boundingBox())!;
+    expect(f.y).toBeGreaterThanOrEqual(b.y + b.height - 1);
+    expect(f.y - (b.y + b.height)).toBeLessThan(24);
+    await expect(form.getByLabel("時刻")).toHaveValue("");
+    await expect(form.getByRole("button", { name: "この内容で決定" })).toBeDisabled();
+    await expect(form.getByText("時刻を入れると決定できます。")).toBeVisible();
+    await form.getByLabel("時刻").fill("1040");
+    await form.getByLabel("名前").fill("散歩");
+    await form.getByRole("button", { name: "この内容で決定" }).click();
+    await expect(page.locator('tr[data-kind="extra"]').filter({ hasText: "散歩" })).toContainText("10:40");
+  });
+
+  test("名簿の貼り付け: 足す方を一覧で見せ、グループがなければ選んでいるグループに入れ、その行を目立たせる", async ({ page }) => {
+    await page.getByRole("group", { name: "グループ" }).getByRole("button", { name: "さくらユニット" }).click();
+    await page.getByRole("button", { name: "名簿を貼り付ける" }).click();
+    await page.getByRole("textbox", { name: "名簿", exact: true }).fill("岡 シズ, 299");
+    const list = page.getByRole("list", { name: "足す方" });
+    await expect(list).toContainText("299");
+    await expect(list).toContainText("岡 シズ様");
+    await expect(list).toContainText("さくらユニット");
+    await page.getByRole("button", { name: "この内容で足す" }).click();
+    const row = page.locator("tbody tr").filter({ has: page.getByRole("rowheader", { name: /岡 シズ/ }) });
+    await expect(row).toHaveAttribute("data-flash", "true");
+    await expect(row).toContainText("足しました");
+    await expect(row).toBeInViewport();
+    await expect(row).not.toHaveAttribute("data-flash", "true", { timeout: 5000 });
   });
 });

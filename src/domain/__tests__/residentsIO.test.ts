@@ -99,3 +99,32 @@ test("マスを直すイベント: まとめて時刻・なし・標準に戻す
   const line2 = sheetLines(s, "r-103").find((l) => l.key === "rt-wake")!;
   assert.equal(sheetTextEvent(s, ctx, "r-103", line2, "preference", "ゆっくり起きたい "), null);
 });
+
+test("名簿の貼り付け: グループの列がない行は、いま選んでいるグループに入れる", () => {
+  const s = stateWithWake();
+  const r = parseResidentPaste(s, "木村 ハル\n森 ツル, 111\n石井 ミツ, , 112\n上田 トメ, 共通, 113\n原 スエ, どこか, 114", "g-east");
+  assert.deepEqual(
+    r.residents.map((x) => [x.displayName, x.groupId, x.room, x.defaultedGroup ?? false]),
+    [
+      ["木村 ハル", "g-east", "", true],
+      ["森 ツル", "g-east", "111", true],
+      ["石井 ミツ", "g-east", "112", true],
+      ["上田 トメ", "g-common", "113", false],
+    ],
+  );
+  assert.equal(r.errors.length, 1);
+  assert.equal(r.errors[0].line, 5);
+  assert.match(r.errors[0].reason, /グループ「どこか」が見つかりません/);
+  // 選んでいるグループがなければ、これまでどおりグループの列が要る
+  assert.match(parseResidentPaste(s, "木村 ハル").errors[0].reason, /グループがありません/);
+});
+
+test("CSV に更新日の列がある（一覧は最後の列、24時間シートは1行目）", () => {
+  const s = stateWithWake();
+  const grid = routineGridCsvRows(s, "g-east");
+  assert.equal(grid[0][grid[0].length - 1], "更新日");
+  assert.equal(grid[1].length, grid[0].length);
+  const sheet = sheetCsvRows(s, "r-101");
+  assert.equal(sheet[0][6], "更新日");
+  assert.equal(sheet[1][1], "生活の流れ");
+});

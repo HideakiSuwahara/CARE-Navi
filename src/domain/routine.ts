@@ -51,6 +51,36 @@ export function routinesOf(state: State, groupId?: ID): Routine[] {
   return [...map.values()].sort((a, b) => clockSortKey(a.startMin) - clockSortKey(b.startMin) || a.name.localeCompare(b.name, "ja"));
 }
 
+/** 一覧の列を絞る時間帯（24時間シートの時計の順＝5:00 起点で区切る） */
+export type RoutineBand = "all" | "morning" | "day" | "night";
+
+export const ROUTINE_BANDS: { band: RoutineBand; label: string; range?: string }[] = [
+  { band: "all", label: "すべて" },
+  { band: "morning", label: "朝", range: "5:00–11:00" },
+  { band: "day", label: "昼", range: "11:00–17:00" },
+  { band: "night", label: "夜", range: "17:00–翌5:00" },
+];
+
+/** 時刻がどの時間帯か。朝=5:00–11:00、昼=11:00–17:00、夜=17:00–翌5:00 */
+export function bandOf(startMin: Minutes): Exclude<RoutineBand, "all"> {
+  const k = clockSortKey(startMin);
+  if (k < 6 * 60) return "morning";
+  if (k < 12 * 60) return "day";
+  return "night";
+}
+
+export function routinesInBand(routines: Routine[], band: RoutineBand): Routine[] {
+  return band === "all" ? routines : routines.filter((r) => bandOf(r.startMin) === band);
+}
+
+/**
+ * その開始時刻が日課の枠の中か（splitRoutineTargets と同じ規則: 標準の開始 ≦ 時刻 ＜ 標準の終わり）。
+ * 中なら一括の枠のまま、外なら別の枠になる。
+ */
+export function isWithinRoutine(routine: Pick<Routine, "startMin" | "endMin">, startMin: Minutes): boolean {
+  return startMin >= routine.startMin && startMin < routine.endMin;
+}
+
 export function sheetOf(state: State, residentId: ID): ResidentSheet {
   return state.sheets[residentId] ?? { residentId, rows: [] };
 }
@@ -91,7 +121,7 @@ export function splitRoutineTargets(state: State, item: DayPatternItem, resident
       out.main.push(rid);
       continue;
     }
-    if (row.startMin >= item.startMin && row.startMin < item.endMin) {
+    if (isWithinRoutine(item, row.startMin)) {
       out.main.push(rid);
       if (row.startMin !== item.startMin) out.mainTimes[rid] = row.startMin;
       continue;

@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import type { Routine } from "@/domain/routine";
+import { isWithinRoutine, type Routine } from "@/domain/routine";
 import type { RoutineChange } from "@/domain/residentsIO";
-import { alignToReference, clockLabel, parseTime } from "@/domain/time";
+import { alignToReference, clockLabel, parseClockInput } from "@/domain/time";
 
 export interface CellTarget {
   /** 例: 「田中様」「3人」 */
@@ -55,22 +55,28 @@ export function CellPanel({ target, onDecide, onClose }: { target: CellTarget; o
   }, [onClose]);
 
   const shift = (d: number) => {
-    const cur = parseTime(text);
+    const cur = parseClockInput(text);
     const base = cur === null ? target.startMin : alignToReference(cur, routine.startMin);
     setText(clockLabel(Math.max(0, base + d)));
     setError(null);
   };
 
   const decide = () => {
-    const m = parseTime(text);
+    const m = parseClockInput(text);
     if (m === null) {
-      setError("時刻は 8:30 のように入れてください");
+      setError("時刻は 8:30 か 830 のように入れてください");
       input.current?.focus();
       return;
     }
     // 夜勤側の日課（翌6:00 の起床など）にも「6:30」と入れれば合うように、標準にいちばん近い日に合わせる
     onDecide({ kind: "time", startMin: alignToReference(m, routine.startMin) });
   };
+
+  // 入力中の時刻が日課の枠の中か外か（時間割での入り方を、決定の前に1文で知らせる）
+  const typed = parseClockInput(text);
+  const aligned = typed === null ? null : alignToReference(typed, routine.startMin);
+  const placement =
+    aligned === null ? null : isWithinRoutine(routine, aligned) ? "この時刻で、いつもの枠に入ります" : "枠の外なので、別の枠になります";
 
   const btn = "inline-flex h-[44px] items-center justify-center rounded-lg border border-[var(--cn-control-line)] bg-white px-3 text-[15px]";
 
@@ -107,7 +113,7 @@ export function CellPanel({ target, onDecide, onClose }: { target: CellTarget; o
                   setError(null);
                 }}
                 aria-invalid={error ? true : undefined}
-                aria-describedby={error ? "cell-panel-error" : undefined}
+                aria-describedby={error ? "cell-panel-error" : placement ? "cell-panel-placement" : undefined}
                 className="h-[44px] w-[96px] rounded-lg border border-[var(--cn-control-line)] px-2 text-[16px]"
               />
             </label>
@@ -118,6 +124,11 @@ export function CellPanel({ target, onDecide, onClose }: { target: CellTarget; o
               ＋15分
             </button>
           </div>
+          {!error && placement && (
+            <p id="cell-panel-placement" data-placement={aligned !== null && isWithinRoutine(routine, aligned) ? "inside" : "outside"} className="-mt-1 text-[14px]">
+              {placement}
+            </p>
+          )}
           {error && (
             <p id="cell-panel-error" className="text-[14px] font-bold text-[var(--cn-unassigned-ink)]">
               {error}

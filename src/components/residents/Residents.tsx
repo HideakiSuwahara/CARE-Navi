@@ -25,6 +25,13 @@ export function Residents() {
   const [tab, setTab] = useState<Tab>("grid");
   const [pickedGroup, setPickedGroup] = useState<ID | null>(null);
   const [pasteOpen, setPasteOpen] = useState(false);
+  // 貼り付けで足した方（一覧でその行までスクロールし、2秒ほど目立たせる）
+  const [flash, setFlash] = useState<ID[]>([]);
+  useEffect(() => {
+    if (flash.length === 0) return;
+    const id = window.setTimeout(() => setFlash([]), 2500);
+    return () => window.clearTimeout(id);
+  }, [flash]);
 
   const groups = useMemo(
     () =>
@@ -50,9 +57,11 @@ export function Residents() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastKey]);
 
-  const afterPaste = (g: ID) => {
+  const afterPaste = (g: ID, ids: ID[]) => {
     setPasteOpen(false);
     setPickedGroup(g);
+    setTab("grid");
+    setFlash(ids);
   };
 
   const seg = (on: boolean) =>
@@ -62,8 +71,9 @@ export function Residents() {
     <div className="flex h-screen flex-col print:block print:h-auto">
       <TopBar current="residents" />
 
-      <div className="cn-noprint flex shrink-0 flex-wrap items-center gap-3 px-5 pt-3">
-        <p className="text-[15px]">ここで直した時刻は、次に時間割を作るときから入ります。</p>
+      <div className="cn-noprint shrink-0 px-5 pt-3">
+        <h1 className="text-[20px] font-bold">利用者の日課</h1>
+        <p className="mt-0.5 text-[15px]">施設の日課と、方ごとの時刻・サポートを決めます。次に時間割を作るときから入ります。</p>
       </div>
 
       {ready && hasResidents && (
@@ -128,7 +138,7 @@ export function Residents() {
             <p className="text-[var(--cn-ink-soft)]">名簿を貼り付けると、全員に施設の日課が標準どおりに入ります。違う方だけ、あとで直せます。</p>
             {pasteOpen ? (
               <div className="w-full max-w-[720px]">
-                <PastePanel state={state} onClose={() => setPasteOpen(false)} onAdded={afterPaste} />
+                <PastePanel state={state} groupId={groupId} onClose={() => setPasteOpen(false)} onAdded={afterPaste} />
               </div>
             ) : (
               <button
@@ -142,8 +152,8 @@ export function Residents() {
           </div>
         ) : (
           <>
-            {pasteOpen && <PastePanel state={state} onClose={() => setPasteOpen(false)} onAdded={afterPaste} />}
-            {groupId && (tab === "grid" ? <RoutineGrid key={groupId} state={state} groupId={groupId} /> : <SheetView key={groupId} state={state} groupId={groupId} />)}
+            {pasteOpen && <PastePanel state={state} groupId={groupId} onClose={() => setPasteOpen(false)} onAdded={afterPaste} />}
+            {groupId && (tab === "grid" ? <RoutineGrid key={groupId} state={state} groupId={groupId} flash={flash} /> : <SheetView key={groupId} state={state} groupId={groupId} />)}
           </>
         )}
       </main>

@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useEngine } from "@/store/react";
-import { routinesOf, sheetRowFor, type Routine } from "@/domain/routine";
+import { ROUTINE_BANDS, routinesInBand, routinesOf, sheetRowFor, type Routine, type RoutineBand } from "@/domain/routine";
 import { residentsOfGroup, routineChangeEvents, routineGridCsvRows, type RoutineChange } from "@/domain/residentsIO";
 import { clockLabel } from "@/domain/time";
 import type { ID, State } from "@/domain/types";
@@ -13,15 +13,31 @@ import { downloadCsv } from "./download";
  * 一覧: 縦に利用者、横にそのグループの日課。標準と違うマスだけ直す（決定記録 0004 §3）。
  * 行を選んで、列の見出しの「まとめて変える」から同じ時刻・なしを一度に入れる（1つの操作・1つの元に戻す）。
  */
-export function RoutineGrid({ state, groupId }: { state: State; groupId: ID }) {
+export function RoutineGrid({ state, groupId, flash = [] }: { state: State; groupId: ID; flash?: ID[] }) {
   const engine = useEngine();
-  const routines = useMemo(() => routinesOf(state, groupId), [state, groupId]);
+  const [band, setBand] = useState<RoutineBand>("all");
+  const allRoutines = useMemo(() => routinesOf(state, groupId), [state, groupId]);
+  const routines = useMemo(() => routinesInBand(allRoutines, band), [allRoutines, band]);
+  const bandRange = ROUTINE_BANDS.find((b) => b.band === band)?.range;
   const residents = useMemo(() => residentsOfGroup(state, groupId), [state, groupId]);
   const [selected, setSelected] = useState<Set<ID>>(new Set());
   const [panel, setPanel] = useState<CellTarget | null>(null);
   const groupName = state.groups[groupId]?.name ?? "";
   const chosen = residents.filter((r) => selected.has(r.id));
   const allChecked = residents.length > 0 && chosen.length === residents.length;
+
+  // 貼り付けで足した方の行までスクロールする（行が描かれたあとに一度だけ）
+  const scrolled = useRef<string>("");
+  const flashKey = flash.join(",");
+  const flashing = new Set(flash);
+  const hasFlashRow = residents.some((r) => flashing.has(r.id));
+  useEffect(() => {
+    if (!flashKey || scrolled.current === flashKey || !hasFlashRow) return;
+    scrolled.current = flashKey;
+    const el = document.querySelector(`tr[data-resident-id="${CSS.escape(flash[0])}"]`);
+    el?.scrollIntoView({ block: "center" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [flashKey, hasFlashRow]);
 
   const toggle = (id: ID) =>
     setSelected((prev) => {
@@ -83,6 +99,27 @@ export function RoutineGrid({ state, groupId }: { state: State; groupId: ID }) {
           CSV
         </button>
       </div>
+      <div className="flex flex-wrap items-center gap-3 px-1 pb-2.5">
+        <div role="group" aria-label="時間帯" className="inline-flex overflow-hidden rounded-lg border border-[var(--cn-control-line)]">
+          {ROUTINE_BANDS.map((b, i) => (
+            <button
+              key={b.band}
+              type="button"
+              aria-pressed={band === b.band}
+              onClick={() => setBand(b.band)}
+              className={`inline-flex h-[44px] items-center px-4 text-[15px] ${i > 0 ? "border-l border-[var(--cn-control-line)]" : ""} ${
+                band === b.band ? "bg-[var(--cn-accent)] font-bold text-white" : "bg-white text-[var(--cn-ink)]"
+              }`}
+            >
+              {b.label}
+              {b.range && <span className="sr-only">（{b.range}）</span>}
+            </button>
+          ))}
+        </div>
+        <span className="text-[14px] text-[var(--cn-ink-soft)]">
+          {bandRange ? `${bandRange} の日課 ${routines.length}件` : `日課 ${routines.length}件`}
+        </span>
+      </div>
       <div className="min-h-0 flex-1 overflow-auto rounded-xl border border-[var(--cn-border)] bg-white">
         <table className="border-collapse text-[15px]">
           <thead className="sticky top-0 z-10 bg-white">
@@ -104,7 +141,9 @@ export function RoutineGrid({ state, groupId }: { state: State; groupId: ID }) {
               {routines.map((rt) => (
                 <th key={rt.routineId} scope="col" className="min-w-[148px] border-l border-[var(--cn-grid)] px-2 py-2 text-left align-top">
                   <span className="block font-bold">{rt.name}</span>
-                  <span className="block text-[14px] font-normal text-[var(--cn-muted)]">標準 {clockLabel(rt.startMin)}</span>
+                  <span className="block whitespace-nowrap text-[14px] font-normal text-[var(--cn-muted)]">
+                    標準 {clockLabel(rt.startMin)}–{clockLabel(rt.endMin)}
+                  </span>
                   <button
                     type="button"
                     onClick={(e) => openBulk(e, rt)}
@@ -126,16 +165,24 @@ export function RoutineGrid({ state, groupId }: { state: State; groupId: ID }) {
           <tbody>
             {residents.map((r) => {
               const checked = selected.has(r.id);
+              const isNew = flashing.has(r.id);
+              const bg = isNew ? "bg-[var(--cn-short-bg)]" : checked ? "bg-[var(--cn-accent-soft)]" : "bg-white";
               return (
-                <tr key={r.id} data-resident-id={r.id} className={`border-b border-[var(--cn-grid)] ${checked ? "bg-[var(--cn-accent-soft)]" : ""}`}>
-                  <td className={`sticky left-0 px-1 ${checked ? "bg-[var(--cn-accent-soft)]" : "bg-white"}`}>
+                <tr
+                  key={r.id}
+                  data-resident-id={r.id}
+                  data-flash={isNew ? "true" : undefined}
+                  className={`border-b border-[var(--cn-grid)] transition-colors duration-700 ${isNew || checked ? bg : ""}`}
+                >
+                  <td className={`sticky left-0 px-1 transition-colors duration-700 ${bg}`}>
                     <label className="flex h-[44px] w-[44px] cursor-pointer items-center justify-center">
                       <input type="checkbox" className="h-5 w-5" checked={checked} onChange={() => toggle(r.id)} aria-label={`${r.displayName}様を選ぶ`} />
                     </label>
                   </td>
-                  <th scope="row" className={`sticky left-[52px] px-3 text-left font-normal ${checked ? "bg-[var(--cn-accent-soft)]" : "bg-white"}`}>
+                  <th scope="row" className={`sticky left-[52px] px-3 text-left font-normal transition-colors duration-700 ${bg}`}>
                     <span className="mr-2 text-[14px] text-[var(--cn-muted)]">{r.room}</span>
                     <span className="font-bold">{r.displayName}</span>様
+                    {isNew && <span className="ml-2 rounded border border-[var(--cn-card-line)] bg-white px-1.5 text-[14px] font-bold">足しました</span>}
                   </th>
                   {routines.map((rt) => {
                     const row = sheetRowFor(state, r.id, rt.routineId);
@@ -162,6 +209,13 @@ export function RoutineGrid({ state, groupId }: { state: State; groupId: ID }) {
                 </tr>
               );
             })}
+            {routines.length === 0 && (
+              <tr>
+                <td colSpan={2} className="p-4 text-[var(--cn-ink-soft)]">
+                  この時間帯の日課はありません。「すべて」で全部の列を出せます。
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

@@ -2,7 +2,8 @@
 
 import { headcountStatus } from "@/domain/checks";
 import { fmtRange } from "@/domain/time";
-import type { State, TaskInstance } from "@/domain/types";
+import type { ID, State, TaskInstance } from "@/domain/types";
+import { useStaffDrag } from "./dnd";
 
 /**
  * 業務カード（docs/screens.md §0.3）。
@@ -57,21 +58,14 @@ export function TaskCard({
   ) : null;
 
   const chips = assignees.map(({ id, staff, firstTimer }) => (
-    <button
-      key={id}
-      type="button"
-      className="relative inline-flex h-[28px] shrink-0 items-center gap-1 rounded-full border border-[var(--cn-accent)] bg-[var(--cn-accent-soft)] px-2.5 text-[14px] text-[var(--cn-accent)] before:absolute before:-inset-y-[8px] before:inset-x-0 before:content-['']"
-      aria-label={`${staff!.surname}${firstTimer ? "（初回）" : ""}`}
-    >
-      {staff!.surname}
-      {firstTimer && <span className="rounded border border-[var(--cn-card-line)] bg-white px-1 text-[12px] text-[var(--cn-ink)]">初回</span>}
-    </button>
+    <StaffChip key={id} taskId={task.id} staffId={staff!.id} surname={staff!.surname} firstTimer={firstTimer} onOpen={() => onOpen?.(task.id)} />
   ));
 
   const titleButton = (
     <button
       type="button"
       onClick={() => onOpen?.(task.id)}
+      data-card-title=""
       className={`-my-[10px] block min-h-[44px] min-w-0 truncate py-[10px] text-left text-[15px] font-bold leading-6 hover:underline ${
         isBreak ? "text-[var(--cn-break-ink)]" : ""
       }`}
@@ -146,5 +140,27 @@ export function TaskCard({
         </>
       )}
     </article>
+  );
+}
+
+/** 担当チップ。ドラッグで別のカードへ移す／パレットへ戻すと外す。押すと業務の詳細（外すボタンがある） */
+function StaffChip({ taskId, staffId, surname, firstTimer, onOpen }: { taskId: ID; staffId: ID; surname: string; firstTimer: boolean; onOpen: () => void }) {
+  const { dragProps, setNodeRef, style, isDragging } = useStaffDrag(`chip:${taskId}:${staffId}`, { kind: "chip", staffId, fromTaskId: taskId });
+  return (
+    <button
+      ref={setNodeRef}
+      type="button"
+      {...dragProps}
+      onClick={onOpen}
+      style={style}
+      className={`relative inline-flex h-[28px] shrink-0 cursor-grab touch-none items-center gap-1 rounded-full border border-[var(--cn-accent)] bg-[var(--cn-accent-soft)] px-2.5 text-[14px] text-[var(--cn-accent)] before:absolute before:-inset-y-[8px] before:inset-x-0 before:content-[''] ${
+        isDragging ? "opacity-80 shadow-lg" : ""
+      }`}
+      aria-label={`${surname}${firstTimer ? "（初回）" : ""}`}
+      aria-roledescription="ドラッグできる担当"
+    >
+      {surname}
+      {firstTimer && <span className="rounded border border-[var(--cn-card-line)] bg-white px-1 text-[12px] text-[var(--cn-ink)]">初回</span>}
+    </button>
   );
 }
