@@ -6,7 +6,7 @@
  */
 
 import type { ID, Minutes, State, TaskInstance } from "./types.ts";
-import { tasksForDate } from "./checks.ts";
+import { headcountLabel, tasksForDate } from "./checks.ts";
 
 export interface LaidOutCard {
   task: TaskInstance;
@@ -21,7 +21,12 @@ export interface LaidOutCard {
 /** レールに置く長さ（分）。2時間以上の業務 */
 export const RAIL_MIN_DURATION = 120;
 
-export function layoutColumn(tasks: TaskInstance[]): LaidOutCard[] {
+/**
+ * @param minVisualMin 画面上の最小の長さ（分）。短い業務もこの長さを占めるものとして重なりを判定する
+ *   （15分の業務の下に次の業務がくっついて描かれ、文字やボタンが重ならないように）
+ */
+export function layoutColumn(tasks: TaskInstance[], minVisualMin = 0): LaidOutCard[] {
+  const vEnd = (t: TaskInstance) => Math.max(t.endMin, t.startMin + minVisualMin);
   const sorted = [...tasks].sort(
     (a, b) => a.startMin - b.startMin || b.endMin - b.startMin - (a.endMin - a.startMin) || a.id.localeCompare(b.id),
   );
@@ -42,14 +47,14 @@ export function layoutColumn(tasks: TaskInstance[]): LaidOutCard[] {
     let lane = laneEnds.findIndex((end) => end <= task.startMin);
     if (lane === -1) {
       lane = laneEnds.length;
-      laneEnds.push(task.endMin);
+      laneEnds.push(vEnd(task));
     } else {
-      laneEnds[lane] = task.endMin;
+      laneEnds[lane] = vEnd(task);
     }
     const card: LaidOutCard = { task, lane, lanes: 1 };
     out.push(card);
-    cluster.push({ card, end: task.endMin });
-    clusterEnd = Math.max(cluster.length === 1 ? task.endMin : clusterEnd, task.endMin);
+    cluster.push({ card, end: vEnd(task) });
+    clusterEnd = Math.max(cluster.length === 1 ? vEnd(task) : clusterEnd, vEnd(task));
   }
   flush();
   return out;
@@ -63,21 +68,24 @@ export interface BoardColumn {
   cards: LaidOutCard[];
   /** レール（左の細い帯）を持つか */
   hasRail: boolean;
+  /** レールの外で、同じ時刻に横に並ぶカードの最大数（列の最小幅の計算に使う） */
+  maxLanes: number;
 }
 
 /**
  * 列の配置。休憩以外で2時間以上の業務（見守りなど）は左のレールへ、それ以外は残りの幅で横に並べる。
  */
-export function layoutGroupColumn(tasks: TaskInstance[]): { cards: LaidOutCard[]; hasRail: boolean } {
+export function layoutGroupColumn(tasks: TaskInstance[], minVisualMin = 0): { cards: LaidOutCard[]; hasRail: boolean; maxLanes: number } {
   const isRail = (t: TaskInstance) => t.kind !== "break" && t.endMin - t.startMin >= RAIL_MIN_DURATION;
   const railTasks = tasks.filter(isRail);
   const rest = tasks.filter((t) => !isRail(t));
-  const rail = layoutColumn(railTasks).map((c) => ({ ...c, rail: true }));
-  return { cards: [...rail, ...layoutColumn(rest)], hasRail: rail.length > 0 };
+  const rail = layoutColumn(railTasks, minVisualMin).map((c) => ({ ...c, rail: true }));
+  const others = layoutColumn(rest, minVisualMin);
+  return { cards: [...rail, ...others], hasRail: rail.length > 0, maxLanes: Math.max(1, ...others.map((c) => c.lanes)) };
 }
 
 /** ボードの列（グループ順）。共通（common）は最後。中止した業務は出さない */
-export function boardColumns(state: State, date: string): BoardColumn[] {
+export function boardColumns(state: State, date: string, minVisualMin = 0): BoardColumn[] {
   const groups = Object.values(state.groups).sort((a, b) => a.sortOrder - b.sortOrder);
   const common = groups.find((g) => g.kind === "common");
   const tasks = tasksForDate(state, date);
@@ -89,13 +97,14 @@ export function boardColumns(state: State, date: string): BoardColumn[] {
   }
   const residentsIn = (gid: ID) => Object.values(state.residents).filter((r) => r.groupId === gid).length;
   return groups.map((g) => {
-    const { cards, hasRail } = layoutGroupColumn(byGroup.get(g.id) ?? []);
+    const { cards, hasRail, maxLanes } = layoutGroupColumn(byGroup.get(g.id) ?? [], minVisualMin);
     return {
       id: g.id,
       name: g.name,
       sub: g.kind === "common" ? "" : `${residentsIn(g.id)}人`,
       cards,
       hasRail,
+      maxLanes,
     };
   });
 }
@@ -111,8 +120,10 @@ export interface PaletteRow {
   startMin: Minutes;
   endMin: Minutes;
   firstTimer: boolean;
-  /** 休みの人の番に束ねた枠のうち、未充足の件数（休みの欄に「この人の番の枠 n 件が担当未定」） */
+  /** 休みの人の番に束ねた枠のうち、未充足の件数（休みの欄に「渡辺さんの分 3件（担当未定 2・担当あと n 人 1）」） */
   unfilledSlotTasks: number;
+  /** その内訳（実際の文言ごと。例: [{label:"担当未定",count:2},{label:"担当あと1人",count:1}]） */
+  slotTaskLabels: { label: string; count: number }[];
 }
 
 export function paletteRows(state: State, date: string): { working: PaletteRow[]; off: PaletteRow[] } {
@@ -126,6 +137,9 @@ export function paletteRows(state: State, date: string): { working: PaletteRow[]
   for (const e of entries) {
     const staff = state.staff[e.staffId];
     if (!staff) continue;
+    const mine = e.absent
+      ? tasks.filter((t) => t.kind !== "break" && e.slotId && t.slotIds.includes(e.slotId) && assigned(t.id) < t.headcount)
+      : [];
     const row: PaletteRow = {
       staffId: staff.id,
       surname: staff.surname,
@@ -133,9 +147,16 @@ export function paletteRows(state: State, date: string): { working: PaletteRow[]
       startMin: e.startMin,
       endMin: e.endMin,
       firstTimer: e.firstTimer,
-      unfilledSlotTasks: e.absent
-        ? tasks.filter((t) => t.kind !== "break" && e.slotId && t.slotIds.includes(e.slotId) && assigned(t.id) < t.headcount).length
-        : 0,
+      unfilledSlotTasks: mine.length,
+      slotTaskLabels: Object.entries(
+        mine.reduce<Record<string, number>>((acc, t) => {
+          const label = headcountLabel(t.headcount, assigned(t.id));
+          acc[label] = (acc[label] ?? 0) + 1;
+          return acc;
+        }, {}),
+      )
+        .map(([label, count]) => ({ label, count }))
+        .sort((a, b) => (a.label === "担当未定" ? -1 : b.label === "担当未定" ? 1 : a.label.localeCompare(b.label, "ja"))),
     };
     (e.absent ? off : working).push(row);
   }

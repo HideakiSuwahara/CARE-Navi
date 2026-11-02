@@ -81,6 +81,10 @@ test("パレット: 出勤者は番の順。休みの人は、その番の未充
   assert.equal(off.length, 1);
   assert.equal(off[0].surname, "渡辺");
   assert.equal(off[0].unfilledSlotTasks, 2, "入浴（あと1人）とリネン回収（担当未定）");
+  assert.deepEqual(off[0].slotTaskLabels, [
+    { label: "担当未定", count: 1 },
+    { label: "担当あと1人", count: 1 },
+  ]);
   assert.ok(!("load" in working[0]), "人に件数を付けない");
 });
 
@@ -105,4 +109,14 @@ test("見出しのまとめは実際の文言ごと（担当未定 → 担当あ
     { label: "担当未定", level: "unassigned", count: 1 },
     { label: "担当あと1人", level: "short", count: 2 },
   ]);
+});
+
+test("短い業務も最小の長さを占めるものとして並べる（15分の下に次の業務が重ならない）", () => {
+  const a = t("a", toMin(13), toMin(13, 15));
+  const b = t("b", toMin(13, 15), toMin(13, 45));
+  assert.equal(layoutColumn([a, b]).find((c) => c.task.id === "b")!.lane, 0, "最小の長さなしなら同じ段");
+  const out = layoutColumn([a, b], 20);
+  const by = Object.fromEntries(out.map((c) => [c.task.id, c]));
+  assert.notEqual(by.a.lane, by.b.lane, "最小20分なら横に並ぶ");
+  assert.equal(by.a.lanes, 2);
 });

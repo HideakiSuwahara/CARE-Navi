@@ -7,6 +7,8 @@
   --cn-border: #e3e3de;
   --cn-grid: #eeeeea;
   --cn-card-line: #d9dad4;
+  /* 入力欄・選ぶボタンの枠。白地で 4.5:1 */
+  --cn-control-line: #767b80;
   --cn-ink: #1c1f23;
   --cn-ink-soft: #3a4651;
   --cn-muted: #5b6168;

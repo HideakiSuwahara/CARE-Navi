@@ -10,7 +10,7 @@ import type { State, TaskInstance } from "@/domain/types";
  * 出さないもの: 区分名・場所・必要人数・条件（詳細パネルで見る）。
  * 休憩はバッジなし。カード全体を button にせず、中の名前・チップ・＋をそれぞれ button にする（入れ子にしない）。
  */
-export type CardVariant = "normal" | "compact" | "rail";
+export type CardVariant = "normal" | "compact" | "mini" | "rail";
 
 export function TaskCard({
   state,
@@ -37,6 +37,7 @@ export function TaskCard({
     .filter((x) => x.staff);
   const short = !isBreak && (status.level === "unassigned" || status.level === "short");
   const compact = variant === "compact";
+  const mini = variant === "mini";
   const rail = variant === "rail";
 
   const frame = isBreak
@@ -45,61 +46,105 @@ export function TaskCard({
       ? `border-2 ${status.level === "unassigned" ? "border-dashed" : ""} border-[var(--cn-alert-line)] bg-white`
       : "border border-[var(--cn-card-line)] bg-white";
 
+  const badge = short ? (
+    <span
+      className={`inline-flex h-[28px] shrink-0 items-center rounded-md px-2 text-[14px] font-bold ${
+        status.level === "unassigned" ? "bg-[var(--cn-unassigned-bg)] text-[var(--cn-unassigned-ink)]" : "bg-[var(--cn-short-bg)] text-[var(--cn-short-ink)]"
+      }`}
+    >
+      {status.label}
+    </span>
+  ) : null;
+
+  const chips = assignees.map(({ id, staff, firstTimer }) => (
+    <button
+      key={id}
+      type="button"
+      className="relative inline-flex h-[28px] shrink-0 items-center gap-1 rounded-full border border-[var(--cn-accent)] bg-[var(--cn-accent-soft)] px-2.5 text-[14px] text-[var(--cn-accent)] before:absolute before:-inset-y-[8px] before:inset-x-0 before:content-['']"
+      aria-label={`${staff!.surname}${firstTimer ? "（初回）" : ""}`}
+    >
+      {staff!.surname}
+      {firstTimer && <span className="rounded border border-[var(--cn-card-line)] bg-white px-1 text-[12px] text-[var(--cn-ink)]">初回</span>}
+    </button>
+  ));
+
+  const titleButton = (
+    <button
+      type="button"
+      onClick={() => onOpen?.(task.id)}
+      className={`-my-[10px] block min-h-[44px] min-w-0 truncate py-[10px] text-left text-[15px] font-bold leading-6 hover:underline ${
+        isBreak ? "text-[var(--cn-break-ink)]" : ""
+      }`}
+    >
+      {title}
+    </button>
+  );
+  const when = (
+    <>
+      {fmtRange(task.startMin, task.endMin)}
+      {task.targetMode === "group" && targets.length > 0 && ` ・ ${targets.length}人`}
+    </>
+  );
+  const plus = (
+    <button
+      type="button"
+      onClick={() => onAdd?.(task.id)}
+      aria-label={`${title} に担当を追加`}
+      className="inline-flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-full border border-dashed border-[var(--cn-muted)] bg-white text-[20px] leading-none text-[var(--cn-ink)] hover:bg-[var(--cn-ground)]"
+    >
+      ＋
+    </button>
+  );
+
   return (
     <article
       aria-label={`${title} ${fmtRange(task.startMin, task.endMin)}${short ? ` ${status.label}` : ""}`}
-      className={`flex h-full overflow-hidden rounded-[10px] px-2.5 py-1.5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ${
-        compact ? "flex-row items-center gap-2" : "flex-col gap-1"
-      } ${rail && !short ? "bg-[var(--cn-rail-bg)]" : ""} ${frame}`}
+      className={`flex h-full gap-2 overflow-hidden rounded-[10px] px-2.5 py-1.5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ${
+        rail && !short ? "bg-[var(--cn-rail-bg)]" : ""
+      } ${frame} ${compact || mini ? "flex-row items-center" : "flex-col"}`}
       data-task-id={task.id}
       data-level={isBreak ? "break" : status.level}
+      data-badge={short ? status.label : undefined}
     >
-      <div className={`flex min-w-0 flex-col ${compact ? "shrink" : ""}`}>
-        <button
-          type="button"
-          onClick={() => onOpen?.(task.id)}
-          className={`-my-[10px] block min-h-[44px] min-w-0 truncate py-[10px] text-left text-[15px] font-bold leading-6 hover:underline ${
-            isBreak ? "text-[var(--cn-break-ink)]" : ""
-          }`}
-        >
-          {title}
-        </button>
-        <span className="truncate text-[13px] leading-5 text-[var(--cn-muted)]">
-          {fmtRange(task.startMin, task.endMin)}
-          {task.targetMode === "group" && targets.length > 0 && ` ・ ${targets.length}人`}
-        </span>
-      </div>
-
-      <div className={`flex min-w-0 items-center gap-1.5 ${compact ? "ml-auto shrink-0" : "flex-wrap"}`}>
-        {assignees.map(({ id, staff, firstTimer }) => (
-          <button
-            key={id}
-            type="button"
-            className="relative inline-flex h-[32px] items-center gap-1 rounded-full border border-[var(--cn-accent)] bg-[var(--cn-accent-soft)] px-3 text-[14px] text-[var(--cn-accent)] before:absolute before:-inset-y-[6px] before:inset-x-0 before:content-['']"
-            aria-label={`${staff!.surname}${firstTimer ? "（初回）" : ""}`}
-          >
-            {staff!.surname}
-            {firstTimer && <span className="rounded border border-[var(--cn-card-line)] bg-white px-1 text-[12px] text-[var(--cn-ink)]">初回</span>}
-          </button>
-        ))}
-        {short && (
-          <span
-            className={`inline-flex h-[32px] items-center rounded-md px-2.5 text-[14px] font-bold ${
-              status.level === "unassigned" ? "bg-[var(--cn-unassigned-bg)] text-[var(--cn-unassigned-ink)]" : "bg-[var(--cn-short-bg)] text-[var(--cn-short-ink)]"
-            }`}
-          >
-            {status.label}
-          </span>
-        )}
-        <button
-          type="button"
-          onClick={() => onAdd?.(task.id)}
-          aria-label={`${title} に担当を追加`}
-          className="ml-auto inline-flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-full border border-dashed border-[var(--cn-muted)] bg-white text-[20px] leading-none text-[var(--cn-ink)] hover:bg-[var(--cn-ground)]"
-        >
-          ＋
-        </button>
-      </div>
+      {mini ? (
+        <>
+          {/* とても短い業務（15分など）: 1行。名前・担当（文字）・バッジ・＋ */}
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            {titleButton}
+            {badge ?? (
+              <span className="min-w-0 truncate text-[13px] text-[var(--cn-accent)]">{assignees.map((a) => a.staff!.surname).join("・")}</span>
+            )}
+          </div>
+          {plus}
+        </>
+      ) : compact ? (
+        <>
+          {/* 短い業務（2時間未満の高さ）: 左に 名前・時刻／バッジ・担当、右に ＋。状態（バッジ）を先に出して切らさない */}
+          <div className="flex min-w-0 flex-1 flex-col gap-1">
+            <div className="flex min-w-0 items-baseline gap-2">
+              {titleButton}
+              <span className="shrink-0 whitespace-nowrap text-[13px] text-[var(--cn-muted)]">{when}</span>
+            </div>
+            <div className="flex min-w-0 items-center gap-1.5 overflow-hidden">
+              {badge}
+              {chips}
+            </div>
+          </div>
+          {plus}
+        </>
+      ) : (
+        <>
+          <div className="flex min-w-0 flex-col">
+            {titleButton}
+            <span className="truncate text-[13px] leading-5 text-[var(--cn-muted)]">{when}</span>
+          </div>
+          <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+            {badge}
+            {chips}
+          </div>
+          <div className="mt-auto flex justify-end">{plus}</div>
+        </>
+      )}
     </article>
   );
 }

@@ -142,18 +142,18 @@ const STF_SAITO = "stf-saito";
 const STF_NOGUCHI = "stf-noguchi";
 
 const staff: Staff[] = [
-  s(STF_SATO, "佐藤", "みき", "介護福祉士", ["介護福祉士", "入浴担当可"], GRP_EAST, "201"),
-  s(STF_TAKAHASHI, "高橋", "けんた", "介護職員", ["入浴担当可"], GRP_EAST, "202"),
-  s(STF_SUZUKI, "鈴木", "あやか", "介護職員", ["入浴担当可"], GRP_EAST, "203"),
-  s(STF_ITO, "伊藤", "だいき", "介護職員", ["入浴担当可"], GRP_EAST, "204"),
-  s(STF_YAMAMOTO, "山本", "ゆうこ", "介護福祉士", ["介護福祉士", "入浴担当可"], GRP_EAST, "205"),
-  s(STF_OGAWA, "小川", "なつみ", "介護職員", ["入浴担当可"], GRP_SAKURA, "206"),
-  s(STF_NAKAMURA, "中村", "さおり", "看護師", ["看護師"], undefined, "210"),
-  s(STF_KIMURA, "木村", "しょう", "介護職員", ["入浴担当可"], GRP_EAST, "207"),
+  s(STF_SATO, "佐藤", "みき", "介護福祉士", ["介護福祉士", "入浴担当可"], GRP_EAST, "801"),
+  s(STF_TAKAHASHI, "高橋", "けんた", "介護職員", ["入浴担当可"], GRP_EAST, "802"),
+  s(STF_SUZUKI, "鈴木", "あやか", "介護職員", ["入浴担当可"], GRP_EAST, "803"),
+  s(STF_ITO, "伊藤", "だいき", "介護職員", ["入浴担当可"], GRP_EAST, "804"),
+  s(STF_YAMAMOTO, "山本", "ゆうこ", "介護福祉士", ["介護福祉士", "入浴担当可"], GRP_EAST, "805"),
+  s(STF_OGAWA, "小川", "なつみ", "介護職員", ["入浴担当可"], GRP_SAKURA, "806"),
+  s(STF_NAKAMURA, "中村", "さおり", "看護師", ["看護師"], undefined, "810"),
+  s(STF_KIMURA, "木村", "しょう", "介護職員", ["入浴担当可"], GRP_EAST, "807"),
   s(STF_KATO, "加藤", "ゆい", "スポット", []),
   s(STF_WATANABE, "渡辺", "さとし", "介護助手", ["入浴担当可"]),
-  s(STF_SAITO, "斉藤", "りく", "介護職員", ["入浴担当可"], GRP_EAST, "208"),
-  s(STF_NOGUCHI, "野口", "ちえ", "介護福祉士", ["介護福祉士"], GRP_SAKURA, "209"),
+  s(STF_SAITO, "斉藤", "りく", "介護職員", ["入浴担当可"], GRP_EAST, "808"),
+  s(STF_NOGUCHI, "野口", "ちえ", "介護福祉士", ["介護福祉士"], GRP_SAKURA, "809"),
 ];
 
 // ---------------------------------------------------------------------------
@@ -194,9 +194,9 @@ const roleSlots: RoleSlot[] = [
 
 const CAT_CORE = "core";
 const CAT_NONCORE = "noncore";
-const LEADER = "きょうのリーダー PHS 201";
+const LEADER = "きょうのリーダー PHS 801";
 const CONTACT_CARE = `同じ枠の常勤 ／ ${LEADER}`;
-const CONTACT_NURSE = `看護師 PHS 210 ／ ${LEADER}`;
+const CONTACT_NURSE = `看護師 PHS 810 ／ ${LEADER}`;
 
 const TPL_WAKEUP = "tpl-wakeup";
 const TPL_BREAKFAST = "tpl-breakfast";
@@ -866,7 +866,12 @@ const dayCommon = (bathDay: boolean): ItemSpec[] => [
   { id: "diaper-east-pm", tpl: TPL_DIAPER, start: t(16), end: t(16, 30), group: GRP_EAST, slots: [SLOT_OSOBAN, SLOT_SPOT_PM], hc: 2 },
   { id: "restock-pm", tpl: TPL_RESTOCK, start: t(16, 30), end: t(17), group: GRP_COMMON, slots: [SLOT_OSOBAN, SLOT_SPOT_PM], hc: 2 },
   { id: "toilet-tanaka-pm", tpl: TPL_TOILET, start: t(16), end: t(16, 30), group: GRP_SAKURA, slots: [SLOT_NIKKIN_B], hc: 1, residents: [RES_TANAKA] },
-  { id: "records", tpl: TPL_RECORDS, start: t(17), end: t(18), group: GRP_COMMON, slots: [SLOT_NIKKIN_A, SLOT_NIKKIN_B, SLOT_NIKKIN_C], hc: 3 },
+  // 日勤→夜勤の申し送りと、その間の見守り
+  { id: "handover-pm", tpl: TPL_HANDOVER, start: t(17), end: t(17, 30), group: GRP_COMMON, slots: [SLOT_NIKKIN_A, SLOT_YAKIN_EAST, SLOT_YAKIN_SAKURA], hc: 3 },
+  { id: "watch-east-5", tpl: TPL_WATCH, start: t(17), end: t(18), group: GRP_EAST, slots: [SLOT_OSOBAN], hc: 1 },
+  { id: "watch-sakura-5", tpl: TPL_WATCH, start: t(17), end: t(17, 30), group: GRP_SAKURA, slots: [SLOT_NIKKIN_SAKURA], hc: 1 },
+  { id: "watch-sakura-6", tpl: TPL_WATCH, start: t(17, 30), end: t(18), group: GRP_SAKURA, slots: [SLOT_YAKIN_SAKURA], hc: 1 },
+  { id: "records", tpl: TPL_RECORDS, start: t(17), end: t(18), group: GRP_COMMON, slots: [SLOT_NIKKIN_B, SLOT_NIKKIN_C], hc: 2 },
 ];
 
 /** 夕方〜夜勤帯（全パターン共通） */
