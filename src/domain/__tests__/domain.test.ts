@@ -468,3 +468,13 @@ test("手元画面の利用者表示名は施設設定で選べる", () => {
   assert.equal(residentLabel(r, "roomAndSurname"), "203 田中");
   assert.equal(residentLabel(r, "roomOnly"), "203");
 });
+
+test("24時間シートの時計: 朝5時から並べ、翌を付けず、入力は標準にいちばん近い日に合わせる", async () => {
+  const { clockSortKey, clockLabel, alignToReference, alignToSheetDay } = await import("../time.ts");
+  const order = [toMin(23), 1440 + toMin(6), toMin(7, 30), 1440 + toMin(2)].sort((a, b) => clockSortKey(a) - clockSortKey(b));
+  assert.deepEqual(order.map(clockLabel), ["6:00", "7:30", "23:00", "2:00"]);
+  assert.equal(alignToReference(toMin(6, 30), 1440 + toMin(6)), 1440 + toMin(6, 30), "夜勤側の起床に 6:30 と入れたら 翌6:30");
+  assert.equal(alignToReference(toMin(21, 30), toMin(20)), toMin(21, 30));
+  assert.equal(alignToSheetDay(toMin(2)), 1440 + toMin(2));
+  assert.equal(alignToSheetDay(toMin(10)), toMin(10));
+});

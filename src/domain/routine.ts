@@ -10,6 +10,7 @@
  */
 
 import type { DateKey, DayPatternItem, ID, Minutes, ResidentSheet, SheetRow, State } from "./types.ts";
+import { clockSortKey } from "./time.ts";
 
 export interface Routine {
   routineId: string;
@@ -47,7 +48,7 @@ export function routinesOf(state: State, groupId?: ID): Routine[] {
       });
     }
   }
-  return [...map.values()].sort((a, b) => a.startMin - b.startMin || a.name.localeCompare(b.name, "ja"));
+  return [...map.values()].sort((a, b) => clockSortKey(a.startMin) - clockSortKey(b.startMin) || a.name.localeCompare(b.name, "ja"));
 }
 
 export function sheetOf(state: State, residentId: ID): ResidentSheet {
@@ -175,7 +176,8 @@ export function sheetLines(state: State, residentId: ID): SheetLine[] {
       kind: "extra",
     });
   }
-  return lines.sort((a, b) => a.startMin - b.startMin || a.name.localeCompare(b.name, "ja"));
+  // 24時間シートは利用者の一日の時計で、朝（5:00）から並べる
+  return lines.sort((a, b) => clockSortKey(a.startMin) - clockSortKey(b.startMin) || a.name.localeCompare(b.name, "ja"));
 }
 
 /** シートの1行を差し替えた新しいシート（routineId の行は1つだけ持つ） */

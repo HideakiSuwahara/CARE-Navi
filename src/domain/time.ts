@@ -60,3 +60,35 @@ export function snapTo(min: Minutes, step: Minutes = 15): Minutes {
 export function clampMinutes(min: Minutes): Minutes {
   return Math.max(0, Math.min(MAX_MINUTES, min));
 }
+
+// ---------------------------------------------------------------------------
+// 利用者の生活の時計（24時間シート用）
+// 業務日の時刻（翌2:00 = 1560）は職員の勤務に合わせた表し方。24時間シートは利用者の一日なので、
+// 「翌」を付けずに朝から並べる。
+// ---------------------------------------------------------------------------
+
+/** 24時間シートの一日の始まり（5:00）。この時刻から順に並べる */
+export const SHEET_DAY_START: Minutes = 5 * 60;
+
+/** 並べ順の鍵: 5:00 を 0 とした時計の順 */
+export function clockSortKey(min: Minutes, dayStart: Minutes = SHEET_DAY_START): number {
+  return (((min % MINUTES_PER_DAY) - dayStart) % MINUTES_PER_DAY + MINUTES_PER_DAY) % MINUTES_PER_DAY;
+}
+
+/** 「翌」を付けない時刻。翌6:30 → "6:30" */
+export function clockLabel(min: Minutes): string {
+  return fmtMin(((min % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY);
+}
+
+/** 入力された時計の時刻を、基準の時刻（日課の標準）にいちばん近い業務日の時刻にする */
+export function alignToReference(clockMin: Minutes, referenceMin: Minutes): Minutes {
+  const base = ((clockMin % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY;
+  const candidates = [base, base + MINUTES_PER_DAY];
+  return candidates.reduce((best, c) => (Math.abs(c - referenceMin) < Math.abs(best - referenceMin) ? c : best));
+}
+
+/** 基準のない時刻（その方だけの行）: 一日の始まり（5:00）より前は翌日の時刻にする */
+export function alignToSheetDay(clockMin: Minutes): Minutes {
+  const base = ((clockMin % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY;
+  return base < SHEET_DAY_START ? base + MINUTES_PER_DAY : base;
+}

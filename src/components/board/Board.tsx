@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import Link from "next/link";
+import { TopBar } from "@/components/TopBar";
 import { useAppState, useEngine, useNowMinutes } from "@/store/react";
 import { SAMPLE_DATE } from "@/store/sample";
 import { boardColumns, paletteRows } from "@/domain/layout";
@@ -110,28 +110,10 @@ export function Board({ date = SAMPLE_DATE }: { date?: string }) {
         出勤者一覧へ移動
       </a>
       {/* 上部バー（1段） */}
-      <header className="flex h-14 shrink-0 items-center gap-5 border-b border-[var(--cn-border)] bg-white px-5">
-        <h1 className="flex items-center gap-2.5">
-          <span aria-hidden="true" className="inline-block h-7 w-7 rounded-lg bg-[var(--cn-accent)]" />
-          <span className="text-[18px] font-bold">ケアナビ</span>
-          <span className="text-[14px] font-normal text-[var(--cn-muted)]">{state.facility?.name ?? ""}</span>
-        </h1>
-        <nav aria-label="主な画面" className="flex gap-1">
-          <Link href="/board" aria-current="page" className="inline-flex min-h-[44px] items-center rounded-lg bg-[var(--cn-accent-soft)] px-3.5 font-bold text-[var(--cn-accent)]">
-            ボード
-          </Link>
-          <Link href="/review" className="inline-flex min-h-[44px] items-center rounded-lg px-3.5 text-[var(--cn-ink-soft)]">
-            業務の見直し
-          </Link>
-          <Link href="/setup" className="inline-flex min-h-[44px] items-center rounded-lg px-3.5 text-[var(--cn-ink-soft)]">
-            設定
-          </Link>
-        </nav>
-        <div className="ml-auto flex items-center gap-4">
-          <span className="text-[16px] font-bold">{weekdayLabel(date)}</span>
-          {updated && <span className="text-[14px] text-[var(--cn-muted)]">{updated}</span>}
-        </div>
-      </header>
+      <TopBar current="board">
+        <span className="text-[16px] font-bold">{weekdayLabel(date)}</span>
+        {updated && <span className="text-[14px] text-[var(--cn-muted)]">{updated}</span>}
+      </TopBar>
 
       {/* ツールバー（1段） */}
       <div className="flex shrink-0 flex-wrap items-center gap-3 px-5 py-2.5">

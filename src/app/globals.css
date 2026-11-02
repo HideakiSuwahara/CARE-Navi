@@ -47,3 +47,10 @@ body {
     background: #ffffff;
   }
 }
+
+/* 印刷: ナビとボタンを隠す（.cn-noprint）。利用者の24時間シートは A4 縦（ページ側で @page を出す） */
+@media print {
+  .cn-noprint {
+    display: none !important;
+  }
+}

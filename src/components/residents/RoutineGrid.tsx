@@ -1,0 +1,171 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import { useEngine } from "@/store/react";
+import { routinesOf, sheetRowFor, type Routine } from "@/domain/routine";
+import { residentsOfGroup, routineChangeEvents, routineGridCsvRows, type RoutineChange } from "@/domain/residentsIO";
+import { clockLabel } from "@/domain/time";
+import type { ID, State } from "@/domain/types";
+import { CellPanel, changeLabel, type CellTarget } from "./CellPanel";
+import { downloadCsv } from "./download";
+
+/**
+ * 一覧: 縦に利用者、横にそのグループの日課。標準と違うマスだけ直す（決定記録 0004 §3）。
+ * 行を選んで、列の見出しの「まとめて変える」から同じ時刻・なしを一度に入れる（1つの操作・1つの元に戻す）。
+ */
+export function RoutineGrid({ state, groupId }: { state: State; groupId: ID }) {
+  const engine = useEngine();
+  const routines = useMemo(() => routinesOf(state, groupId), [state, groupId]);
+  const residents = useMemo(() => residentsOfGroup(state, groupId), [state, groupId]);
+  const [selected, setSelected] = useState<Set<ID>>(new Set());
+  const [panel, setPanel] = useState<CellTarget | null>(null);
+  const groupName = state.groups[groupId]?.name ?? "";
+  const chosen = residents.filter((r) => selected.has(r.id));
+  const allChecked = residents.length > 0 && chosen.length === residents.length;
+
+  const toggle = (id: ID) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  const decide = (c: RoutineChange) => {
+    if (!engine || !panel) return;
+    const events = routineChangeEvents(engine.state, engine.context(), panel.residentIds, panel.routine, c);
+    const label = changeLabel(panel.who, panel.routine, c);
+    setPanel(null);
+    if (events.length > 0) void engine.dispatch(events, label);
+  };
+
+  const openCell = (e: React.MouseEvent<HTMLButtonElement>, residentId: ID, routine: Routine) => {
+    const r = state.residents[residentId];
+    const row = sheetRowFor(state, residentId, routine.routineId);
+    setPanel({
+      who: `${r?.surname ?? ""}様`,
+      residentIds: [residentId],
+      routine,
+      startMin: row?.startMin ?? routine.startMin,
+      anchor: e.currentTarget.getBoundingClientRect(),
+    });
+  };
+
+  const openBulk = (e: React.MouseEvent<HTMLButtonElement>, routine: Routine) => {
+    if (chosen.length === 0) return;
+    setPanel({
+      who: chosen.length === 1 ? `${chosen[0].surname}様` : `選んだ${chosen.length}人`,
+      residentIds: chosen.map((r) => r.id),
+      routine,
+      startMin: routine.startMin,
+      anchor: e.currentTarget.getBoundingClientRect(),
+    });
+  };
+
+  if (residents.length === 0) {
+    return <p className="p-6 text-[var(--cn-ink-soft)]">{groupName}の利用者はまだいません。右上の「名簿を貼り付ける」から足せます。</p>;
+  }
+
+  return (
+    <section aria-label={`${groupName}の日課の一覧`} className="flex min-h-0 flex-1 flex-col">
+      <div className="flex flex-wrap items-center gap-3 px-1 pb-2.5">
+        <p className="text-[14px] text-[var(--cn-ink-soft)]">
+          「—」は標準どおり。マスを押すとその方だけ直せます。行を選ぶと、列の「まとめて変える」で同じ時刻を一度に入れられます。
+        </p>
+        <span className="text-[14px] font-bold" aria-live="polite">
+          {chosen.length > 0 ? `${chosen.length}人を選んでいます` : ""}
+        </span>
+        <button
+          type="button"
+          onClick={() => downloadCsv(`日課の一覧_${groupName}.csv`, routineGridCsvRows(state, groupId))}
+          className="ml-auto inline-flex h-[44px] items-center rounded-lg border border-[var(--cn-control-line)] bg-white px-4 text-[15px]"
+        >
+          CSV
+        </button>
+      </div>
+      <div className="min-h-0 flex-1 overflow-auto rounded-xl border border-[var(--cn-border)] bg-white">
+        <table className="border-collapse text-[15px]">
+          <thead className="sticky top-0 z-10 bg-white">
+            <tr className="border-b border-[var(--cn-border)]">
+              <th scope="col" className="sticky left-0 z-10 w-[52px] bg-white px-1">
+                <label className="flex h-[44px] w-[44px] cursor-pointer items-center justify-center">
+                  <input
+                    type="checkbox"
+                    className="h-5 w-5"
+                    checked={allChecked}
+                    onChange={() => setSelected(allChecked ? new Set() : new Set(residents.map((r) => r.id)))}
+                    aria-label="全員を選ぶ"
+                  />
+                </label>
+              </th>
+              <th scope="col" className="sticky left-[52px] z-10 min-w-[180px] bg-white px-3 text-left font-bold">
+                利用者
+              </th>
+              {routines.map((rt) => (
+                <th key={rt.routineId} scope="col" className="min-w-[148px] border-l border-[var(--cn-grid)] px-2 py-2 text-left align-top">
+                  <span className="block font-bold">{rt.name}</span>
+                  <span className="block text-[14px] font-normal text-[var(--cn-muted)]">標準 {clockLabel(rt.startMin)}</span>
+                  <button
+                    type="button"
+                    onClick={(e) => openBulk(e, rt)}
+                    aria-disabled={chosen.length === 0}
+                    title={chosen.length === 0 ? "先に左のチェックで方を選んでください" : undefined}
+                    aria-label={`${rt.name}をまとめて変える${chosen.length > 0 ? `（${chosen.length}人）` : "（先に方を選ぶ）"}`}
+                    className={`mt-1 inline-flex h-[44px] items-center whitespace-nowrap rounded-lg border px-2.5 text-[14px] font-normal ${
+                      chosen.length === 0
+                        ? "cursor-not-allowed border-[var(--cn-border)] text-[var(--cn-muted)]"
+                        : "border-[var(--cn-accent)] bg-[var(--cn-accent-soft)] font-bold text-[var(--cn-accent)]"
+                    }`}
+                  >
+                    まとめて変える
+                  </button>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {residents.map((r) => {
+              const checked = selected.has(r.id);
+              return (
+                <tr key={r.id} data-resident-id={r.id} className={`border-b border-[var(--cn-grid)] ${checked ? "bg-[var(--cn-accent-soft)]" : ""}`}>
+                  <td className={`sticky left-0 px-1 ${checked ? "bg-[var(--cn-accent-soft)]" : "bg-white"}`}>
+                    <label className="flex h-[44px] w-[44px] cursor-pointer items-center justify-center">
+                      <input type="checkbox" className="h-5 w-5" checked={checked} onChange={() => toggle(r.id)} aria-label={`${r.displayName}様を選ぶ`} />
+                    </label>
+                  </td>
+                  <th scope="row" className={`sticky left-[52px] px-3 text-left font-normal ${checked ? "bg-[var(--cn-accent-soft)]" : "bg-white"}`}>
+                    <span className="mr-2 text-[14px] text-[var(--cn-muted)]">{r.room}</span>
+                    <span className="font-bold">{r.displayName}</span>様
+                  </th>
+                  {routines.map((rt) => {
+                    const row = sheetRowFor(state, r.id, rt.routineId);
+                    const state3 = row?.skip ? "skip" : row?.startMin !== undefined ? "changed" : "standard";
+                    const spoken =
+                      state3 === "skip" ? "なし" : state3 === "changed" ? `${clockLabel(row!.startMin!)}（変更）` : `標準どおり ${clockLabel(rt.startMin)}`;
+                    return (
+                      <td key={rt.routineId} className="border-l border-[var(--cn-grid)] p-1">
+                        <button
+                          type="button"
+                          data-cell={`${r.id}:${rt.routineId}`}
+                          data-state={state3}
+                          onClick={(e) => openCell(e, r.id, rt)}
+                          aria-label={`${r.surname}様 ${rt.name} ${spoken}`}
+                          className="flex h-[44px] w-full items-center rounded-lg px-2 text-left hover:bg-[var(--cn-ground)]"
+                        >
+                          {state3 === "standard" && <span className="text-[var(--cn-muted)]">—</span>}
+                          {state3 === "changed" && <strong className="text-[16px]">{clockLabel(row!.startMin!)}</strong>}
+                          {state3 === "skip" && <span className="rounded border border-[var(--cn-card-line)] bg-[var(--cn-ground)] px-1.5">なし</span>}
+                        </button>
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      {panel && <CellPanel key={`${panel.routine.routineId}-${panel.residentIds.join(",")}`} target={panel} onDecide={decide} onClose={() => setPanel(null)} />}
+    </section>
+  );
+}
