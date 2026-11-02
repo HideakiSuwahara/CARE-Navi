@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>ケアナビ 見直し</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#1D5C8A}a:hover{color:#164766}
+</style>
+</helmet>
+<div style="font-family: 'Noto Sans JP', system-ui, sans-serif; background: #F3F3EF; color: #1C1F23; min-height: 900px; display: flex; flex-direction: column; box-sizing: border-box; font-size: 15px; line-height: 1.5;">
+
+  <header style="display: flex; align-items: center; gap: 20px; padding: 0 20px; height: 56px; background: #FFFFFF; border-bottom: 1px solid #E3E3DE; flex-wrap: wrap;">
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true"><rect x="2" y="2" width="24" height="24" rx="7" fill="#1D5C8A"></rect><path d="M8 14h12M14 8v12" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" fill="none"></path></svg>
+      <span style="font-weight: 700; font-size: 18px;">ケアナビ</span>
+      <span style="color: #5B6168; font-size: 14px;">ひまわり苑</span>
+    </div>
+    <nav aria-label="主な画面" style="display: flex; gap: 4px; margin-left: 8px;">
+      <a href="Main.dc.html" style="text-decoration: none; padding: 8px 14px; border-radius: 8px; color: #3A4651;">ボード</a>
+      <a href="Morning.dc.html" style="text-decoration: none; padding: 8px 14px; border-radius: 8px; color: #3A4651;">朝の準備</a>
+      <a href="Review.dc.html" aria-current="page" style="text-decoration: none; padding: 8px 14px; border-radius: 8px; background: #E6F0F8; color: #1D5C8A; font-weight: 700;">見直し</a>
+      <a href="Setup.dc.html" style="text-decoration: none; padding: 8px 14px; border-radius: 8px; color: #3A4651;">設定</a>
+    </nav>
+    <div style="margin-left: auto; display: flex; align-items: center; gap: 8px;">
+      <div role="group" aria-label="期間" style="display: inline-flex; border: 1px solid #D9DAD4; border-radius: 8px; overflow: hidden; background: #FFFFFF;">
+        <button type="button" aria-pressed="true" style="height: 40px; padding: 0 14px; border: 0; background: #1C1F23; color: #FFFFFF; font-size: 14px; font-weight: 700; cursor: pointer;">火曜（11/3）</button>
+        <button type="button" aria-pressed="false" style="height: 40px; padding: 0 14px; border: 0; background: #FFFFFF; color: #3A4651; font-size: 14px; cursor: pointer;">今週</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- 前提の明示（常時） -->
+  <div style="margin: 14px 20px 0; padding: 10px 14px; background: #FFFFFF; border: 1px solid #E3E3DE; border-left: 4px solid #1D5C8A; border-radius: 8px; font-size: 14px; display: flex; gap: 16px; flex-wrap: wrap;">
+    <span><span style="font-weight: 700;">予定時間ベース</span>（一日の型と当日の予定から計算。実施時間ではありません）</span>
+    <span><span style="font-weight: 700;">配置を見直すための数字</span>です。職員の評価には使いません。職員個人の内訳は出しません</span>
+  </div>
+
+  <main style="display: flex; gap: 16px; padding: 14px 20px 20px; flex: 1 1 auto; flex-wrap: wrap; align-items: stretch;">
+
+    <!-- 区分×時間帯 -->
+    <section aria-label="区分×時間帯" style="flex: 1 1 560px; min-width: 0; background: #FFFFFF; border: 1px solid #E3E3DE; border-radius: 12px; padding: 16px 18px; display: flex; flex-direction: column; gap: 12px;">
+      <div style="display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;">
+        <span style="font-weight: 700;">区分 × 時間帯</span>
+        <span style="font-size: 13px; color: #5B6168;">1時間ごとの予定時間（職員・分の合計）</span>
+      </div>
+      <div style="display: flex; gap: 16px; flex-wrap: wrap; font-size: 13px;">
+        <span style="display: inline-flex; align-items: center; gap: 6px;"><span style="width: 14px; height: 14px; border-radius: 3px; background: #1D5C8A;" aria-hidden="true"></span>コア業務 46時間20分</span>
+        <span style="display: inline-flex; align-items: center; gap: 6px;"><span style="width: 14px; height: 14px; border-radius: 3px; background: #E0A83A;" aria-hidden="true"></span>ノンコア業務 15時間30分</span>
+        <span style="display: inline-flex; align-items: center; gap: 6px;"><span style="width: 14px; height: 14px; border-radius: 3px; background: #D9DAD4;" aria-hidden="true"></span>休憩 9時間（区分に入れない）</span>
+        <span style="display: inline-flex; align-items: center; gap: 6px;"><span style="width: 14px; height: 14px; border-radius: 3px; background: repeating-linear-gradient(135deg, #DDF2E4 0 4px, #FFFFFF 4px 8px); border: 1px solid #9CCFB0;" aria-hidden="true"></span>介護助手の勤務帯 9:00–13:00</span>
+      </div>
+
+      <!-- 棒グラフ（1分 = 0.8px、最大300分） -->
+      <div style="position: relative; display: grid; grid-template-columns: repeat(13, minmax(0, 1fr)); gap: 6px; height: 260px; align-items: end; padding: 0 4px; border-bottom: 1px solid #D9DAD4;">
+        <div aria-hidden="true" style="position: absolute; left: calc(2 * (100% / 13)); width: calc(4 * (100% / 13)); top: 0; bottom: 0; background: repeating-linear-gradient(135deg, #DDF2E4 0 6px, #FFFFFF 6px 12px); opacity: 0.6; border-left: 1px solid #9CCFB0; border-right: 1px solid #9CCFB0;"></div>
+        <div style="position: relative; display: flex; flex-direction: column-reverse;"><div style="height: 96px; background: #1D5C8A; border-radius: 3px 3px 0 0;"></div><div style="height: 48px; background: #E0A83A; margin-bottom: 2px;"></div></div>
+        <div style="position: relative; display: flex; flex-direction: column-reverse;"><div style="height: 192px; background: #1D5C8A; border-radius: 3px 3px 0 0;"></div><div style="height: 48px; background: #E0A83A; margin-bottom: 2px;"></div></div>
+        <div style="position: relative; display: flex; flex-direction: column-reverse;"><div style="height: 144px; background: #1D5C8A; border-radius: 3px 3px 0 0;"></div><div style="height: 72px; background: #E0A83A; margin-bottom: 2px;"></div></div>
+        <div style="position: relative; display: flex; flex-direction: column-reverse;"><div style="height: 240px; background: #1D5C8A; border-radius: 3px 3px 0 0;"></div><div style="height: 48px; background: #E0A83A; margin-bottom: 2px;"></div></div>
+        <div style="position: relative; display: flex; flex-direction: column-reverse;"><div style="height: 192px; background: #1D5C8A; border-radius: 3px 3px 0 0;"></div><div style="height: 96px; background: #E0A83A; margin-bottom: 2px;"></div><div style="height: 48px; background: #D9DAD4; margin-bottom: 2px;"></div></div>
+        <div style="position: relative; display: flex; flex-direction: column-reverse;"><div style="height: 240px; background: #1D5C8A; border-radius: 3px 3px 0 0;"></div><div style="height: 48px; background: #E0A83A; margin-bottom: 2px;"></div></div>
+        <div style="position: relative; display: flex; flex-direction: column-reverse;"><div style="height: 96px; background: #1D5C8A; border-radius: 3px 3px 0 0;"></div><div style="height: 48px; background: #E0A83A; margin-bottom: 2px;"></div><div style="height: 72px; background: #D9DAD4; margin-bottom: 2px;"></div></div>
+        <div style="position: relative; display: flex; flex-direction: column-reverse;"><div style="height: 144px; background: #1D5C8A; border-radius: 3px 3px 0 0;"></div><div style="height: 96px; background: #E0A83A; margin-bottom: 2px;"></div><div style="height: 48px; background: #D9DAD4; margin-bottom: 2px;"></div></div>
+        <div style="position: relative; display: flex; flex-direction: column-reverse;"><div style="height: 96px; background: #1D5C8A; border-radius: 3px 3px 0 0;"></div><div style="height: 96px; background: #E0A83A; margin-bottom: 2px;"></div></div>
+        <div style="position: relative; display: flex; flex-direction: column-reverse;"><div style="height: 144px; background: #1D5C8A; border-radius: 3px 3px 0 0;"></div><div style="height: 72px; background: #E0A83A; margin-bottom: 2px;"></div></div>
+        <div style="position: relative; display: flex; flex-direction: column-reverse;"><div style="height: 192px; background: #1D5C8A; border-radius: 3px 3px 0 0;"></div><div style="height: 48px; background: #E0A83A; margin-bottom: 2px;"></div></div>
+        <div style="position: relative; display: flex; flex-direction: column-reverse;"><div style="height: 144px; background: #1D5C8A; border-radius: 3px 3px 0 0;"></div><div style="height: 24px; background: #E0A83A; margin-bottom: 2px;"></div></div>
+        <div style="position: relative; display: flex; flex-direction: column-reverse;"><div style="height: 96px; background: #1D5C8A; border-radius: 3px 3px 0 0;"></div><div style="height: 24px; background: #E0A83A; margin-bottom: 2px;"></div></div>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(13, minmax(0, 1fr)); gap: 6px; padding: 0 4px; font-size: 12px; color: #5B6168; text-align: center;">
+        <span>7</span><span>8</span><span>9</span><span>10</span><span>11</span><span>12</span><span>13</span><span>14</span><span>15</span><span>16</span><span>17</span><span>18</span><span>19時</span>
+      </div>
+
+      <div style="margin-top: auto; padding: 12px 14px; background: #F7F9FB; border-radius: 10px; font-size: 14px; display: flex; flex-direction: column; gap: 4px;">
+        <div>ノンコア業務のうち、介護助手の勤務帯（9:00–13:00）の<span style="font-weight: 700;">外</span>にある予定: <span style="font-weight: 700;">7時間10分</span></div>
+        <div style="font-size: 13px; color: #5B6168;">右の一覧で「ずらす」を押すと、その枠を勤務帯の中へ動かす候補が出ます。動かすかどうかは施設が決めます。</div>
+      </div>
+    </section>
+
+    <!-- ノンコアの枠一覧 -->
+    <section aria-label="ノンコアの枠" style="flex: 1 1 520px; min-width: 0; background: #FFFFFF; border: 1px solid #E3E3DE; border-radius: 12px; padding: 16px 18px; display: flex; flex-direction: column; gap: 10px;">
+      <div style="display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;">
+        <span style="font-weight: 700;">ノンコアの枠</span>
+        <span style="font-size: 13px; color: #5B6168;">火曜 ・ 14枠 ・ 役割（人ではなく、型で束ねた役割）で表示</span>
+      </div>
+      <div style="display: grid; grid-template-columns: minmax(0, 1.4fr) 110px 120px 120px 190px; gap: 0 10px; padding: 6px 10px; font-size: 12px; color: #5B6168; border-bottom: 1px solid #EEEEEA;">
+        <div>業務</div><div>時刻</div><div>役割</div><div>介護助手の勤務帯</div><div>見直し</div>
+      </div>
+      <ul style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column;">
+        <li style="display: grid; grid-template-columns: minmax(0, 1.4fr) 110px 120px 120px 190px; gap: 0 10px; align-items: center; padding: 8px 10px; border-bottom: 1px solid #EEEEEA; min-height: 52px; background: #FFF8F3;">
+          <div><span style="font-weight: 700;">リネン回収</span><span style="display: block; font-size: 12px; color: #8A3B00; font-weight: 700;">担当未定</span></div><div style="font-size: 14px;">10:30–11:00</div><div style="font-size: 13px;">介護助手</div><div><span style="font-size: 12px; padding: 1px 8px; border-radius: 999px; background: #DDF2E4; color: #1E6B3A;">中</span></div>
+          <div style="display: flex; gap: 4px;"><button type="button" style="height: 34px; padding: 0 8px; border: 1px solid #D9DAD4; border-radius: 6px; background: #FFFFFF; font-size: 13px; cursor: pointer;">ずらす</button><button type="button" style="height: 34px; padding: 0 8px; border: 1px solid #1D5C8A; border-radius: 6px; background: #E6F0F8; color: #1D5C8A; font-size: 13px; font-weight: 700; cursor: pointer;">任せる</button><button type="button" style="height: 34px; padding: 0 8px; border: 1px solid #D9DAD4; border-radius: 6px; background: #FFFFFF; font-size: 13px; cursor: pointer;">減らす</button></div>
+        </li>
+        <li style="display: grid; grid-template-columns: minmax(0, 1.4fr) 110px 120px 120px 190px; gap: 0 10px; align-items: center; padding: 8px 10px; border-bottom: 1px solid #EEEEEA; min-height: 52px; background: #FFF8F3;">
+          <div><span style="font-weight: 700;">物品補充</span><span style="display: block; font-size: 12px; color: #8A3B00; font-weight: 700;">担当未定</span></div><div style="font-size: 14px;">12:00–12:30</div><div style="font-size: 13px;">介護助手</div><div><span style="font-size: 12px; padding: 1px 8px; border-radius: 999px; background: #DDF2E4; color: #1E6B3A;">中</span></div>
+          <div style="display: flex; gap: 4px;"><button type="button" style="height: 34px; padding: 0 8px; border: 1px solid #D9DAD4; border-radius: 6px; background: #FFFFFF; font-size: 13px; cursor: pointer;">ずらす</button><button type="button" style="height: 34px; padding: 0 8px; border: 1px solid #1D5C8A; border-radius: 6px; background: #E6F0F8; color: #1D5C8A; font-size: 13px; font-weight: 700; cursor: pointer;">任せる</button><button type="button" style="height: 34px; padding: 0 8px; border: 1px solid #D9DAD4; border-radius: 6px; background: #FFFFFF; font-size: 13px; cursor: pointer;">減らす</button></div>
+        </li>
+        <li style="display: grid; grid-template-columns: minmax(0, 1.4fr) 110px 120px 120px 190px; gap: 0 10px; align-items: center; padding: 8px 10px; border-bottom: 1px solid #EEEEEA; min-height: 52px;">
+          <div><span style="font-weight: 700;">食堂準備</span><span style="display: block; font-size: 12px; color: #5B6168;">介護助手に任せられる候補</span></div><div style="font-size: 14px;">11:30–12:00</div><div style="font-size: 13px;">日勤B</div><div><span style="font-size: 12px; padding: 1px 8px; border-radius: 999px; background: #DDF2E4; color: #1E6B3A;">中</span></div>
+          <div style="display: flex; gap: 4px;"><button type="button" style="height: 34px; padding: 0 8px; border: 1px solid #D9DAD4; border-radius: 6px; background: #FFFFFF; font-size: 13px; cursor: pointer;">ずらす</button><button type="button" style="height: 34px; padding: 0 8px; border: 1px solid #1D5C8A; border-radius: 6px; background: #E6F0F8; color: #1D5C8A; font-size: 13px; font-weight: 700; cursor: pointer;">任せる</button><button type="button" style="height: 34px; padding: 0 8px; border: 1px solid #D9DAD4; border-radius: 6px; background: #FFFFFF; font-size: 13px; cursor: pointer;">減らす</button></div>
+        </li>
+        <li style="display: grid; grid-template-columns: minmax(0, 1.4fr) 110px 120px 120px 190px; gap: 0 10px; align-items: center; padding: 8px 10px; border-bottom: 1px solid #EEEEEA; min-height: 52px;">
+          <div><span style="font-weight: 700;">洗濯物たたみ</span><span style="display: block; font-size: 12px; color: #5B6168;">9:00–13:00 に動かすと勤務帯に入る</span></div><div style="font-size: 14px;">14:00–15:00</div><div style="font-size: 13px;">日勤C</div><div><span style="font-size: 12px; padding: 1px 8px; border-radius: 999px; background: #EEF1F4; color: #3A4651;">外</span></div>
+          <div style="display: flex; gap: 4px;"><button type="button" style="height: 34px; padding: 0 8px; border: 1px solid #1D5C8A; border-radius: 6px; background: #E6F0F8; color: #1D5C8A; font-size: 13px; font-weight: 700; cursor: pointer;">ずらす</button><button type="button" style="height: 34px; padding: 0 8px; border: 1px solid #D9DAD4; border-radius: 6px; background: #FFFFFF; font-size: 13px; cursor: pointer;">任せる</button><button type="button" style="height: 34px; padding: 0 8px; border: 1px solid #D9DAD4; border-radius: 6px; background: #FFFFFF; font-size: 13px; cursor: pointer;">減らす</button></div>
+        </li>
+        <li style="display: grid; grid-template-columns: minmax(0, 1.4fr) 110px 120px 120px 190px; gap: 0 10px; align-items: center; padding: 8px 10px; border-bottom: 1px solid #EEEEEA; min-height: 52px;">
+          <div><span style="font-weight: 700;">おやつ準備</span></div><div style="font-size: 14px;">14:30–15:00</div><div style="font-size: 13px;">日勤A</div><div><span style="font-size: 12px; padding: 1px 8px; border-radius: 999px; background: #EEF1F4; color: #3A4651;">外</span></div>
+          <div style="display: flex; gap: 4px;"><button type="button" style="height: 34px; padding: 0 8px; border: 1px solid #D9DAD4; border-radius: 6px; background: #FFFFFF; font-size: 13px; cursor: pointer;">ずらす</button><button type="button" style="height: 34px; padding: 0 8px; border: 1px solid #D9DAD4; border-radius: 6px; background: #FFFFFF; font-size: 13px; cursor: pointer;">任せる</button><button type="button" style="height: 34px; padding: 0 8px; border: 1px solid #D9DAD4; border-radius: 6px; background: #FFFFFF; font-size: 13px; cursor: pointer;">減らす</button></div>
+        </li>
+        <li style="display: grid; grid-template-columns: minmax(0, 1.4fr) 110px 120px 120px 190px; gap: 0 10px; align-items: center; padding: 8px 10px; border-bottom: 1px solid #EEEEEA; min-height: 52px;">
+          <div><span style="font-weight: 700;">居室清掃（東）</span></div><div style="font-size: 14px;">15:00–16:00</div><div style="font-size: 13px;">遅番</div><div><span style="font-size: 12px; padding: 1px 8px; border-radius: 999px; background: #EEF1F4; color: #3A4651;">外</span></div>
+          <div style="display: flex; gap: 4px;"><button type="button" style="height: 34px; padding: 0 8px; border: 1px solid #D9DAD4; border-radius: 6px; background: #FFFFFF; font-size: 13px; cursor: pointer;">ずらす</button><button type="button" style="height: 34px; padding: 0 8px; border: 1px solid #D9DAD4; border-radius: 6px; background: #FFFFFF; font-size: 13px; cursor: pointer;">任せる</button><button type="button" style="height: 34px; padding: 0 8px; border: 1px solid #D9DAD4; border-radius: 6px; background: #FFFFFF; font-size: 13px; cursor: pointer;">減らす</button></div>
+        </li>
+        <li style="display: grid; grid-template-columns: minmax(0, 1.4fr) 110px 120px 120px 190px; gap: 0 10px; align-items: center; padding: 8px 10px; border-bottom: 1px solid #EEEEEA; min-height: 52px;">
+          <div><span style="font-weight: 700;">記録入力</span><span style="display: block; font-size: 12px; color: #5B6168;">3役割が同時刻。必要性を見直す候補</span></div><div style="font-size: 14px;">16:00–17:00</div><div style="font-size: 13px;">日勤A・B・C</div><div><span style="font-size: 12px; padding: 1px 8px; border-radius: 999px; background: #EEF1F4; color: #3A4651;">外</span></div>
+          <div style="display: flex; gap: 4px;"><button type="button" style="height: 34px; padding: 0 8px; border: 1px solid #D9DAD4; border-radius: 6px; background: #FFFFFF; font-size: 13px; cursor: pointer;">ずらす</button><button type="button" style="height: 34px; padding: 0 8px; border: 1px solid #D9DAD4; border-radius: 6px; background: #FFFFFF; font-size: 13px; cursor: pointer;">任せる</button><button type="button" style="height: 34px; padding: 0 8px; border: 1px solid #1D5C8A; border-radius: 6px; background: #E6F0F8; color: #1D5C8A; font-size: 13px; font-weight: 700; cursor: pointer;">減らす</button></div>
+        </li>
+      </ul>
+      <a href="Main.dc.html" style="font-size: 13px; align-self: flex-start;">ほか 7枠を見る</a>
+
+      <!-- 4ステップとの対応 -->
+      <div style="margin-top: auto; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; font-size: 12px;">
+        <div style="padding: 8px 10px; background: #F7F9FB; border-radius: 8px;"><div style="font-weight: 700;">① 見える化</div><div style="color: #5B6168;">時間割そのものが業務時間の記録</div></div>
+        <div style="padding: 8px 10px; background: #F7F9FB; border-radius: 8px;"><div style="font-weight: 700;">② ムリ・ムダ・ムラ</div><div style="color: #5B6168;">職員ビューと、この一覧</div></div>
+        <div style="padding: 8px 10px; background: #F7F9FB; border-radius: 8px;"><div style="font-weight: 700;">③ 線を引き直す</div><div style="color: #5B6168;">ずらす・任せる → 型として保存</div></div>
+        <div style="padding: 8px 10px; background: #F7F9FB; border-radius: 8px;"><div style="font-weight: 700;">④ 手順と役割</div><div style="color: #5B6168;">業務の型と役割枠を直す</div></div>
+      </div>
+    </section>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

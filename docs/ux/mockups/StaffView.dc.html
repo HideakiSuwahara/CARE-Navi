@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>ケアナビ 職員ビュー</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#1D5C8A}a:hover{color:#164766}
+</style>
+</helmet>
+<div style="font-family: 'Noto Sans JP', system-ui, sans-serif; background: #F3F3EF; color: #1C1F23; min-height: 900px; display: flex; flex-direction: column; box-sizing: border-box; font-size: 15px; line-height: 1.5;">
+
+  <header style="display: flex; align-items: center; gap: 20px; padding: 0 20px; height: 56px; background: #FFFFFF; border-bottom: 1px solid #E3E3DE; flex-wrap: wrap;">
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true"><rect x="2" y="2" width="24" height="24" rx="7" fill="#1D5C8A"></rect><path d="M8 14h12M14 8v12" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" fill="none"></path></svg>
+      <span style="font-weight: 700; font-size: 18px;">ケアナビ</span>
+      <span style="color: #5B6168; font-size: 14px;">ひまわり苑</span>
+    </div>
+    <nav aria-label="主な画面" style="display: flex; gap: 4px; margin-left: 8px;">
+      <a href="Main.dc.html" aria-current="page" style="text-decoration: none; padding: 8px 14px; border-radius: 8px; background: #E6F0F8; color: #1D5C8A; font-weight: 700;">ボード</a>
+      <a href="Morning.dc.html" style="text-decoration: none; padding: 8px 14px; border-radius: 8px; color: #3A4651;">朝の準備</a>
+      <a href="Review.dc.html" style="text-decoration: none; padding: 8px 14px; border-radius: 8px; color: #3A4651;">見直し</a>
+      <a href="Setup.dc.html" style="text-decoration: none; padding: 8px 14px; border-radius: 8px; color: #3A4651;">設定</a>
+    </nav>
+    <div style="margin-left: auto; display: flex; align-items: center; gap: 12px;">
+      <span style="font-weight: 700;">11月3日（火）</span>
+      <span style="color: #5B6168; font-size: 14px;">更新 10:07</span>
+      <button type="button" style="height: 40px; padding: 0 14px; border: 1px solid #1D5C8A; border-radius: 8px; background: #1D5C8A; color: #FFFFFF; font-size: 14px; font-weight: 700; cursor: pointer;">分担表を印刷（A4横）</button>
+    </div>
+  </header>
+
+  <div style="display: flex; align-items: center; gap: 12px; padding: 10px 20px; flex-wrap: wrap;">
+    <div role="group" aria-label="横軸" style="display: inline-flex; border: 1px solid #D9DAD4; border-radius: 8px; overflow: hidden; background: #FFFFFF;">
+      <button type="button" aria-pressed="false" style="height: 40px; padding: 0 14px; border: 0; background: #FFFFFF; color: #3A4651; font-size: 14px; cursor: pointer;">グループ</button>
+      <button type="button" aria-pressed="true" style="height: 40px; padding: 0 14px; border: 0; background: #1C1F23; color: #FFFFFF; font-size: 14px; font-weight: 700; cursor: pointer;">職員</button>
+    </div>
+    <span style="font-size: 14px; color: #5B6168;">職員を縦、時間を横に。重なり・偏り・誰もいない時間帯を確かめる画面。印刷すると、そのまま分担表になります。</span>
+    <div style="margin-left: auto; display: flex; gap: 8px;">
+      <span style="height: 40px; display: inline-flex; align-items: center; padding: 0 12px; border: 1px solid #F0B48A; border-radius: 999px; background: #FFE7D6; color: #8A3B00; font-size: 14px; font-weight: 700;">重なり 1</span>
+      <span style="height: 40px; display: inline-flex; align-items: center; padding: 0 12px; border: 1px solid #F0B48A; border-radius: 999px; background: #FFE7D6; color: #8A3B00; font-size: 14px; font-weight: 700;">見守りの空き 1</span>
+    </div>
+  </div>
+
+  <main style="padding: 0 20px 20px; flex: 1 1 auto;">
+    <section aria-label="職員別の配置" style="background: #FFFFFF; border: 1px solid #E3E3DE; border-radius: 12px; overflow: auto;">
+      <div style="min-width: 960px;">
+        <!-- 時刻見出し -->
+        <div style="display: grid; grid-template-columns: 220px minmax(0, 1fr); border-bottom: 1px solid #E3E3DE;">
+          <div style="padding: 10px 14px; font-size: 12px; color: #5B6168;">職員 ・ 役割 ・ 勤務</div>
+          <div style="position: relative; height: 40px; font-size: 13px; color: #5B6168;">
+            <span style="position: absolute; left: 0%; top: 10px; padding-left: 6px;">8:00</span>
+            <span style="position: absolute; left: 16.67%; top: 10px; padding-left: 6px;">9:00</span>
+            <span style="position: absolute; left: 33.33%; top: 10px; padding-left: 6px;">10:00</span>
+            <span style="position: absolute; left: 50%; top: 10px; padding-left: 6px;">11:00</span>
+            <span style="position: absolute; left: 66.67%; top: 10px; padding-left: 6px;">12:00</span>
+            <span style="position: absolute; left: 83.33%; top: 10px; padding-left: 6px;">13:00</span>
+          </div>
+        </div>
+
+        <!-- 佐藤 -->
+        <div style="display: grid; grid-template-columns: 220px minmax(0, 1fr); border-bottom: 1px solid #EEEEEA;">
+          <div style="padding: 10px 14px; display: flex; flex-direction: column; gap: 2px;"><span style="font-weight: 700;">佐藤</span><span style="font-size: 12px; color: #5B6168;">介護福祉士 ・ 早番A ・ 7:00–16:00</span><span style="font-size: 12px; color: #5B6168;">5件 ・ 予定 5時間30分</span></div>
+          <div style="position: relative; height: 72px; background-image: linear-gradient(90deg, #EEEEEA 1px, transparent 1px); background-size: 16.667% 100%;">
+            <div style="position: absolute; left: 0%; width: 16.67%; top: 14px; height: 44px; box-sizing: border-box; margin: 0 2px; padding: 4px 8px; border-radius: 8px; background: #E6F0F8; border: 1px solid #BFD6E8; color: #1C1F23; font-size: 13px; overflow: hidden;"><span style="font-weight: 700;">朝食介助</span><br><span style="font-size: 12px; color: #5B6168;">東 一括</span></div>
+            <div style="position: absolute; left: 33.33%; width: 8.33%; top: 14px; height: 44px; box-sizing: border-box; margin: 0 2px; padding: 4px 8px; border-radius: 8px; background: #E6F0F8; border: 1px solid #BFD6E8; font-size: 13px; overflow: hidden;"><span style="font-weight: 700;">おむつ交換</span></div>
+            <div style="position: absolute; left: 41.67%; width: 25%; top: 14px; height: 44px; box-sizing: border-box; margin: 0 2px; padding: 4px 8px; border-radius: 8px; background: #E6F0F8; border: 1px solid #BFD6E8; font-size: 13px; overflow: hidden;"><span style="font-weight: 700;">入浴介助</span><br><span style="font-size: 12px; color: #5B6168;">東 一括 6人 ・ 担当あと1人</span></div>
+            <div style="position: absolute; left: 66.67%; width: 16.67%; top: 14px; height: 44px; box-sizing: border-box; margin: 0 2px; padding: 4px 8px; border-radius: 8px; background: #E6F0F8; border: 1px solid #BFD6E8; font-size: 13px; overflow: hidden;"><span style="font-weight: 700;">昼食介助</span><br><span style="font-size: 12px; color: #5B6168;">東 一括</span></div>
+            <div style="position: absolute; left: 83.33%; width: 16.67%; top: 14px; height: 44px; box-sizing: border-box; margin: 0 2px; padding: 4px 8px; border-radius: 8px; background: #F3F1F8; border: 1px dashed #B7B0D1; color: #4E4870; font-size: 13px; overflow: hidden;"><span style="font-weight: 700;">休憩②</span></div>
+          </div>
+        </div>
+
+        <!-- 高橋 -->
+        <div style="display: grid; grid-template-columns: 220px minmax(0, 1fr); border-bottom: 1px solid #EEEEEA;">
+          <div style="padding: 10px 14px; display: flex; flex-direction: column; gap: 2px;"><span style="font-weight: 700;">高橋</span><span style="font-size: 12px; color: #5B6168;">介護職員 ・ 早番B ・ 7:00–16:00</span><span style="font-size: 12px; color: #5B6168;">4件 ・ 予定 5時間</span></div>
+          <div style="position: relative; height: 72px; background-image: linear-gradient(90deg, #EEEEEA 1px, transparent 1px); background-size: 16.667% 100%;">
+            <div style="position: absolute; left: 0%; width: 16.67%; top: 14px; height: 44px; box-sizing: border-box; margin: 0 2px; padding: 4px 8px; border-radius: 8px; background: #E6F0F8; border: 1px solid #BFD6E8; font-size: 13px; overflow: hidden;"><span style="font-weight: 700;">朝食介助</span></div>
+            <div style="position: absolute; left: 16.67%; width: 33.33%; top: 14px; height: 44px; box-sizing: border-box; margin: 0 2px; padding: 4px 8px; border-radius: 8px; background: #F7F9FB; border: 1px solid #BFD6E8; font-size: 13px; overflow: hidden;"><span style="font-weight: 700;">見守り（東フロア担当）</span><br><span style="font-size: 12px; color: #5B6168;">9:00–11:00</span></div>
+            <div style="position: absolute; left: 50%; width: 16.67%; top: 14px; height: 44px; box-sizing: border-box; margin: 0 2px; padding: 4px 8px; border-radius: 8px; background: #F3F1F8; border: 1px dashed #B7B0D1; color: #4E4870; font-size: 13px; overflow: hidden;"><span style="font-weight: 700;">休憩①</span></div>
+            <div style="position: absolute; left: 66.67%; width: 16.67%; top: 14px; height: 44px; box-sizing: border-box; margin: 0 2px; padding: 4px 8px; border-radius: 8px; background: #E6F0F8; border: 1px solid #BFD6E8; font-size: 13px; overflow: hidden;"><span style="font-weight: 700;">昼食介助</span></div>
+          </div>
+        </div>
+
+        <!-- 鈴木 -->
+        <div style="display: grid; grid-template-columns: 220px minmax(0, 1fr); border-bottom: 1px solid #EEEEEA;">
+          <div style="padding: 10px 14px; display: flex; flex-direction: column; gap: 2px;"><span style="font-weight: 700;">鈴木</span><span style="font-size: 12px; color: #5B6168;">介護職員 ・ 日勤A ・ 9:00–18:00</span><span style="font-size: 12px; color: #5B6168;">3件 ・ 予定 2時間30分</span></div>
+          <div style="position: relative; height: 72px; background-image: linear-gradient(90deg, #EEEEEA 1px, transparent 1px); background-size: 16.667% 100%;">
+            <div style="position: absolute; left: 0%; width: 16.67%; top: 0; height: 72px; background: repeating-linear-gradient(135deg, #F1F1ED 0 6px, #FAFAF8 6px 12px);" aria-hidden="true"></div>
+            <span style="position: absolute; left: 0%; top: 26px; padding-left: 10px; font-size: 12px; color: #5B6168;">勤務前</span>
+            <div style="position: absolute; left: 33.33%; width: 8.33%; top: 14px; height: 44px; box-sizing: border-box; margin: 0 2px; padding: 4px 8px; border-radius: 8px; background: #E6F0F8; border: 1px solid #BFD6E8; font-size: 13px; overflow: hidden;"><span style="font-weight: 700;">おむつ交換</span></div>
+            <div style="position: absolute; left: 50%; width: 16.67%; top: 14px; height: 44px; box-sizing: border-box; margin: 0 2px; padding: 4px 8px; border-radius: 8px; background: #F3F1F8; border: 1px dashed #B7B0D1; color: #4E4870; font-size: 13px; overflow: hidden;"><span style="font-weight: 700;">休憩①</span></div>
+            <div style="position: absolute; left: 66.67%; width: 16.67%; top: 14px; height: 44px; box-sizing: border-box; margin: 0 2px; padding: 4px 8px; border-radius: 8px; background: #E6F0F8; border: 1px solid #BFD6E8; font-size: 13px; overflow: hidden;"><span style="font-weight: 700;">昼食介助</span></div>
+          </div>
+        </div>
+
+        <!-- 伊藤（重なりあり） -->
+        <div style="display: grid; grid-template-columns: 220px minmax(0, 1fr); border-bottom: 1px solid #EEEEEA; background: #FFFBF7;">
+          <div style="padding: 10px 14px; display: flex; flex-direction: column; gap: 2px;"><span style="font-weight: 700;">伊藤</span><span style="font-size: 12px; color: #5B6168;">介護職員 ・ 日勤B ・ 9:00–18:00</span><span style="font-size: 12px; font-weight: 700; color: #8A3B00;">重なり 1件（11:00–11:30）</span></div>
+          <div style="position: relative; height: 72px; background-image: linear-gradient(90deg, #EEEEEA 1px, transparent 1px); background-size: 16.667% 100%;">
+            <div style="position: absolute; left: 0%; width: 16.67%; top: 0; height: 72px; background: repeating-linear-gradient(135deg, #F1F1ED 0 6px, #FAFAF8 6px 12px);" aria-hidden="true"></div>
+            <div style="position: absolute; left: 33.33%; width: 8.33%; top: 14px; height: 44px; box-sizing: border-box; margin: 0 2px; padding: 4px 8px; border-radius: 8px; background: #E6F0F8; border: 1px solid #BFD6E8; font-size: 13px; overflow: hidden;"><span style="font-weight: 700;">おむつ交換</span></div>
+            <div style="position: absolute; left: 41.67%; width: 16.67%; top: 6px; height: 30px; box-sizing: border-box; margin: 0 2px; padding: 2px 8px; border-radius: 8px; background: #FFF8F3; border: 2px solid #F0B48A; font-size: 13px; overflow: hidden; white-space: nowrap;"><span style="font-weight: 700;">入浴介助 小林様</span> <span style="font-size: 12px; color: #8A3B00;">重複</span></div>
+            <div style="position: absolute; left: 50%; width: 8.33%; top: 38px; height: 30px; box-sizing: border-box; margin: 0 2px; padding: 2px 8px; border-radius: 8px; background: #FFF8F3; border: 2px solid #F0B48A; font-size: 13px; overflow: hidden; white-space: nowrap;"><span style="font-weight: 700;">食堂準備</span> <span style="font-size: 12px; color: #8A3B00;">重複</span></div>
+            <div style="position: absolute; left: 66.67%; width: 16.67%; top: 14px; height: 44px; box-sizing: border-box; margin: 0 2px; padding: 4px 8px; border-radius: 8px; background: #E6F0F8; border: 1px solid #BFD6E8; font-size: 13px; overflow: hidden;"><span style="font-weight: 700;">昼食介助</span></div>
+          </div>
+        </div>
+
+        <!-- 山本 -->
+        <div style="display: grid; grid-template-columns: 220px minmax(0, 1fr); border-bottom: 1px solid #EEEEEA;">
+          <div style="padding: 10px 14px; display: flex; flex-direction: column; gap: 2px;"><span style="font-weight: 700;">山本</span><span style="font-size: 12px; color: #5B6168;">介護福祉士 ・ 日勤C ・ 9:00–18:00</span><span style="font-size: 12px; color: #5B6168;">4件 ・ 予定 4時間</span></div>
+          <div style="position: relative; height: 72px; background-image: linear-gradient(90deg, #EEEEEA 1px, transparent 1px); background-size: 16.667% 100%;">
+            <div style="position: absolute; left: 0%; width: 16.67%; top: 0; height: 72px; background: repeating-linear-gradient(135deg, #F1F1ED 0 6px, #FAFAF8 6px 12px);" aria-hidden="true"></div>
+            <div style="position: absolute; left: 33.33%; width: 8.33%; top: 14px; height: 44px; box-sizing: border-box; margin: 0 2px; padding: 4px 8px; border-radius: 8px; background: #E6F0F8; border: 1px solid #BFD6E8; font-size: 13px; overflow: hidden;"><span style="font-weight: 700;">おむつ交換</span></div>
+            <div style="position: absolute; left: 41.67%; width: 25%; top: 14px; height: 44px; box-sizing: border-box; margin: 0 2px; padding: 4px 8px; border-radius: 8px; background: #E6F0F8; border: 1px solid #BFD6E8; font-size: 13px; overflow: hidden;"><span style="font-weight: 700;">入浴介助</span><br><span style="font-size: 12px; color: #5B6168;">東 一括 6人</span></div>
+            <div style="position: absolute; left: 66.67%; width: 16.67%; top: 14px; height: 44px; box-sizing: border-box; margin: 0 2px; padding: 4px 8px; border-radius: 8px; background: #E6F0F8; border: 1px solid #BFD6E8; font-size: 13px; overflow: hidden;"><span style="font-weight: 700;">昼食介助</span><br><span style="font-size: 12px; color: #5B6168;">さくら</span></div>
+            <div style="position: absolute; left: 83.33%; width: 16.67%; top: 14px; height: 44px; box-sizing: border-box; margin: 0 2px; padding: 4px 8px; border-radius: 8px; background: #F3F1F8; border: 1px dashed #B7B0D1; color: #4E4870; font-size: 13px; overflow: hidden;"><span style="font-weight: 700;">休憩②</span></div>
+          </div>
+        </div>
+
+        <!-- 小川 -->
+        <div style="display: grid; grid-template-columns: 220px minmax(0, 1fr); border-bottom: 1px solid #EEEEEA;">
+          <div style="padding: 10px 14px; display: flex; flex-direction: column; gap: 2px;"><span style="font-weight: 700;">小川</span><span style="font-size: 12px; color: #5B6168;">介護職員 ・ 日勤（さくら） ・ 9:00–18:00</span><span style="font-size: 12px; color: #5B6168;">4件 ・ 予定 3時間30分</span></div>
+          <div style="position: relative; height: 72px; background-image: linear-gradient(90deg, #EEEEEA 1px, transparent 1px); background-size: 16.667% 100%;">
+            <div style="position: absolute; left: 0%; width: 16.67%; top: 0; height: 72px; background: repeating-linear-gradient(135deg, #F1F1ED 0 6px, #FAFAF8 6px 12px);" aria-hidden="true"></div>
+            <div style="position: absolute; left: 33.33%; width: 8.33%; top: 14px; height: 44px; box-sizing: border-box; margin: 0 2px; padding: 4px 8px; border-radius: 8px; background: #E6F0F8; border: 1px solid #BFD6E8; font-size: 13px; overflow: hidden;"><span style="font-weight: 700;">排泄介助</span></div>
+            <div style="position: absolute; left: 41.67%; width: 16.67%; top: 14px; height: 44px; box-sizing: border-box; margin: 0 2px; padding: 4px 8px; border-radius: 8px; background: #E6F0F8; border: 1px solid #BFD6E8; font-size: 13px; overflow: hidden;"><span style="font-weight: 700;">入浴介助 小林様</span><br><span style="font-size: 12px; color: #5B6168;">2人介助</span></div>
+            <div style="position: absolute; left: 66.67%; width: 16.67%; top: 14px; height: 44px; box-sizing: border-box; margin: 0 2px; padding: 4px 8px; border-radius: 8px; background: #E6F0F8; border: 1px solid #BFD6E8; font-size: 13px; overflow: hidden;"><span style="font-weight: 700;">昼食介助</span><br><span style="font-size: 12px; color: #5B6168;">さくら</span></div>
+            <div style="position: absolute; left: 83.33%; width: 16.67%; top: 14px; height: 44px; box-sizing: border-box; margin: 0 2px; padding: 4px 8px; border-radius: 8px; background: #F3F1F8; border: 1px dashed #B7B0D1; color: #4E4870; font-size: 13px; overflow: hidden;"><span style="font-weight: 700;">休憩②</span></div>
+          </div>
+        </div>
+
+        <!-- 中村 -->
+        <div style="display: grid; grid-template-columns: 220px minmax(0, 1fr); border-bottom: 1px solid #EEEEEA;">
+          <div style="padding: 10px 14px; display: flex; flex-direction: column; gap: 2px;"><span style="font-weight: 700;">中村</span><span style="font-size: 12px; color: #5B6168;">看護師 ・ 9:00–18:00</span><span style="font-size: 12px; color: #5B6168;">1件 ・ 予定 30分</span></div>
+          <div style="position: relative; height: 72px; background-image: linear-gradient(90deg, #EEEEEA 1px, transparent 1px); background-size: 16.667% 100%;">
+            <div style="position: absolute; left: 0%; width: 16.67%; top: 0; height: 72px; background: repeating-linear-gradient(135deg, #F1F1ED 0 6px, #FAFAF8 6px 12px);" aria-hidden="true"></div>
+            <div style="position: absolute; left: 25%; width: 8.33%; top: 14px; height: 44px; box-sizing: border-box; margin: 0 2px; padding: 4px 8px; border-radius: 8px; background: #E6F0F8; border: 1px solid #BFD6E8; font-size: 13px; overflow: hidden;"><span style="font-weight: 700;">バイタル測定</span></div>
+          </div>
+        </div>
+
+        <!-- 木村 -->
+        <div style="display: grid; grid-template-columns: 220px minmax(0, 1fr); border-bottom: 1px solid #EEEEEA;">
+          <div style="padding: 10px 14px; display: flex; flex-direction: column; gap: 2px;"><span style="font-weight: 700;">木村</span><span style="font-size: 12px; color: #5B6168;">介護職員 ・ 遅番 ・ 11:00–20:00</span><span style="font-size: 12px; color: #5B6168;">2件 ・ 予定 2時間30分</span></div>
+          <div style="position: relative; height: 72px; background-image: linear-gradient(90deg, #EEEEEA 1px, transparent 1px); background-size: 16.667% 100%;">
+            <div style="position: absolute; left: 0%; width: 50%; top: 0; height: 72px; background: repeating-linear-gradient(135deg, #F1F1ED 0 6px, #FAFAF8 6px 12px);" aria-hidden="true"></div>
+            <span style="position: absolute; left: 0%; top: 26px; padding-left: 10px; font-size: 12px; color: #5B6168;">勤務前（11:00から）</span>
+            <div style="position: absolute; left: 50%; width: 33.33%; top: 14px; height: 44px; box-sizing: border-box; margin: 0 2px; padding: 4px 8px; border-radius: 8px; background: #F7F9FB; border: 1px solid #BFD6E8; font-size: 13px; overflow: hidden;"><span style="font-weight: 700;">見守り（東フロア担当）</span><br><span style="font-size: 12px; color: #5B6168;">11:00–13:00</span></div>
+            <div style="position: absolute; left: 83.33%; width: 8.33%; top: 14px; height: 44px; box-sizing: border-box; margin: 0 2px; padding: 4px 8px; border-radius: 8px; background: #E6F0F8; border: 1px solid #BFD6E8; font-size: 13px; overflow: hidden;"><span style="font-weight: 700;">口腔ケア</span></div>
+          </div>
+        </div>
+
+        <!-- 加藤（初回） -->
+        <div style="display: grid; grid-template-columns: 220px minmax(0, 1fr); border-bottom: 1px solid #EEEEEA;">
+          <div style="padding: 10px 14px; display: flex; flex-direction: column; gap: 2px;"><span style="font-weight: 700;">加藤 <span style="font-size: 12px; font-weight: 400; padding: 0 8px; border-radius: 999px; border: 1px solid #D9DAD4; color: #3A4651;">初回</span></span><span style="font-size: 12px; color: #5B6168;">スポット ・ 13:00–17:00</span><span style="font-size: 12px; color: #5B6168;">1件 ・ 予定 30分</span></div>
+          <div style="position: relative; height: 72px; background-image: linear-gradient(90deg, #EEEEEA 1px, transparent 1px); background-size: 16.667% 100%;">
+            <div style="position: absolute; left: 0%; width: 83.33%; top: 0; height: 72px; background: repeating-linear-gradient(135deg, #F1F1ED 0 6px, #FAFAF8 6px 12px);" aria-hidden="true"></div>
+            <span style="position: absolute; left: 0%; top: 26px; padding-left: 10px; font-size: 12px; color: #5B6168;">勤務前（13:00から）</span>
+            <div style="position: absolute; left: 83.33%; width: 8.33%; top: 14px; height: 44px; box-sizing: border-box; margin: 0 2px; padding: 4px 8px; border-radius: 8px; background: #E6F0F8; border: 1px solid #BFD6E8; font-size: 13px; overflow: hidden;"><span style="font-weight: 700;">口腔ケア</span><br><span style="font-size: 12px; color: #5B6168;">木村と</span></div>
+          </div>
+        </div>
+
+        <!-- 渡辺（休み） -->
+        <div style="display: grid; grid-template-columns: 220px minmax(0, 1fr); border-bottom: 1px solid #EEEEEA; background: #F7F7F4;">
+          <div style="padding: 10px 14px; display: flex; flex-direction: column; gap: 2px; color: #5B6168;"><span style="font-weight: 700;">渡辺</span><span style="font-size: 12px;">介護助手 ・ 本日休み</span></div>
+          <div style="position: relative; height: 56px; display: flex; align-items: center; padding-left: 10px; font-size: 13px; color: #5B6168;">役割「介護助手」に束ねた枠 2件が担当未定（リネン回収 10:30、物品補充 12:00）。ずらす・任せる・減らすのどれかを決める。</div>
+        </div>
+
+        <!-- 見守りの空き -->
+        <div style="display: grid; grid-template-columns: 220px minmax(0, 1fr); background: #FFFFFF;">
+          <div style="padding: 10px 14px; display: flex; flex-direction: column; gap: 2px;"><span style="font-weight: 700;">見守り（東フロア担当）</span><span style="font-size: 12px; color: #5B6168;">誰かが必ず居る時間帯の確認</span></div>
+          <div style="position: relative; height: 64px; background-image: linear-gradient(90deg, #EEEEEA 1px, transparent 1px); background-size: 16.667% 100%;">
+            <div style="position: absolute; left: 16.67%; width: 33.33%; top: 12px; height: 40px; box-sizing: border-box; margin: 0 2px; padding: 8px; border-radius: 8px; background: #F7F9FB; border: 1px solid #BFD6E8; font-size: 13px;">高橋 9:00–11:00</div>
+            <div style="position: absolute; left: 50%; width: 33.33%; top: 12px; height: 40px; box-sizing: border-box; margin: 0 2px; padding: 8px; border-radius: 8px; background: #F7F9FB; border: 1px solid #BFD6E8; font-size: 13px;">木村 11:00–13:00</div>
+            <div style="position: absolute; left: 83.33%; width: 16.67%; top: 12px; height: 40px; box-sizing: border-box; margin: 0 2px; padding: 8px; border-radius: 8px; background: #FFF8F3; border: 2px dashed #F0B48A; font-size: 13px; font-weight: 700; color: #8A3B00;">13:00–14:00 担当未定</div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

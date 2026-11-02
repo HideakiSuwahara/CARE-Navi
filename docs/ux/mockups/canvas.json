@@ -1,0 +1,38 @@
+{
+  "v": 3,
+  "createdOnFiles": { "v": 1, "at": "2026-11-02T12:20:00Z" },
+  "title": "ケアナビ UX/UI案",
+  "launch": { "view": "canvas" },
+  "pages": [],
+  "boards": {
+    "Main.dc.html": { "x": 0, "y": 0, "w": 1440, "h": 900, "title": "ボード — 時間割と配置（PC・タブレット）", "expand": "fill" },
+    "StaffView.dc.html": { "x": 1520, "y": 0, "w": 1440, "h": 900, "title": "職員ビュー — 偏り・誰もいない時間帯", "expand": "fill" },
+    "Morning.dc.html": { "x": 3040, "y": 0, "w": 1440, "h": 900, "title": "朝の流れ — 出勤者に役割を付けて、型を当てる", "expand": "fill" },
+    "Candidates.dc.html": { "x": 0, "y": 1200, "w": 480, "h": 820, "title": "担当を追加 — 候補と理由（タップ操作）" },
+    "Review.dc.html": { "x": 560, "y": 1200, "w": 1440, "h": 900, "title": "見直し — 区分×時間帯、ノンコアの枠（週）", "expand": "fill" },
+    "Setup.dc.html": { "x": 2080, "y": 1200, "w": 1440, "h": 900, "title": "はじめの設定 — サンプルで試す／自分の施設", "expand": "fill" },
+    "MyNavi.dc.html": { "x": 0, "y": 2400, "w": 390, "h": 844, "title": "マイナビ — いま・つぎ・きょう（スマホ）" },
+    "MyNaviDetail.dc.html": { "x": 470, "y": 2400, "w": 390, "h": 844, "title": "業務詳細 — 初回の方が段取りで迷わない" },
+    "LeaderPhone.dc.html": { "x": 940, "y": 2400, "w": 390, "h": 844, "title": "リーダーのスマホ — きょうの全体とクイック操作" }
+  },
+  "order": [
+    "Main.dc.html",
+    "StaffView.dc.html",
+    "Morning.dc.html",
+    "Candidates.dc.html",
+    "Review.dc.html",
+    "Setup.dc.html",
+    "MyNavi.dc.html",
+    "MyNaviDetail.dc.html",
+    "LeaderPhone.dc.html"
+  ],
+  "notes": {
+    "row1": { "x": 0, "y": -240, "text": "PC・タブレット — リーダー・管理者が使う画面", "kind": "title1", "maxW": 4480 },
+    "row2": { "x": 0, "y": 960, "text": "操作パネル・見直し・初期設定", "kind": "title1", "maxW": 3520 },
+    "row3": { "x": 0, "y": 2160, "text": "スマホ — 職員・応援・リーダーが手元で使う画面", "kind": "title1", "maxW": 1330 },
+    "s1": { "x": 1480, "y": 2400, "w": 320, "text": "表現の規則\n・状態は文字で示す。色は補助\n・「担当未定」「担当あと1人」とだけ言う。人手不足と言わない\n・時間が過ぎても実施中・完了にしない\n・区分（コア／ノンコア）はラベル。可否は担当条件で施設が決める", "fill": "blue" },
+    "s2": { "x": 1480, "y": 2700, "w": 320, "text": "操作の規則\n・変更は10秒以内、フロアのスマホで\n・D&Dは職員チップの割当だけ。時刻はメニュー\n・警告して許可。二重登録だけ禁止\n・すべての操作はトーストから元に戻せる", "fill": "teal" },
+    "s3": { "x": 1480, "y": 2980, "w": 320, "text": "朝の規則\n・業務は役割枠に束ねておく\n・朝は「今日のA番は誰」を決めるだけで全枠に担当が付く\n・介護助手が休みの日は、その枠がそのまま「担当未定」で見える", "fill": "orange" }
+  },
+  "designSystems": []
+}

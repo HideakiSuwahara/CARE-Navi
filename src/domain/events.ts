@@ -1,0 +1,88 @@
+/**
+ * 操作イベント。状態（State）はイベントの列から組み立てる。
+ * - すべての変更はイベント。UI は状態を直接書き換えない。
+ * - 同期＝イベントの送受信。ローカル保存＝イベント列＋スナップショット。
+ * - Undo＝打ち消しイベント（invert）。同じ操作でまとめた batchId 単位で戻す。
+ * - リデューサは決定的。ID や時刻はイベントの中に入れて渡す（リデューサ内で生成しない）。
+ */
+
+import type {
+  Assignment,
+  DateKey,
+  DayPattern,
+  Facility,
+  Group,
+  ID,
+  Minutes,
+  Resident,
+  RoleSlot,
+  RosterEntry,
+  Staff,
+  TaskInstance,
+  TaskTemplate,
+} from "./types.ts";
+
+export interface EventMeta {
+  /** イベントID（UUID）。重複配信の排除に使う。本文の id（対象のID）と区別するため eventId */
+  eventId: ID;
+  /** 発生時刻 ISO 8601 */
+  ts: string;
+  /** まとめて戻す単位。クイック操作や「型を当てる」は複数イベントを1つの batchId に束ねる */
+  batchId: ID;
+  /** 操作した人（任意。見出しには出さず、履歴でだけ見る） */
+  actorId?: ID;
+}
+
+export type EventBody =
+  | { type: "facility.set"; facility: Facility }
+  | { type: "group.upsert"; group: Group }
+  | { type: "group.remove"; id: ID }
+  | { type: "resident.upsert"; resident: Resident }
+  | { type: "resident.remove"; id: ID }
+  | { type: "staff.upsert"; staff: Staff }
+  | { type: "staff.remove"; id: ID }
+  | { type: "roleSlot.upsert"; roleSlot: RoleSlot }
+  | { type: "roleSlot.remove"; id: ID }
+  | { type: "template.upsert"; template: TaskTemplate }
+  | { type: "template.remove"; id: ID }
+  | { type: "pattern.upsert"; pattern: DayPattern }
+  | { type: "pattern.remove"; id: ID }
+  | { type: "roster.upsert"; entry: RosterEntry }
+  | { type: "roster.remove"; id: ID }
+  | { type: "task.add"; task: TaskInstance; residentIds: ID[] }
+  | { type: "task.remove"; id: ID }
+  | {
+      type: "task.update";
+      id: ID;
+      patch: Partial<
+        Pick<
+          TaskInstance,
+          | "name"
+          | "startMin"
+          | "endMin"
+          | "place"
+          | "headcount"
+          | "requiredTags"
+          | "note"
+          | "status"
+          | "groupId"
+          | "categoryId"
+          | "procedure"
+          | "scopeNote"
+          | "outOfScopeNote"
+          | "supplies"
+          | "contact"
+        >
+      >;
+    }
+  | { type: "task.setTargets"; id: ID; residentIds: ID[] }
+  | { type: "assignment.add"; assignment: Assignment }
+  | { type: "assignment.remove"; id: ID }
+  | { type: "day.setPattern"; date: DateKey; patternId?: ID };
+
+export type Event = EventMeta & EventBody;
+
+export type EventType = EventBody["type"];
+
+/** 時刻変更の刻み（分）。UI の「ずらす」メニューで使う */
+export const SHIFT_STEPS: Minutes[] = [15, 30, 60];

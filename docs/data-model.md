@@ -1,0 +1,109 @@
+# データモデルとイベント設計
+
+出典: `src/domain/types.ts`、`src/domain/events.ts`。この文書は型に従う。型を変えたらこの文書も直す。
+
+## 1. 考え方
+- **業務予定（TaskInstance）が主語**。利用者（対象）と職員（担当）はそこに関連付く。
+- 個別（対象1名）・一括（対象複数）・共通（対象なし）・休憩を**同じ型**で表す。`targetMode` と `kind` で区別する。
+- **一日の型（DayPattern）** は役割枠（RoleSlot）に業務を束ねる。朝は出勤者に役割を付けて型を当てると、全枠に担当が付く。
+- **状態（State）はイベントの列から組み立てる**。UI は状態を直接書き換えない。Undo は打ち消しイベント。同期はイベントの送受信。
+
+## 2. エンティティ
+
+| 型 | 役割 | 主な項目 | 注意 |
+|---|---|---|---|
+| `Facility` | 施設 | `name`, `settings` | 設定: `checkMode`（warn/block）、`residentDisplayMode`、`firstTimerOnlyWarning`、`boardStartMin/EndMin`、`categories[]` |
+| `Category` | 業務区分 | `name`, `kind: core/noncore/other` | 名称は施設が編集。`kind` は集計キー。区分はラベルで、可否を決めない |
+| `Group` | 管理グループ | `name`, `kind: unit/floor/common/other`, `sortOrder` | 「共通」は `kind=common` |
+| `Resident` | 利用者 | `displayName`, `surname`, `groupId`, `room` | 排泄状態・介助方法は持たない |
+| `Staff` | 職員 | `displayName`, `surname`, `role`（自由ラベル）, `tags[]`（担当条件）, `homeGroupId?` | 役職から可否を決めない。`tags` が条件 |
+| `RoleSlot` | 役割枠 | `name`, `defaultStartMin/EndMin`, `groupId?`, `sortOrder` | 早番A・日勤B・介護助手・看護・スポット… |
+| `TaskTemplate` | 業務の型 | `name`, `kind: care/break`, `categoryId?`, `targetMode`, `defaultDurationMin`, `defaultHeadcount`, `requiredTags[]`, `place?`, `scopeNote?`, `outOfScopeNote?`, `procedure[]`, `supplies?`, `contact?` | 定義。当日の予定とは別 |
+| `DayPattern` / `DayPatternItem` | 一日の型 | item: `templateId`, `startMin/endMin`, `groupId?`, `targetRule: allInGroup/residents/none`, `residentIds?`, `headcount`, `slotIds[]` | `slotIds` が役割枠への束ね |
+| `RosterEntry` | 今日の出勤者 | `date`, `staffId`, `slotId?`, `startMin/endMin`, `firstTimer`, `absent` | 役割が時間を与え、個別に直せる。初回は当日の印 |
+| `TaskInstance` | 業務予定 | `date`, `templateId?`, `name`, `kind`, `categoryId?`, `targetMode`, `groupId?`, `startMin/endMin`, `place?`, `headcount`, `requiredTags[]`, `slotIds[]`, 案内項目, `note?`, `status: planned/cancelled` | `headcount` は施設の予定値。対象者数から推定しない |
+| `TaskTarget` | 対象者 | `taskId`, `residentId` | 一括の対象者を明示保存。人数だけ保存しない |
+| `Assignment` | 担当 | `taskId`, `staffId` | 同じ (task, staff) は一意 |
+| `DayMeta` | 日 | `date`, `appliedPatternId?`, `updatedAt` | 見出しの「更新 hh:mm」の元 |
+| `State` | 全体 | 上記を `Record<ID, …>` で保持。`targets` は `taskId → residentIds[]` | |
+| `SeedData` | サンプル施設の素材 | 上記の配列＋ `extraTasks`, `extraTargets`, `dayPatterns` | 当日の予定は型から作る |
+
+## 3. 時間の表現
+- `Minutes` は**業務日 0:00 起点の分**。翌日分は 1440 以上、最大 2879。例: 翌 2:00 = 1560。
+- `DateKey` は `YYYY-MM-DD` の業務日。**夜勤帯の業務は、その夜勤が始まった業務日に属する**。
+- 表示は `fmtMin`: 600 → `10:00`、1560 → `翌2:00`。
+- ボードの既定範囲は 06:00–22:00（360–1320）。「全時間」で 0–1800（翌6:00）まで。
+- MVP の制限: 業務日の起点時刻を施設設定にすること、日をまたぐ予定の移動は作らない。
+
+## 4. イベント
+
+### 4.1 形
+```
+Event = EventMeta & EventBody
+EventMeta = { id, ts, batchId, actorId? }
+```
+- `id`: UUID。重複配信の排除に使う。
+- `batchId`: まとめて戻す単位。「型を当てる」「クイック操作」「欠勤」は複数イベントを1つの batchId に束ねる。
+- `actorId`: 任意。見出しには出さず、履歴パネルでだけ見る。
+
+### 4.2 種類
+| 種類 | 内容 |
+|---|---|
+| `facility.set` | 施設と設定 |
+| `group.upsert / remove`, `resident.upsert / remove`, `staff.upsert / remove`, `roleSlot.upsert / remove`, `template.upsert / remove`, `pattern.upsert / remove` | マスター |
+| `roster.upsert / remove` | 出勤者。欠勤・早退は `absent: true` の upsert |
+| `task.add { task, residentIds }` | 業務予定の追加（対象者つき） |
+| `task.remove { id }` | 削除（Undo 用。通常の「中止」は `task.update {status:'cancelled'}`） |
+| `task.update { id, patch }` | 名称・時刻・場所・必要人数・条件・メモ・状態・グループ・区分・案内項目 |
+| `task.setTargets { id, residentIds }` | 対象者の差し替え |
+| `assignment.add { assignment }` / `assignment.remove { id }` | 担当 |
+| `day.setPattern { date, patternId? }` | その日に当てた型 |
+
+### 4.3 リデューサの規則
+- 決定的。ID・時刻はイベントに入れて渡し、リデューサ内で生成しない。
+- 同じ `id` のイベントは一度だけ適用する（重複配信の排除）。
+- `assignment.add` は同じ (taskId, staffId) が既にあれば無視（二重登録の最終防衛線）。
+- `task.update` に `startMin/endMin` があれば `0 ≤ start < end ≤ 2880` を確認し、外れていれば無視して警告ログ。
+- 各イベント適用後、その日の `DayMeta.updatedAt` を `ts` に更新する（マスターの変更は除く）。
+
+### 4.4 Undo（打ち消し）
+`invert(event, stateBefore)` で打ち消しイベントを作り、新しい batchId で追記する。履歴を消さない（同期と両立）。
+| 元 | 打ち消し |
+|---|---|
+| `assignment.add` | `assignment.remove` |
+| `assignment.remove` | `assignment.add`（元の assignment を復元） |
+| `task.add` | `task.remove` |
+| `task.remove` | `task.add`（元の task と対象者を復元） |
+| `task.update` | `task.update`（変更前の値を patch に） |
+| `task.setTargets` | `task.setTargets`（変更前の一覧） |
+| `roster.upsert` | `roster.upsert`（変更前）または `roster.remove`（新規だった場合） |
+| `day.setPattern` | `day.setPattern`（変更前） |
+UI の「元に戻す」は直近 10 の batchId を対象にする。
+
+## 5. 役割枠から担当を作る手順（「型を当てる」）
+コマンド層（UI に近い純関数）が次を計算し、1つの batchId でイベント列を作る。
+1. 対象日の既存の型由来タスク（`origin: "pattern"`）があれば `task.remove` で作り直す。手で足した予定（`origin: "manual"` または未設定）は残す。
+2. `DayPattern.items` ごとに `TaskInstance` を作る。`name`・区分・案内項目は型からコピー。`residentIds` は `targetRule` から決める（`allInGroup` → そのグループの利用者全員、`residents` → 指定、`none` → 空）。
+3. `slotIds` ごとに、その日の `RosterEntry` のうち `slotId` が一致し `absent=false` の職員を集め、重複なく `assignment.add`。人数が `headcount` を超えても全員付ける（充足バッジは「n人 多め」）。
+4. `day.setPattern`。
+結果の要約（枠数、担当が付いた数、担当未定・担当あと n 人の一覧）を UI が表示する。
+
+## 6. クイック操作（コマンド）
+いずれも「こう変わります」のプレビュー（イベント列の説明）を作ってから、承認で追記する。
+- **付き添い・外出を追加**: `task.add`（個別、対象1名、必要1、`slotIds` 空）＋ `assignment.add`。選んだ職員の他の担当と重なるものは `assignment.remove` を提案（検証側が決定的に生成）。結果の未充足を一覧に出す。
+- **欠勤・早退**: `roster.upsert {absent:true}`（早退は `endMin` の短縮）＋ その時間帯の `assignment.remove` 全件。結果の未充足を一覧に出す。
+- **休憩をずらす**: 休憩カード間の `assignment.remove` ＋ `assignment.add`、または休憩カードの `task.update`（時刻）。重なりを確認。
+- **長押しメニュー**: 中止＝`task.update {status:'cancelled'}`、ずらす＝`task.update {startMin,endMin}`、担当を外す＝`assignment.remove`。
+
+## 7. 二重計上の防止
+- 同じ利用者・同じ業務の型・重なる時刻に、個別予定と一括枠の両方がある場合は注意表示（禁止はしない）。
+- 一括枠からの個別切り出しは作らない。必要なら「対象者から外す」＋「個別予定を作る」の2操作。
+
+## 8. 保存と同期
+- **ローカル**: ブラウザ内保存（localStorage）にイベント列を追記し、BroadcastChannel で同じブラウザの別タブへ即時に配る。起動時はイベント列を順に適用。「サンプルに戻す」でクリアして再シード。データが大きくなればスナップショット＋IndexedDB へ移す。
+- **同期**: Supabase の `events` テーブル（`id uuid pk`, `facility_code text`, `seq bigserial`, `ts timestamptz`, `actor_id text`, `type text`, `payload jsonb`）。施設コードで絞った Realtime（insert）を購読し、`seq` 順に適用。ローカルで楽観的に追記し、サーバーの `id` と突き合わせて重複を捨てる。
+- 競合は「後勝ち」で十分（同じ枠を同時に触る頻度は低い。結果は両端末で同じ順に適用される）。
+- 施設コードは認証ではない。本番は認証と権限、端末に残さない設計が必要。
+
+## 9. 作らなかった型
+- `CareRecord`（簡易実施記録）: 決定記録 0001 で見送り。将来入れる場合は `taskId`, `residentId?`, `status: done/not_done`, `performedByStaffId`, `performedAt`, `startedAt?/endedAt?` を想定し、「記録なし」と「未実施」を区別する。

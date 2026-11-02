@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>ケアナビ 朝の準備</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#1D5C8A}a:hover{color:#164766}
+</style>
+</helmet>
+<div style="font-family: 'Noto Sans JP', system-ui, sans-serif; background: #F3F3EF; color: #1C1F23; min-height: 900px; display: flex; flex-direction: column; box-sizing: border-box; font-size: 15px; line-height: 1.5;">
+
+  <header style="display: flex; align-items: center; gap: 20px; padding: 0 20px; height: 56px; background: #FFFFFF; border-bottom: 1px solid #E3E3DE; flex-wrap: wrap;">
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true"><rect x="2" y="2" width="24" height="24" rx="7" fill="#1D5C8A"></rect><path d="M8 14h12M14 8v12" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" fill="none"></path></svg>
+      <span style="font-weight: 700; font-size: 18px;">ケアナビ</span>
+      <span style="color: #5B6168; font-size: 14px;">ひまわり苑</span>
+    </div>
+    <nav aria-label="主な画面" style="display: flex; gap: 4px; margin-left: 8px;">
+      <a href="Main.dc.html" style="text-decoration: none; padding: 8px 14px; border-radius: 8px; color: #3A4651;">ボード</a>
+      <a href="Morning.dc.html" aria-current="page" style="text-decoration: none; padding: 8px 14px; border-radius: 8px; background: #E6F0F8; color: #1D5C8A; font-weight: 700;">朝の準備</a>
+      <a href="Review.dc.html" style="text-decoration: none; padding: 8px 14px; border-radius: 8px; color: #3A4651;">見直し</a>
+      <a href="Setup.dc.html" style="text-decoration: none; padding: 8px 14px; border-radius: 8px; color: #3A4651;">設定</a>
+    </nav>
+    <div style="margin-left: auto; display: flex; align-items: center; gap: 12px;">
+      <span style="font-weight: 700;">11月3日（火）の準備</span>
+      <span style="color: #5B6168; font-size: 14px;">目標 1分</span>
+    </div>
+  </header>
+
+  <!-- 3ステップ -->
+  <ol style="list-style: none; margin: 0; padding: 14px 20px 0; display: flex; gap: 10px; flex-wrap: wrap;">
+    <li style="flex: 1 1 260px; display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: #1C1F23; color: #FFFFFF; border-radius: 10px;"><span style="width: 28px; height: 28px; border-radius: 50%; background: #FFFFFF; color: #1C1F23; display: inline-flex; align-items: center; justify-content: center; font-weight: 700;">1</span><div><div style="font-weight: 700;">出勤者に役割を付ける</div><div style="font-size: 12px; opacity: 0.85;">名前の横で役割を選ぶだけ。時間は役割から入る</div></div></li>
+    <li style="flex: 1 1 260px; display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: #FFFFFF; border: 1px solid #D9DAD4; border-radius: 10px;"><span style="width: 28px; height: 28px; border-radius: 50%; background: #EEF1F4; color: #1C1F23; display: inline-flex; align-items: center; justify-content: center; font-weight: 700;">2</span><div><div style="font-weight: 700;">一日の型を当てる</div><div style="font-size: 12px; color: #5B6168;">役割に束ねた業務に、今日の人が入る</div></div></li>
+    <li style="flex: 1 1 260px; display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: #FFFFFF; border: 1px solid #D9DAD4; border-radius: 10px;"><span style="width: 28px; height: 28px; border-radius: 50%; background: #EEF1F4; color: #1C1F23; display: inline-flex; align-items: center; justify-content: center; font-weight: 700;">3</span><div><div style="font-weight: 700;">例外だけ直す</div><div style="font-size: 12px; color: #5B6168;">「担当未定」「担当あと1人」をボードで埋める</div></div></li>
+  </ol>
+
+  <main style="display: flex; gap: 16px; padding: 14px 20px 20px; flex: 1 1 auto; flex-wrap: wrap; align-items: flex-start;">
+
+    <!-- 出勤者 -->
+    <section aria-label="今日の出勤者" style="flex: 999 1 640px; min-width: 0; background: #FFFFFF; border: 1px solid #E3E3DE; border-radius: 12px; overflow: hidden;">
+      <div style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid #E3E3DE;">
+        <span style="font-weight: 700;">今日の出勤者</span>
+        <span style="font-size: 13px; color: #5B6168;">11人 ・ 休み 1人</span>
+        <button type="button" style="margin-left: auto; height: 36px; padding: 0 12px; border: 1px solid #D9DAD4; border-radius: 8px; background: #FFFFFF; color: #3A4651; font-size: 13px; cursor: pointer;">先週の火曜と同じにする</button>
+      </div>
+      <div style="display: grid; grid-template-columns: 140px minmax(0, 1fr) 150px 72px 72px; gap: 0 12px; padding: 8px 16px; font-size: 12px; color: #5B6168; border-bottom: 1px solid #EEEEEA;">
+        <div>名前</div><div>役割（タップで選ぶ）</div><div>勤務時間</div><div>初回</div><div>休み</div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 140px minmax(0, 1fr) 150px 72px 72px; gap: 0 12px; align-items: center; padding: 8px 16px; border-bottom: 1px solid #EEEEEA; min-height: 52px;">
+        <div><span style="font-weight: 700;">佐藤</span><span style="display: block; font-size: 12px; color: #5B6168;">介護福祉士</span></div>
+        <div><button type="button" style="height: 36px; padding: 0 12px; border: 1px solid #1D5C8A; border-radius: 999px; background: #E6F0F8; color: #1D5C8A; font-size: 14px; font-weight: 700; cursor: pointer;">早番A ▾</button></div>
+        <div style="font-size: 14px;">7:00–16:00</div>
+        <div><input type="checkbox" aria-label="佐藤 初回" style="width: 22px; height: 22px;"></div>
+        <div><button type="button" style="height: 32px; padding: 0 10px; border: 1px solid #D9DAD4; border-radius: 6px; background: #FFFFFF; color: #3A4651; font-size: 13px; cursor: pointer;">休み</button></div>
+      </div>
+      <div style="display: grid; grid-template-columns: 140px minmax(0, 1fr) 150px 72px 72px; gap: 0 12px; align-items: center; padding: 8px 16px; border-bottom: 1px solid #EEEEEA; min-height: 52px;">
+        <div><span style="font-weight: 700;">高橋</span><span style="display: block; font-size: 12px; color: #5B6168;">介護職員</span></div>
+        <div><button type="button" style="height: 36px; padding: 0 12px; border: 1px solid #1D5C8A; border-radius: 999px; background: #E6F0F8; color: #1D5C8A; font-size: 14px; font-weight: 700; cursor: pointer;">早番B ▾</button></div>
+        <div style="font-size: 14px;">7:00–16:00</div>
+        <div><input type="checkbox" aria-label="高橋 初回" style="width: 22px; height: 22px;"></div>
+        <div><button type="button" style="height: 32px; padding: 0 10px; border: 1px solid #D9DAD4; border-radius: 6px; background: #FFFFFF; color: #3A4651; font-size: 13px; cursor: pointer;">休み</button></div>
+      </div>
+      <div style="display: grid; grid-template-columns: 140px minmax(0, 1fr) 150px 72px 72px; gap: 0 12px; align-items: center; padding: 8px 16px; border-bottom: 1px solid #EEEEEA; min-height: 52px;">
+        <div><span style="font-weight: 700;">鈴木</span><span style="display: block; font-size: 12px; color: #5B6168;">介護職員</span></div>
+        <div><button type="button" style="height: 36px; padding: 0 12px; border: 1px solid #1D5C8A; border-radius: 999px; background: #E6F0F8; color: #1D5C8A; font-size: 14px; font-weight: 700; cursor: pointer;">日勤A ▾</button></div>
+        <div style="font-size: 14px;">9:00–18:00</div>
+        <div><input type="checkbox" aria-label="鈴木 初回" style="width: 22px; height: 22px;"></div>
+        <div><button type="button" style="height: 32px; padding: 0 10px; border: 1px solid #D9DAD4; border-radius: 6px; background: #FFFFFF; color: #3A4651; font-size: 13px; cursor: pointer;">休み</button></div>
+      </div>
+      <div style="display: grid; grid-template-columns: 140px minmax(0, 1fr) 150px 72px 72px; gap: 0 12px; align-items: center; padding: 8px 16px; border-bottom: 1px solid #EEEEEA; min-height: 52px;">
+        <div><span style="font-weight: 700;">伊藤</span><span style="display: block; font-size: 12px; color: #5B6168;">介護職員</span></div>
+        <div><button type="button" style="height: 36px; padding: 0 12px; border: 1px solid #1D5C8A; border-radius: 999px; background: #E6F0F8; color: #1D5C8A; font-size: 14px; font-weight: 700; cursor: pointer;">日勤B ▾</button></div>
+        <div style="font-size: 14px;">9:00–18:00</div>
+        <div><input type="checkbox" aria-label="伊藤 初回" style="width: 22px; height: 22px;"></div>
+        <div><button type="button" style="height: 32px; padding: 0 10px; border: 1px solid #D9DAD4; border-radius: 6px; background: #FFFFFF; color: #3A4651; font-size: 13px; cursor: pointer;">休み</button></div>
+      </div>
+      <div style="display: grid; grid-template-columns: 140px minmax(0, 1fr) 150px 72px 72px; gap: 0 12px; align-items: center; padding: 8px 16px; border-bottom: 1px solid #EEEEEA; min-height: 52px;">
+        <div><span style="font-weight: 700;">山本</span><span style="display: block; font-size: 12px; color: #5B6168;">介護福祉士</span></div>
+        <div><button type="button" style="height: 36px; padding: 0 12px; border: 1px solid #1D5C8A; border-radius: 999px; background: #E6F0F8; color: #1D5C8A; font-size: 14px; font-weight: 700; cursor: pointer;">日勤C ▾</button></div>
+        <div style="font-size: 14px;">9:00–18:00</div>
+        <div><input type="checkbox" aria-label="山本 初回" style="width: 22px; height: 22px;"></div>
+        <div><button type="button" style="height: 32px; padding: 0 10px; border: 1px solid #D9DAD4; border-radius: 6px; background: #FFFFFF; color: #3A4651; font-size: 13px; cursor: pointer;">休み</button></div>
+      </div>
+      <div style="display: grid; grid-template-columns: 140px minmax(0, 1fr) 150px 72px 72px; gap: 0 12px; align-items: center; padding: 8px 16px; border-bottom: 1px solid #EEEEEA; min-height: 52px;">
+        <div><span style="font-weight: 700;">小川</span><span style="display: block; font-size: 12px; color: #5B6168;">介護職員</span></div>
+        <div><button type="button" style="height: 36px; padding: 0 12px; border: 1px solid #1D5C8A; border-radius: 999px; background: #E6F0F8; color: #1D5C8A; font-size: 14px; font-weight: 700; cursor: pointer;">日勤（さくら） ▾</button></div>
+        <div style="font-size: 14px;">9:00–18:00</div>
+        <div><input type="checkbox" aria-label="小川 初回" style="width: 22px; height: 22px;"></div>
+        <div><button type="button" style="height: 32px; padding: 0 10px; border: 1px solid #D9DAD4; border-radius: 6px; background: #FFFFFF; color: #3A4651; font-size: 13px; cursor: pointer;">休み</button></div>
+      </div>
+      <div style="display: grid; grid-template-columns: 140px minmax(0, 1fr) 150px 72px 72px; gap: 0 12px; align-items: center; padding: 8px 16px; border-bottom: 1px solid #EEEEEA; min-height: 52px;">
+        <div><span style="font-weight: 700;">木村</span><span style="display: block; font-size: 12px; color: #5B6168;">介護職員</span></div>
+        <div><button type="button" style="height: 36px; padding: 0 12px; border: 1px solid #1D5C8A; border-radius: 999px; background: #E6F0F8; color: #1D5C8A; font-size: 14px; font-weight: 700; cursor: pointer;">遅番 ▾</button></div>
+        <div style="font-size: 14px;">11:00–20:00</div>
+        <div><input type="checkbox" aria-label="木村 初回" style="width: 22px; height: 22px;"></div>
+        <div><button type="button" style="height: 32px; padding: 0 10px; border: 1px solid #D9DAD4; border-radius: 6px; background: #FFFFFF; color: #3A4651; font-size: 13px; cursor: pointer;">休み</button></div>
+      </div>
+      <!-- 加藤: 役割の選択肢を開いた状態 -->
+      <div style="display: grid; grid-template-columns: 140px minmax(0, 1fr) 150px 72px 72px; gap: 0 12px; align-items: start; padding: 8px 16px; border-bottom: 1px solid #EEEEEA; background: #F7F9FB;">
+        <div style="padding-top: 6px;"><span style="font-weight: 700;">加藤</span><span style="display: block; font-size: 12px; color: #5B6168;">スポット（今日が初日）</span></div>
+        <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+          <button type="button" aria-pressed="false" style="height: 36px; padding: 0 12px; border: 1px solid #D9DAD4; border-radius: 999px; background: #FFFFFF; color: #3A4651; font-size: 14px; cursor: pointer;">早番A</button>
+          <button type="button" aria-pressed="false" style="height: 36px; padding: 0 12px; border: 1px solid #D9DAD4; border-radius: 999px; background: #FFFFFF; color: #3A4651; font-size: 14px; cursor: pointer;">早番B</button>
+          <button type="button" aria-pressed="false" style="height: 36px; padding: 0 12px; border: 1px solid #D9DAD4; border-radius: 999px; background: #FFFFFF; color: #3A4651; font-size: 14px; cursor: pointer;">日勤A</button>
+          <button type="button" aria-pressed="false" style="height: 36px; padding: 0 12px; border: 1px solid #D9DAD4; border-radius: 999px; background: #FFFFFF; color: #3A4651; font-size: 14px; cursor: pointer;">日勤B</button>
+          <button type="button" aria-pressed="false" style="height: 36px; padding: 0 12px; border: 1px solid #D9DAD4; border-radius: 999px; background: #FFFFFF; color: #3A4651; font-size: 14px; cursor: pointer;">日勤C</button>
+          <button type="button" aria-pressed="false" style="height: 36px; padding: 0 12px; border: 1px solid #D9DAD4; border-radius: 999px; background: #FFFFFF; color: #3A4651; font-size: 14px; cursor: pointer;">遅番</button>
+          <button type="button" aria-pressed="false" style="height: 36px; padding: 0 12px; border: 1px solid #D9DAD4; border-radius: 999px; background: #FFFFFF; color: #3A4651; font-size: 14px; cursor: pointer;">介護助手</button>
+          <button type="button" aria-pressed="true" style="height: 36px; padding: 0 12px; border: 1px solid #1D5C8A; border-radius: 999px; background: #1D5C8A; color: #FFFFFF; font-size: 14px; font-weight: 700; cursor: pointer;">スポット（午後）</button>
+          <button type="button" aria-pressed="false" style="height: 36px; padding: 0 12px; border: 1px solid #D9DAD4; border-radius: 999px; background: #FFFFFF; color: #3A4651; font-size: 14px; cursor: pointer;">夜勤(東)</button>
+          <button type="button" aria-pressed="false" style="height: 36px; padding: 0 12px; border: 1px solid #D9DAD4; border-radius: 999px; background: #FFFFFF; color: #3A4651; font-size: 14px; cursor: pointer;">夜勤(さくら)</button>
+        </div>
+        <div style="padding-top: 6px; font-size: 14px;"><input type="text" value="13:00" aria-label="開始" style="width: 56px; height: 32px; border: 1px solid #D9DAD4; border-radius: 6px; padding: 0 6px; font-size: 14px; font-family: inherit;">–<input type="text" value="17:00" aria-label="終了" style="width: 56px; height: 32px; border: 1px solid #D9DAD4; border-radius: 6px; padding: 0 6px; font-size: 14px; font-family: inherit;"></div>
+        <div style="padding-top: 8px;"><input type="checkbox" checked aria-label="加藤 初回" style="width: 22px; height: 22px;"></div>
+        <div style="padding-top: 6px;"><button type="button" style="height: 32px; padding: 0 10px; border: 1px solid #D9DAD4; border-radius: 6px; background: #FFFFFF; color: #3A4651; font-size: 13px; cursor: pointer;">休み</button></div>
+      </div>
+      <div style="display: grid; grid-template-columns: 140px minmax(0, 1fr) 150px 72px 72px; gap: 0 12px; align-items: center; padding: 8px 16px; border-bottom: 1px solid #EEEEEA; min-height: 52px;">
+        <div><span style="font-weight: 700;">中村</span><span style="display: block; font-size: 12px; color: #5B6168;">看護師</span></div>
+        <div><button type="button" style="height: 36px; padding: 0 12px; border: 1px solid #1D5C8A; border-radius: 999px; background: #E6F0F8; color: #1D5C8A; font-size: 14px; font-weight: 700; cursor: pointer;">看護 ▾</button></div>
+        <div style="font-size: 14px;">9:00–18:00</div>
+        <div><input type="checkbox" aria-label="中村 初回" style="width: 22px; height: 22px;"></div>
+        <div><button type="button" style="height: 32px; padding: 0 10px; border: 1px solid #D9DAD4; border-radius: 6px; background: #FFFFFF; color: #3A4651; font-size: 13px; cursor: pointer;">休み</button></div>
+      </div>
+      <div style="display: grid; grid-template-columns: 140px minmax(0, 1fr) 150px 72px 72px; gap: 0 12px; align-items: center; padding: 8px 16px; border-bottom: 1px solid #EEEEEA; min-height: 52px;">
+        <div><span style="font-weight: 700;">斉藤</span><span style="display: block; font-size: 12px; color: #5B6168;">介護職員</span></div>
+        <div><button type="button" style="height: 36px; padding: 0 12px; border: 1px solid #1D5C8A; border-radius: 999px; background: #E6F0F8; color: #1D5C8A; font-size: 14px; font-weight: 700; cursor: pointer;">夜勤(東) ▾</button></div>
+        <div style="font-size: 14px;">17:00–翌9:00</div>
+        <div><input type="checkbox" aria-label="斉藤 初回" style="width: 22px; height: 22px;"></div>
+        <div><button type="button" style="height: 32px; padding: 0 10px; border: 1px solid #D9DAD4; border-radius: 6px; background: #FFFFFF; color: #3A4651; font-size: 13px; cursor: pointer;">休み</button></div>
+      </div>
+      <div style="display: grid; grid-template-columns: 140px minmax(0, 1fr) 150px 72px 72px; gap: 0 12px; align-items: center; padding: 8px 16px; border-bottom: 1px solid #EEEEEA; min-height: 52px; background: #F7F7F4; color: #5B6168;">
+        <div><span style="font-weight: 700;">渡辺</span><span style="display: block; font-size: 12px;">介護助手</span></div>
+        <div style="font-size: 14px;">本日休み ・ 役割「介護助手」の枠は担当未定になります</div>
+        <div style="font-size: 14px;">—</div>
+        <div></div>
+        <div><button type="button" aria-pressed="true" style="height: 32px; padding: 0 10px; border: 1px solid #1C1F23; border-radius: 6px; background: #1C1F23; color: #FFFFFF; font-size: 13px; cursor: pointer;">休み</button></div>
+      </div>
+      <div style="padding: 10px 16px;"><button type="button" style="height: 36px; padding: 0 12px; border: 1px dashed #9AA0A6; border-radius: 8px; background: #FFFFFF; color: #3A4651; font-size: 13px; cursor: pointer;">＋ 応援・スポットの人を追加</button></div>
+    </section>
+
+    <!-- 型を当てる -->
+    <aside aria-label="一日の型" style="flex: 1 1 320px; max-width: 420px; display: flex; flex-direction: column; gap: 12px;">
+      <div style="background: #FFFFFF; border: 1px solid #E3E3DE; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+        <div style="font-weight: 700;">一日の型を選ぶ</div>
+        <div role="radiogroup" aria-label="一日の型" style="display: flex; flex-direction: column; gap: 8px;">
+          <label style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid #D9DAD4; border-radius: 10px; cursor: pointer;"><input type="radio" name="pattern" style="width: 20px; height: 20px;"><span><span style="font-weight: 700;">平日</span><span style="display: block; font-size: 12px; color: #5B6168;">52枠 ・ 見守り・休憩・排泄・食事</span></span></label>
+          <label style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 2px solid #1D5C8A; border-radius: 10px; background: #F7F9FB; cursor: pointer;"><input type="radio" name="pattern" checked style="width: 20px; height: 20px;"><span><span style="font-weight: 700;">入浴日（火・金）</span><span style="display: block; font-size: 12px; color: #5B6168;">58枠 ・ 平日＋入浴介助 6枠</span></span></label>
+          <label style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid #D9DAD4; border-radius: 10px; cursor: pointer;"><input type="radio" name="pattern" style="width: 20px; height: 20px;"><span><span style="font-weight: 700;">日曜</span><span style="display: block; font-size: 12px; color: #5B6168;">44枠 ・ レク・面会対応</span></span></label>
+        </div>
+        <button type="button" style="height: 48px; border: 0; border-radius: 10px; background: #1D5C8A; color: #FFFFFF; font-size: 16px; font-weight: 700; cursor: pointer;">この型で今日の時間割を作る</button>
+        <p style="margin: 0; font-size: 12px; color: #5B6168;">役割に束ねた業務へ、今日その役割の人が担当として入ります。あとから何度でも直せます。</p>
+      </div>
+
+      <!-- 結果 -->
+      <div style="background: #FFFFFF; border: 1px solid #E3E3DE; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 10px;">
+        <div style="font-weight: 700;">できました</div>
+        <div style="font-size: 14px;">58枠のうち <span style="font-weight: 700;">55枠</span> に担当が付きました。</div>
+        <ul style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px;">
+          <li style="display: flex; align-items: center; gap: 8px; font-size: 14px;"><span style="font-size: 13px; font-weight: 700; padding: 2px 10px; border-radius: 6px; background: #FFE7D6; color: #8A3B00;">担当未定 2</span><span>リネン回収、物品補充（役割: 介護助手）</span></li>
+          <li style="display: flex; align-items: center; gap: 8px; font-size: 14px;"><span style="font-size: 13px; font-weight: 700; padding: 2px 10px; border-radius: 6px; background: #FFF3C4; color: #6B4E00;">担当あと1人 1</span><span>入浴介助 10:30（必要3・配置2）</span></li>
+        </ul>
+        <a href="Main.dc.html" style="display: flex; align-items: center; justify-content: center; height: 44px; border-radius: 10px; background: #1C1F23; color: #FFFFFF; text-decoration: none; font-weight: 700;">ボードで直す</a>
+        <button type="button" style="height: 40px; border: 1px solid #D9DAD4; border-radius: 10px; background: #FFFFFF; color: #3A4651; font-size: 14px; cursor: pointer;">今日の形を「型」として保存</button>
+      </div>
+    </aside>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

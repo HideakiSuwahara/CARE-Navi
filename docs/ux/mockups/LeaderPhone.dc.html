@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>ケアナビ リーダーのスマホ</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#1D5C8A}a:hover{color:#164766}
+</style>
+</helmet>
+<div style="font-family: 'Noto Sans JP', system-ui, sans-serif; width: 390px; height: 844px; box-sizing: border-box; background: #F3F3EF; color: #1C1F23; border-radius: 40px; border: 1px solid #D9DAD4; overflow: hidden; display: flex; flex-direction: column; font-size: 16px; line-height: 1.5; position: relative;">
+
+  <header style="padding: 54px 16px 10px; background: #FFFFFF; border-bottom: 1px solid #E3E3DE; display: flex; flex-direction: column; gap: 8px;">
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <span style="font-size: 18px; font-weight: 700;">きょうの全体</span>
+      <span style="font-size: 13px; color: #5B6168;">更新 10:07</span>
+      <div role="group" aria-label="自分と全体" style="margin-left: auto; display: inline-flex; border: 1px solid #D9DAD4; border-radius: 8px; overflow: hidden;">
+        <a href="MyNavi.dc.html" style="height: 34px; padding: 0 10px; display: inline-flex; align-items: center; text-decoration: none; color: #3A4651; font-size: 13px;">自分</a>
+        <span aria-current="page" style="height: 34px; padding: 0 10px; display: inline-flex; align-items: center; background: #1C1F23; color: #FFFFFF; font-size: 13px; font-weight: 700;">全体</span>
+      </div>
+    </div>
+    <div style="display: flex; gap: 6px; overflow: auto;">
+      <button type="button" aria-pressed="true" style="height: 34px; padding: 0 12px; border: 1px solid #1D5C8A; border-radius: 999px; background: #E6F0F8; color: #1D5C8A; font-size: 13px; cursor: pointer; white-space: nowrap;">東フロア</button>
+      <button type="button" aria-pressed="false" style="height: 34px; padding: 0 12px; border: 1px solid #D9DAD4; border-radius: 999px; background: #FFFFFF; color: #3A4651; font-size: 13px; cursor: pointer; white-space: nowrap;">さくら</button>
+      <button type="button" aria-pressed="false" style="height: 34px; padding: 0 12px; border: 1px solid #D9DAD4; border-radius: 999px; background: #FFFFFF; color: #3A4651; font-size: 13px; cursor: pointer; white-space: nowrap;">共通</button>
+      <button type="button" style="height: 34px; padding: 0 12px; border: 1px solid #F0B48A; border-radius: 999px; background: #FFE7D6; color: #8A3B00; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap;">担当未定 2</button>
+    </div>
+  </header>
+
+  <!-- クイック操作 -->
+  <div style="padding: 10px 16px 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px;">
+    <button type="button" style="height: 48px; border: 1px solid #D9DAD4; border-radius: 10px; background: #FFFFFF; color: #1C1F23; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit;">欠勤・早退</button>
+    <button type="button" aria-pressed="true" style="height: 48px; border: 2px solid #1D5C8A; border-radius: 10px; background: #E6F0F8; color: #1D5C8A; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit;">付き添い・外出</button>
+    <button type="button" style="height: 48px; border: 1px solid #D9DAD4; border-radius: 10px; background: #FFFFFF; color: #1C1F23; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit;">休憩をずらす</button>
+  </div>
+
+  <!-- 時間順の一覧（背景、下にシートが重なる） -->
+  <main style="flex: 1 1 auto; overflow: hidden; padding: 10px 16px 0;">
+    <ol style="list-style: none; margin: 0; padding: 0; background: #FFFFFF; border: 1px solid #D9DAD4; border-radius: 14px; overflow: hidden;">
+      <li style="display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 10px; padding: 10px 14px; border-bottom: 1px solid #EEEEEA; background: #F7F9FB;"><span style="font-size: 14px; font-weight: 700; color: #1D5C8A;">10:00</span><div><div style="font-weight: 700;">おむつ交換 <span style="font-size: 12px; font-weight: 400; color: #5B6168;">一括 20人</span></div><div style="font-size: 13px; color: #3A4651;">佐藤・鈴木・伊藤・山本</div></div></li>
+      <li style="display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 10px; padding: 10px 14px; border-bottom: 1px solid #EEEEEA;"><span style="font-size: 14px;">10:30</span><div><div style="font-weight: 700;">入浴介助 <span style="font-size: 12px; font-weight: 400; color: #5B6168;">一括 6人</span> <span style="font-size: 12px; font-weight: 700; padding: 1px 8px; border-radius: 6px; background: #FFF3C4; color: #6B4E00;">担当あと1人</span></div><div style="font-size: 13px; color: #3A4651;">佐藤・山本</div></div></li>
+      <li style="display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 10px; padding: 10px 14px; border-bottom: 1px solid #EEEEEA;"><span style="font-size: 14px;">11:00</span><div><div style="font-weight: 700;">見守り <span style="font-size: 12px; font-weight: 400; color: #5B6168;">11:00–13:00</span></div><div style="font-size: 13px; color: #3A4651;">木村</div></div></li>
+    </ol>
+  </main>
+
+  <!-- 操作案のプレビュー（下から出るシート） -->
+  <section aria-label="操作案のプレビュー" style="position: absolute; left: 0; right: 0; bottom: 0; background: #FFFFFF; border-top-left-radius: 20px; border-top-right-radius: 20px; box-shadow: 0 -8px 30px rgba(0,0,0,0.16); padding: 10px 16px 24px; display: flex; flex-direction: column; gap: 10px; max-height: 560px;">
+    <div aria-hidden="true" style="width: 40px; height: 4px; border-radius: 2px; background: #D9DAD4; margin: 0 auto;"></div>
+    <div style="font-weight: 700; font-size: 17px;">付き添い・外出を追加</div>
+
+    <div style="display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 8px 10px; align-items: center; font-size: 14px;">
+      <span style="color: #5B6168;">だれ</span><button type="button" style="height: 44px; padding: 0 12px; border: 1px solid #D9DAD4; border-radius: 10px; background: #FFFFFF; text-align: left; font-size: 15px; font-family: inherit; cursor: pointer;">田中様（さくら 203） ▾</button>
+      <span style="color: #5B6168;">なに</span><button type="button" style="height: 44px; padding: 0 12px; border: 1px solid #D9DAD4; border-radius: 10px; background: #FFFFFF; text-align: left; font-size: 15px; font-family: inherit; cursor: pointer;">受診の付き添い ▾</button>
+      <span style="color: #5B6168;">いつ</span><div style="display: flex; gap: 6px; align-items: center;"><button type="button" style="height: 44px; padding: 0 12px; border: 1px solid #D9DAD4; border-radius: 10px; background: #FFFFFF; font-size: 15px; font-family: inherit; cursor: pointer;">10:30</button><span>–</span><button type="button" style="height: 44px; padding: 0 12px; border: 1px solid #D9DAD4; border-radius: 10px; background: #FFFFFF; font-size: 15px; font-family: inherit; cursor: pointer;">12:00</button></div>
+      <span style="color: #5B6168;">だれが</span><button type="button" style="height: 44px; padding: 0 12px; border: 1px solid #D9DAD4; border-radius: 10px; background: #FFFFFF; text-align: left; font-size: 15px; font-family: inherit; cursor: pointer;">鈴木（日勤A） ▾</button>
+    </div>
+
+    <div style="border: 1px solid #E3E3DE; border-radius: 12px; overflow: hidden;">
+      <div style="padding: 8px 12px; background: #F7F7F4; font-size: 13px; font-weight: 700; color: #3A4651;">こう変わります（チェックを外すと、その行はしません）</div>
+      <label style="display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-top: 1px solid #EEEEEA; font-size: 14px;"><input type="checkbox" checked style="width: 22px; height: 22px; margin-top: 2px; flex: 0 0 auto;"><span><span style="font-weight: 700;">追加</span> 受診の付き添い 田中様 10:30–12:00 → 担当 鈴木</span></label>
+      <label style="display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-top: 1px solid #EEEEEA; font-size: 14px;"><input type="checkbox" checked style="width: 22px; height: 22px; margin-top: 2px; flex: 0 0 auto;"><span><span style="font-weight: 700;">外す</span> 鈴木 → 休憩① 11:00–12:00（付き添いと重なるため）</span></label>
+      <div style="display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-top: 1px solid #EEEEEA; font-size: 14px; background: #FFF8F3;"><span style="font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 6px; background: #FFF3C4; color: #6B4E00; flex: 0 0 auto;">担当あと1人</span><span>休憩① が 必要2・配置1 になります。適用後に埋められます</span></div>
+    </div>
+
+    <div style="display: flex; gap: 8px;">
+      <button type="button" style="flex: 0 0 auto; height: 52px; padding: 0 16px; border: 1px solid #D9DAD4; border-radius: 12px; background: #FFFFFF; color: #3A4651; font-size: 15px; font-family: inherit; cursor: pointer;">やめる</button>
+      <button type="button" style="flex: 1 1 auto; height: 52px; border: 0; border-radius: 12px; background: #1D5C8A; color: #FFFFFF; font-size: 16px; font-weight: 700; font-family: inherit; cursor: pointer;">適用する（元に戻せます）</button>
+    </div>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

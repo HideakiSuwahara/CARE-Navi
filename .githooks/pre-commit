@@ -1,0 +1,7 @@
+#!/bin/sh
+# ケアナビ: コミット前チェック（依存なしで動く部分）
+# - 表現の規則（docs/wording.md）
+# - ドメインの単体テスト
+set -e
+node scripts/check-wording.mjs
+node --test "src/**/*.test.ts" >/dev/null

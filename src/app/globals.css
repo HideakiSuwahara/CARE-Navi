@@ -1,0 +1,35 @@
+@import "tailwindcss";
+
+/* ケアナビの基礎トークン。色は状態の補助。状態は必ず文字でも示す。 */
+:root {
+  --cn-ground: #f3f3ef;
+  --cn-surface: #ffffff;
+  --cn-border: #e3e3de;
+  --cn-ink: #1c1f23;
+  --cn-muted: #5b6168;
+  --cn-accent: #1d5c8a;
+  --cn-accent-soft: #e6f0f8;
+  --cn-unassigned-bg: #ffe7d6;
+  --cn-unassigned-ink: #8a3b00;
+  --cn-short-bg: #fff3c4;
+  --cn-short-ink: #6b4e00;
+  --cn-break-bg: #f3f1f8;
+  --cn-break-ink: #4e4870;
+  --cn-now: #c2410c;
+}
+
+html,
+body {
+  background: var(--cn-ground);
+  color: var(--cn-ink);
+  font-family: "Noto Sans JP", system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+@media print {
+  html,
+  body {
+    background: #ffffff;
+  }
+}

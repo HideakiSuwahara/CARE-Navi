@@ -1,0 +1,38 @@
+# dependencies
+node_modules/
+.pnp
+.pnp.*
+
+# next.js
+.next/
+out/
+next-env.d.ts
+
+# build / test output
+dist/
+build/
+coverage/
+playwright-report/
+test-results/
+blob-report/
+playwright/.cache/
+
+# env / secrets（キーはリポジトリに入れない）
+.env
+.env.*
+!.env.example
+
+# ローカル専用の禁止語リスト（公開ファイルに書けない語を置く）
+.wordcheck.local.txt
+
+# editor / os
+.DS_Store
+Thumbs.db
+*.log
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# vercel / supabase local
+.vercel
+supabase/.temp/
