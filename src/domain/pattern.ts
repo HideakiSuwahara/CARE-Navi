@@ -81,13 +81,35 @@ export function applyPatternEvents(state: State, date: DateKey, patternId: ID, c
     if (t.origin === "pattern") events.push({ ...metaOf(ctx), type: "task.remove", id: t.id });
   }
 
+  // この業務表で作った担当の時間（別の枠に付ける1人を選ぶとき、重なりを避けるため）
+  const busy = new Map<ID, { startMin: number; endMin: number }[]>();
+  const assign = (taskId: ID, staffId: ID, startMin: number, endMin: number) => {
+    events.push({ ...metaOf(ctx), type: "assignment.add", assignment: { id: ctx.newId(), taskId, staffId } });
+    busy.set(staffId, [...(busy.get(staffId) ?? []), { startMin, endMin }]);
+  };
   const addTask = (task: TaskInstance, residentIds: ID[], slotIds: ID[]) => {
     events.push({ ...metaOf(ctx), type: "task.add", task, residentIds });
+    for (const staffId of staffForSlots(state, date, slotIds)) assign(task.id, staffId, task.startMin, task.endMin);
+  };
+  /**
+   * 日課から分かれた枠・その方だけの枠: 番の出勤者のうち、その時刻に勤務していて、ほかの担当と重ならない人を
+   * 必要人数だけ付ける（番の全員は付けない。決定記録 0004 / 現場レビュー）。いなければ担当未定。
+   */
+  const addTaskPickOne = (task: TaskInstance, residentIds: ID[], slotIds: ID[]) => {
+    events.push({ ...metaOf(ctx), type: "task.add", task, residentIds });
+    let need = Math.max(1, task.headcount);
     for (const staffId of staffForSlots(state, date, slotIds)) {
-      events.push({ ...metaOf(ctx), type: "assignment.add", assignment: { id: ctx.newId(), taskId: task.id, staffId } });
+      if (need === 0) break;
+      const entry = rosterForDate(state, date).find((r) => r.staffId === staffId);
+      if (!entry || entry.startMin > task.startMin || entry.endMin < task.endMin) continue;
+      const clash = (busy.get(staffId) ?? []).some((b) => b.startMin < task.endMin && task.startMin < b.endMin);
+      if (clash) continue;
+      assign(task.id, staffId, task.startMin, task.endMin);
+      need--;
     }
   };
 
+  const later: (() => void)[] = [];
   for (const item of pattern.items) {
     const base = taskFromPatternItem(state, date, item, ctx.newId());
     if (!base) continue;
@@ -104,7 +126,7 @@ export function applyPatternEvents(state: State, date: DateKey, patternId: ID, c
     }
     const tpl = state.templates[item.templateId];
     for (const o of split.outside) {
-      addTask(
+      later.push(() => addTaskPickOne(
         {
           ...base,
           id: ctx.newId(),
@@ -117,9 +139,11 @@ export function applyPatternEvents(state: State, date: DateKey, patternId: ID, c
         },
         o.residentIds,
         item.slotIds,
-      );
+      ));
     }
   }
+  // 分かれた枠は、ふだんの枠の担当がすべて決まってから、空いている人を選ぶ
+  for (const run of later) run();
 
   // 24時間シートの「その方だけの行」（業務の種類つき）から、その方の個別の枠
   for (const { residentId, row } of extraRowsForDate(state, weekdayOf(date))) {
@@ -135,7 +159,7 @@ export function applyPatternEvents(state: State, date: DateKey, patternId: ID, c
       { id: row.id, templateId: tpl.id, startMin, endMin, groupId: resident?.groupId, targetRule: "residents", residentIds: [residentId], headcount: Math.max(1, tpl.defaultHeadcount), slotIds },
       ctx.newId(),
     );
-    if (task) addTask({ ...task, targetMode: "individual" }, [residentId], slotIds);
+    if (task) addTaskPickOne({ ...task, targetMode: "individual" }, [residentId], slotIds);
   }
 
   events.push({ ...metaOf(ctx), type: "day.setPattern", date, patternId });

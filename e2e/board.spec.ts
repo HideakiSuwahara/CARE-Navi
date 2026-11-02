@@ -48,6 +48,19 @@ test.describe("ボード（D1）", () => {
     expect(box!.height).toBeGreaterThanOrEqual(44);
   });
 
+  test("カードの名前を押すと詳細が開き、対象の方ごとの時刻とサポートが出る（0004 §4）", async ({ page }) => {
+    const card = page.locator("[data-task-id]").filter({ hasText: "起床介助" }).filter({ hasText: "人" }).last();
+    await card.scrollIntoViewIfNeeded();
+    await card.getByRole("button", { name: /起床介助/ }).first().click();
+    const panel = page.getByRole("dialog", { name: /起床介助/ });
+    await expect(panel).toBeVisible();
+    const kobayashi = panel.getByRole("listitem").filter({ hasText: "小林" });
+    await expect(kobayashi).toContainText("6:30");
+    await expect(panel.getByText(/^サポート: /).first()).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(panel).toHaveCount(0);
+  });
+
   test("見出しの件数を押すと、該当する枠へ移動する", async ({ page }) => {
     await page.goto("/board?now=7:00");
     await page.getByRole("button", { name: /^担当未定 \d+件。押すと次の枠へ移動/ }).click();

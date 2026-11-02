@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { TopBar } from "@/components/TopBar";
 import { useAppState, useEngine, useNowMinutes } from "@/store/react";
 import { SAMPLE_DATE } from "@/store/sample";
@@ -10,6 +10,7 @@ import { fmtMin, fmtRange } from "@/domain/time";
 import { updatedAtLabel } from "@/domain/display";
 import { TaskCard } from "./TaskCard";
 import { MorningBand } from "./MorningBand";
+import { TaskDetail } from "./TaskDetail";
 
 /** 1分あたりの高さ(px)。1時間=180px。30分の業務でも2行（名前／担当・バッジ・＋44px）が入る */
 const PX_PER_MIN = 3;
@@ -83,6 +84,17 @@ export function Board({ date = SAMPLE_DATE }: { date?: string }) {
 
   // 操作のあとのお知らせ（トースト）。8秒で消えるが「元に戻す」はツールバーに残る
   const [toast, setToast] = useState<string | null>(null);
+  // 業務の詳細（カードの名前を押すと開く）
+  const [openTaskId, setOpenTaskId] = useState<string | null>(null);
+  const openerRef = useRef<HTMLElement | null>(null);
+  const openDetail = (id: string) => {
+    openerRef.current = document.activeElement as HTMLElement | null;
+    setOpenTaskId(id);
+  };
+  const closeDetail = useCallback(() => {
+    setOpenTaskId(null);
+    openerRef.current?.focus();
+  }, []);
   const lastLabel = lastUndo ? `${lastUndo.batchId}` : "";
   useEffect(() => {
     if (!lastUndo) return;
@@ -210,7 +222,7 @@ export function Board({ date = SAMPLE_DATE }: { date?: string }) {
                       const width = areaWidth / lanes;
                       return (
                         <div key={task.id} className="absolute p-[3px]" style={{ top, height, left: `${left}%`, width: `${width}%` }}>
-                          <TaskCard state={state} task={task} variant={rail ? "rail" : height < 80 ? "mini" : height < 150 ? "compact" : "normal"} />
+                          <TaskCard state={state} task={task} variant={rail ? "rail" : height < 80 ? "mini" : height < 150 ? "compact" : "normal"} onOpen={openDetail} onAdd={openDetail} />
                         </div>
                       );
                     })}
@@ -281,6 +293,7 @@ export function Board({ date = SAMPLE_DATE }: { date?: string }) {
         </aside>
         )}
       </main>
+      {openTaskId && <TaskDetail state={state} taskId={openTaskId} onClose={closeDetail} />}
       <div role="status" aria-live="polite" className="pointer-events-none fixed bottom-5 left-1/2 z-40 -translate-x-1/2">
         {toast && (
           <div className="pointer-events-auto flex items-center gap-3 rounded-[10px] bg-[var(--cn-ink)] px-4 py-3 text-[15px] text-white shadow-lg">

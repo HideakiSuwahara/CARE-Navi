@@ -71,9 +71,17 @@ test("枠の中に時刻を変えた方は一括のまま（時刻を残す）�
   // 二重に数えない: 3人のうち2人がどれか1枚に、なしの1人はどこにもいない
   const all = w.flatMap((t) => s.targets[t.id]);
   assert.deepEqual(all.sort(), ["r-101", "r-102"]);
-  // 別の枠も同じ番の人が担当（早番A=佐藤）
+  // 別の枠（8:30–9:30）: 同じ番（早番A）の佐藤は 9:00 から見守りに入っているので付けない → 担当未定
   const staffOf = (taskId: string) => Object.values(s.assignments).filter((a) => a.taskId === taskId).map((a) => a.staffId);
-  assert.deepEqual(staffOf(w[1].id), ["s-sato"]);
+  assert.deepEqual(staffOf(w[1].id), []);
+});
+
+test("別の枠には、その時刻に勤務していて、ほかの担当と重ならない人を必要人数だけ付ける（番の全員は付けない）", () => {
+  const s = stateOf(routineSeed([{ residentId: "r-102", rows: [{ id: "b", routineId: "rt-wake-east", startMin: toMin(8), endMin: toMin(8, 30) }] }]));
+  const outside = wakeTasks(s).find((t) => t.startMin === toMin(8))!;
+  const staff = Object.values(s.assignments).filter((a) => a.taskId === outside.id).map((a) => a.staffId);
+  assert.deepEqual(staff, ["s-sato"], "8:00–8:30 は佐藤が空いている");
+  assert.equal(outside.headcount, 1);
 });
 
 test("同じ時刻に枠の外へ変えた方は1枚にまとめる", () => {
