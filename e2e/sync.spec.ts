@@ -1,4 +1,4 @@
-import { expect, test, type Browser } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 /**
  * 端末間の同期（決定記録 0009）。docs/acceptance.md S4（別端末）
