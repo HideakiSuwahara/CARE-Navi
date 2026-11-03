@@ -27,6 +27,7 @@ test.describe("設定", () => {
     await page.getByRole("button", { name: "登録する" }).click();
     await expect(page).toHaveURL(/\/board/);
     await expect(page.getByText("みどり荘")).toBeVisible();
+    await expect(page.getByText(/登録しました（グループ 2・利用者 1人・職員 2人）。取り込めなかった行が 1 行あります/)).toBeVisible();
     await expect(page.getByRole("heading", { name: "今日の時間割を作る" })).toBeVisible();
     // はじめての日: 職員を全員「休み」で並べ、来る人を1タップで出勤にする。番の名前に雛形のグループ名が残らない
     const list = page.getByRole("list", { name: "今日の出勤者" });

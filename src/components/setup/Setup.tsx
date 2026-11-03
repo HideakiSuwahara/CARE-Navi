@@ -9,6 +9,7 @@ import { himawariSeed } from "@/domain/seed";
 import { buildOwnFacility, facilityCode, parseStaffPaste, settingsEvent, staffEvents } from "@/domain/setup";
 import type { ResidentDisplayMode } from "@/domain/types";
 import { useAppState, useEngine } from "@/store/react";
+import { SETUP_NOTE_KEY } from "./setupNote";
 import { sampleEvents } from "@/store/sample";
 
 /**
@@ -57,9 +58,23 @@ export function Setup() {
         <OwnFacilityForm
           onCancel={() => setOwn(false)}
           isSample={state.facility?.id === himawariSeed.facility.id}
-          onDone={async (events) => {
+          onDone={async (events, r) => {
             if (!engine) return;
             await engine.reset(events);
+            const errors = r.residentErrors.length + r.staffErrors.length;
+            try {
+              window.sessionStorage.setItem(
+                SETUP_NOTE_KEY,
+                JSON.stringify({
+                  text: `登録しました（グループ ${r.counts.groups}・利用者 ${r.counts.residents}人・職員 ${r.counts.staff}人）。${
+                    errors > 0 ? `取り込めなかった行が ${errors} 行あります。` : ""
+                  }下の「今日の時間割を作る」で、今日来る人の「出勤にする」を押してください。`,
+                  errors,
+                }),
+              );
+            } catch {
+              // 保存できない端末では知らせを出さない
+            }
             writeChosen(true);
             router.push("/board");
           }}
@@ -109,7 +124,7 @@ function Shell({ children }: { children: React.ReactNode }) {
 // 自分の施設で始める（1画面、上から順に）
 // ---------------------------------------------------------------------------
 
-function OwnFacilityForm({ onCancel, onDone, isSample }: { onCancel: () => void; onDone: (events: ReturnType<typeof buildOwnFacility>["events"]) => void; isSample: boolean }) {
+function OwnFacilityForm({ onCancel, onDone, isSample }: { onCancel: () => void; onDone: (events: ReturnType<typeof buildOwnFacility>["events"], result: ReturnType<typeof buildOwnFacility>) => void; isSample: boolean }) {
   const [name, setName] = useState("");
   const [groupsText, setGroupsText] = useState("");
   const [residentsText, setResidentsText] = useState("");
@@ -137,7 +152,7 @@ function OwnFacilityForm({ onCancel, onDone, isSample }: { onCancel: () => void;
       onSubmit={(e) => {
         e.preventDefault();
         setTried((n) => n + 1);
-        if (result.ok) onDone(result.events);
+        if (result.ok) onDone(result.events, result);
         else window.setTimeout(() => document.getElementById(!name.trim() ? "own-name" : "own-groups")?.focus(), 0);
       }}
     >

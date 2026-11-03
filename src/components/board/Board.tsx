@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { TopBar } from "@/components/TopBar";
+import { SETUP_NOTE_KEY } from "@/components/setup/setupNote";
 import { useAppState, useEngine, useNowMinutes } from "@/store/react";
 import { SAMPLE_DATE } from "@/store/sample";
 import { boardColumns, paletteRows } from "@/domain/layout";
@@ -131,6 +132,19 @@ export function Board({ date = SAMPLE_DATE }: { date?: string }) {
   // 業務の詳細（カードの名前を押すと開く）
   // ドラッグで止めたときのお知らせ（元に戻すものはないので、ボタンなし）
   const [notice, setNotice] = useState<string | null>(null);
+  // 設定の「登録する」から来たときの知らせ（取り込めなかった行があれば、次の1手と一緒に）。閉じるまで出す
+  const [setupNote, setSetupNote] = useState<{ text: string; errors: number } | null>(null);
+  useEffect(() => {
+    try {
+      const raw = window.sessionStorage.getItem(SETUP_NOTE_KEY);
+      if (raw) {
+        window.sessionStorage.removeItem(SETUP_NOTE_KEY);
+        setSetupNote(JSON.parse(raw));
+      }
+    } catch {
+      // 読めない端末では出さない
+    }
+  }, []);
   const showNotice = useCallback((text: string) => {
     setNotice(text);
     window.setTimeout(() => setNotice(null), 6000);
@@ -246,6 +260,20 @@ export function Board({ date = SAMPLE_DATE }: { date?: string }) {
         {hasTasks && <BoardMenu state={state} engine={engine} date={date} dateShort={`${Number(date.slice(5, 7))}/${Number(date.slice(8))}`} onPrint={printSheet} onNotice={showNotice} />}
         </div>
       </div>
+
+      {setupNote && (
+        <div role="status" className="mx-5 mb-3 flex flex-wrap items-center gap-3 rounded-xl border-2 border-[var(--cn-accent)] bg-[var(--cn-accent-soft)] px-4 py-2.5 text-[15px]">
+          <span className="min-w-0 flex-1">{setupNote.text}</span>
+          {setupNote.errors > 0 && (
+            <Link href="/setup" className="inline-flex h-[44px] items-center rounded-lg border border-[var(--cn-control-line)] bg-white px-4 font-bold">
+              設定で職員を足す
+            </Link>
+          )}
+          <button type="button" onClick={() => setSetupNote(null)} className="h-[44px] rounded-lg border border-[var(--cn-control-line)] bg-white px-4">
+            閉じる
+          </button>
+        </div>
+      )}
 
       {/* 本体 */}
       <BoardDnd engine={engine} onNotice={showNotice}>
