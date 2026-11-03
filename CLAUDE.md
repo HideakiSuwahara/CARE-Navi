@@ -101,6 +101,7 @@
 | `npm run e2e` | Playwright E2E |
 | `npm run check:wording` | 表現の規則チェック（`scripts/check-wording.mjs`） |
 | `npm run loop` | レビューループの記録ファイルを作る（`scripts/new-review.mjs --scope "..."`） |
+| `npm run progress` | 全体工程の進み具合（`docs/progress.md` の表から計算。区切りのたびに表を更新する） |
 
 ## 8. エージェントの使い分け（`.claude/agents/`）
 
@@ -127,10 +128,10 @@
 |---|---|
 | PreToolUse（Bash） | `scripts/hooks/pre-bash.mjs`: force push、`.env` の表示、秘密値の echo、`reset --hard` などを止める（exit 2） |
 | PostToolUse（Write／Edit） | `scripts/hooks/post-edit.mjs`: 変更した .ts/.tsx/.md に表現の規則チェック。違反があれば結果を返す（exit 2） |
-| Stop | `scripts/hooks/on-stop.mjs`: 未コミットの変更があれば注意を出す（止めない） |
+| Stop | `scripts/hooks/on-stop.mjs`: 全体工程 約 n%（`docs/progress.md`）を毎回 1 行出す。未コミットの変更があれば注意を出す（止めない） |
 
 規則ファイルに書けない語（個人名など）は、git 管理外の `.wordcheck.local.txt`（1 行 1 語）に置くと同じチェックで検出される。CI（`.github/workflows/ci.yml`）でも lint／typecheck／test／wording が走る。
 
 ## 11. 文書の地図
 
-- `docs/concept.md` 構想 ／ `docs/decisions/` 決定記録（0001 スコープ、0002 AI を使わない、0003 画面と押す回数、0004 施設の日課と24時間シート、0005 ⋯ に作り直しを置かない、0006 困ったらの相談先、0007 リーダーの全体、0008 業務の見直しの数字） ／ `docs/screens.md` 画面仕様 ／ `docs/data-model.md` データとイベント ／ `docs/acceptance.md` 受け入れ条件 ／ `docs/wording.md` 表現の規則 ／ `docs/usability-script.md` 試用台本 ／ `docs/video-storyboard.md` 動画の筋 ／ `docs/dev-process.md` 開発の進め方 ／ `docs/reviews/` レビューループの記録
+- `docs/concept.md` 構想 ／ `docs/decisions/` 決定記録（0001 スコープ、0002 AI を使わない、0003 画面と押す回数、0004 施設の日課と24時間シート、0005 ⋯ に作り直しを置かない、0006 困ったらの相談先、0007 リーダーの全体、0008 業務の見直しの数字） ／ `docs/screens.md` 画面仕様 ／ `docs/data-model.md` データとイベント ／ `docs/acceptance.md` 受け入れ条件 ／ `docs/wording.md` 表現の規則 ／ `docs/usability-script.md` 試用台本 ／ `docs/video-storyboard.md` 動画の筋 ／ `docs/dev-process.md` 開発の進め方 ／ `docs/reviews/` レビューループの記録 ／ `docs/progress.md` 進み具合

@@ -19,6 +19,7 @@
     "check:wording": "node scripts/check-wording.mjs",
     "check": "npm run lint && npm run typecheck && npm run test && npm run check:wording",
     "loop": "node scripts/new-review.mjs",
+    "progress": "node scripts/progress.mjs",
     "hooks:install": "git config core.hooksPath .githooks"
   },
   "dependencies": {
