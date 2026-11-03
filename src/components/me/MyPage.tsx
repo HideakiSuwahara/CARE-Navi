@@ -2,11 +2,14 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { rosterForDate } from "@/domain/checks";
+import { canSeeAll } from "@/domain/leader";
 import { viewerMinutes } from "@/domain/myday";
 import { fmtRange } from "@/domain/time";
 import type { ID } from "@/domain/types";
 import { useAppState, useNowMinutes } from "@/store/react";
 import { SAMPLE_DATE } from "@/store/sample";
+import { AllView } from "./AllView";
+import { LeaderTabs } from "./LeaderTabs";
 import { MyDayView } from "./MyDayView";
 import { PhoneTaskDetail } from "./PhoneTaskDetail";
 
@@ -32,7 +35,7 @@ function writeMe(id: ID | null) {
   }
 }
 
-export function MyPage({ taskId, date = SAMPLE_DATE }: { taskId?: string; date?: string }) {
+export function MyPage({ taskId, date = SAMPLE_DATE, view }: { taskId?: string; date?: string; view?: "all" }) {
   const { state, ready } = useAppState();
   const clock = useNowMinutes();
   const [me, setMe] = useState<ID | null>(null);
@@ -61,7 +64,24 @@ export function MyPage({ taskId, date = SAMPLE_DATE }: { taskId?: string; date?:
   if (taskId && state.tasks[taskId]) {
     return <PhoneTaskDetail state={state} date={date} taskId={taskId} me={me} now={now} />;
   }
-  return <MyDayView state={state} date={date} me={me} now={now} onSwitch={() => choose(null)} missingTask={Boolean(taskId)} />;
+  // リーダーの番の人には、画面下に［自分｜全体］（docs/screens.md §4.1）
+  const leader = canSeeAll(state, date, me);
+  if (leader && view === "all") {
+    return <AllView state={state} date={date} me={me} now={now} clock={clock} tabs={<LeaderTabs current="all" />} />;
+  }
+  return (
+    <>
+      <MyDayView state={state} date={date} me={me} now={now} onSwitch={() => choose(null)} missingTask={Boolean(taskId)} />
+      {leader && (
+        <>
+          <div aria-hidden="true" className="h-[72px] print:hidden" />
+          <div className="fixed inset-x-0 bottom-0 z-30 mx-auto max-w-[480px] border-t border-[var(--cn-control-line)] bg-white print:hidden">
+            <LeaderTabs current="me" />
+          </div>
+        </>
+      )}
+    </>
+  );
 }
 
 function NamePicker({
