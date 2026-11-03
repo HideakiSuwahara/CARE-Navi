@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { rosterForDate } from "@/domain/checks";
 import { canSeeAll } from "@/domain/leader";
 import { viewerDay } from "@/domain/myday";
+import { addDays } from "@/domain/pattern";
 import { fmtRange } from "@/domain/time";
 import type { ID } from "@/domain/types";
 import { useAppState, useNowMinutes } from "@/store/react";
@@ -61,7 +62,7 @@ export function MyPage({ taskId, date = SAMPLE_DATE, view: viewKey }: { taskId?:
   const bizDate = view.date;
   const now = view.now;
   const entry = me ? rosterForDate(state, bizDate).find((e) => e.staffId === me && !e.absent) : undefined;
-  if (!me || !state.staff[me] || !entry) return <NamePicker state={state} date={date} onChoose={choose} previous={me && state.staff[me] ? state.staff[me].surname : undefined} />;
+  if (!me || !state.staff[me] || !entry) return <NamePicker state={state} date={date} clock={clock} onChoose={choose} previous={me && state.staff[me] ? state.staff[me].surname : undefined} />;
   const date_ = bizDate;
   if (taskId && state.tasks[taskId]) {
     return <PhoneTaskDetail state={state} date={date_} taskId={taskId} me={me} now={now} />;
@@ -89,19 +90,26 @@ export function MyPage({ taskId, date = SAMPLE_DATE, view: viewKey }: { taskId?:
 function NamePicker({
   state,
   date,
+  clock,
   onChoose,
   previous,
 }: {
   state: ReturnType<typeof useAppState>["state"];
   date: string;
+  clock: number;
   onChoose: (id: ID) => void;
   /** 覚えていた人が、きょうは出勤していないとき */
   previous?: string;
 }) {
   const slotOrder = (id?: ID) => (id ? (state.roleSlots[id]?.sortOrder ?? 999) : 999);
-  const entries = rosterForDate(state, date)
-    .filter((e) => !e.absent && state.staff[e.staffId])
+  // 夜勤明け（前の業務日の勤務がまだ続いている人）も、きょうの出勤者の前に並べる
+  const overnight = rosterForDate(state, addDays(date, -1))
+    .filter((e) => !e.absent && state.staff[e.staffId] && e.endMin > 1440 && e.startMin <= clock + 1440 && clock + 1440 < e.endMin)
+    .sort((a, b) => slotOrder(a.slotId) - slotOrder(b.slotId));
+  const today = rosterForDate(state, date)
+    .filter((e) => !e.absent && state.staff[e.staffId] && !overnight.some((o) => o.staffId === e.staffId))
     .sort((a, b) => slotOrder(a.slotId) - slotOrder(b.slotId) || a.startMin - b.startMin);
+  const entries = [...overnight.map((e) => ({ ...e, overnight: true })), ...today.map((e) => ({ ...e, overnight: false }))];
   return (
     <main className="mx-auto flex min-h-screen max-w-[480px] flex-col gap-4 bg-[var(--cn-ground)] px-4 py-5 text-[16px]">
       <h1 className="text-[20px] font-bold">自分の予定</h1>
@@ -128,6 +136,7 @@ function NamePicker({
               >
                 <span className="text-[18px] font-bold">{s.surname}</span>
                 {e.firstTimer && <span className="rounded border border-[var(--cn-control-line)] px-1.5 text-[14px]">初回</span>}
+                {e.overnight && <span className="rounded border border-[var(--cn-control-line)] px-1.5 text-[14px]">夜勤明け</span>}
                 <span className="text-[14px] text-[var(--cn-muted)]">
                   {slot} {fmtRange(e.startMin, e.endMin)}
                 </span>

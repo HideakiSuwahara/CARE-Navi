@@ -102,3 +102,16 @@ test.describe("自分の予定（スマホ）", () => {
     expect((pdf.toString("latin1").match(/\/Type\s*\/Page[^s]/g) ?? []).length).toBe(1);
   });
 });
+
+test.describe("自分の予定（夜勤明け）", () => {
+  test("翌朝 7:00 に夜勤明けの斉藤が開くと、夜勤が始まった業務日（11/3）の予定が出て、困ったらは早番の佐藤", async ({ page }) => {
+    await page.goto("/me?now=7:00&date=2026-11-04");
+    await page.evaluate(() => localStorage.clear());
+    await page.goto("/me?now=7:00&date=2026-11-04");
+    await page.getByRole("list", { name: "きょうの出勤者" }).getByRole("button", { name: /^斉藤 / }).click();
+    await expect(page.getByRole("heading", { level: 1, name: /斉藤 さん/ })).toBeVisible();
+    await expect(page.getByText(/11\/3（火）夜勤東/)).toBeVisible();
+    await expect(page.getByRole("note")).toContainText("佐藤（リーダー） PHS 801");
+    await expect(page.getByRole("heading", { name: "いまの時間の予定" })).toBeVisible();
+  });
+});
