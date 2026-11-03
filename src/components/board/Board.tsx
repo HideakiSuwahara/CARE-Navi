@@ -332,7 +332,7 @@ export function Board({ date = SAMPLE_DATE }: { date?: string }) {
                       const width = areaWidth / lanes;
                       return (
                         <DropZone key={task.id} id={`task:${task.id}`} data={{ kind: "task", taskId: task.id }} className="absolute p-[3px]" style={{ top, height, left: `${left}%`, width: `${width}%` }}>
-                          <TaskCard state={state} task={task} variant={rail ? "rail" : height < 80 ? "mini" : height < 150 ? "compact" : "normal"} onOpen={openDetail} onAdd={openAssign} />
+                          <TaskCard state={state} task={task} variant={rail ? "rail" : height < 84 ? "mini" : height < 150 ? "compact" : "normal"} onOpen={openDetail} onAdd={openAssign} />
                         </DropZone>
                       );
                     })}

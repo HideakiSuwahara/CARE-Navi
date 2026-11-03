@@ -66,7 +66,7 @@ export function TaskCard({
       type="button"
       onClick={() => onOpen?.(task.id)}
       data-card-title=""
-      className={`-my-[10px] block min-h-[44px] min-w-0 truncate py-[10px] text-left text-[15px] font-bold leading-6 hover:underline ${
+      className={`-my-[10px] block min-h-[44px] min-w-[44px] shrink truncate py-[10px] text-left text-[15px] font-bold leading-6 hover:underline ${
         isBreak ? "text-[var(--cn-break-ink)]" : ""
       }`}
     >
@@ -93,7 +93,7 @@ export function TaskCard({
   return (
     <article
       aria-label={`${title} ${fmtRange(task.startMin, task.endMin)}${short ? ` ${status.label}` : ""}`}
-      className={`flex h-full gap-2 overflow-hidden rounded-[10px] px-2.5 py-1.5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ${
+      className={`flex h-full gap-2 overflow-hidden rounded-[10px] px-2.5 py-1 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ${
         rail && !short ? "bg-[var(--cn-rail-bg)]" : ""
       } ${frame} ${compact || mini ? "flex-row items-center" : "flex-col"}`}
       data-task-id={task.id}
@@ -117,9 +117,9 @@ export function TaskCard({
           <div className="flex min-w-0 flex-1 flex-col gap-1">
             <div className="flex min-w-0 items-baseline gap-2">
               {titleButton}
-              <span className="shrink-0 whitespace-nowrap text-[13px] text-[var(--cn-muted)]">{when}</span>
+              <span className="min-w-0 truncate text-[13px] text-[var(--cn-muted)]">{when}</span>
             </div>
-            <div className="flex min-w-0 items-center gap-1.5 overflow-hidden">
+            <div className="flex min-w-0 flex-nowrap items-center gap-1.5 overflow-hidden">
               {badge}
               {chips}
             </div>
@@ -128,15 +128,18 @@ export function TaskCard({
         </>
       ) : (
         <>
-          <div className="flex min-w-0 flex-col">
-            {titleButton}
-            <span className="truncate text-[13px] leading-5 text-[var(--cn-muted)]">{when}</span>
+          {/* ＋ は右上（短いカードと同じ右側）。担当チップは押せる高さ 44px のまま折り返す */}
+          <div className="flex min-w-0 items-start gap-2">
+            <div className="flex min-w-0 flex-1 flex-col pt-[10px]">
+              {titleButton}
+              <span className="truncate text-[13px] leading-5 text-[var(--cn-muted)]">{when}</span>
+            </div>
+            {plus}
           </div>
-          <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5">
             {badge}
             {chips}
           </div>
-          <div className="mt-auto flex justify-end">{plus}</div>
         </>
       )}
     </article>
@@ -153,14 +156,14 @@ function StaffChip({ taskId, staffId, surname, firstTimer, onOpen }: { taskId: I
       {...dragProps}
       onClick={onOpen}
       style={style}
-      className={`relative inline-flex h-[28px] shrink-0 cursor-grab touch-none items-center gap-1 rounded-full border border-[var(--cn-accent)] bg-[var(--cn-accent-soft)] px-2.5 text-[14px] text-[var(--cn-accent)] before:absolute before:-inset-y-[8px] before:inset-x-0 before:content-[''] ${
-        isDragging ? "opacity-80 shadow-lg" : ""
-      }`}
+      className={`inline-flex h-[44px] min-w-[44px] shrink-0 cursor-grab touch-none items-center ${isDragging ? "opacity-80" : ""}`}
       aria-label={`${surname}${firstTimer ? "（初回）" : ""}`}
       aria-roledescription="ドラッグできる担当"
     >
-      {surname}
-      {firstTimer && <span className="rounded border border-[var(--cn-card-line)] bg-white px-1 text-[12px] text-[var(--cn-ink)]">初回</span>}
+      <span className={`inline-flex h-[28px] items-center gap-1 rounded-full border border-[var(--cn-accent)] bg-[var(--cn-accent-soft)] px-2.5 text-[14px] text-[var(--cn-accent)] ${isDragging ? "shadow-lg" : ""}`}>
+        {surname}
+        {firstTimer && <span className="rounded border border-[var(--cn-card-line)] bg-white px-1 text-[12px] text-[var(--cn-ink)]">初回</span>}
+      </span>
     </button>
   );
 }
