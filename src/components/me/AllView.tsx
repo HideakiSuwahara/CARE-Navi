@@ -25,6 +25,7 @@ import {
   escortChoices,
   escortTemplateId,
   firstUpcomingIndex,
+  overnightRows,
   leaveAt,
   shiftCheck,
   touchedTaskIds,
@@ -75,6 +76,7 @@ export function AllView({ state, date, me, now, clock, tabs }: { state: State; d
   );
   const rows = useMemo(() => allRows(state, date, now), [state, date, now]);
   const groups = useMemo(() => unfilledGroups(rows), [rows]);
+  const overnight = useMemo(() => overnightRows(state, date, now), [state, date, now]);
   const [sheet, setSheet] = useState<SheetState>(null);
   const [flash, setFlash] = useState<Set<ID>>(new Set());
   const [toast, setToast] = useState<string | null>(null);
@@ -200,6 +202,30 @@ export function AllView({ state, date, me, now, clock, tabs }: { state: State; d
           rows.length > 0 && <p className="mt-1 text-[16px] text-[var(--cn-ink-soft)]">これからの業務で、担当未定はありません。</p>
         )}
       </header>
+
+      {overnight.length > 0 && (
+        <section aria-labelledby="overnight-title" className="mx-4 mt-4 rounded-xl border border-dashed border-[var(--cn-control-line)] bg-white p-3">
+          <h2 id="overnight-title" className="text-[16px] font-bold">
+            夜勤明け（前日の夜勤の業務）
+          </h2>
+          <p className="text-[14px] text-[var(--cn-ink-soft)]">前日の時間割に入っている業務です。ここでは見るだけです（変えるときは前日のボードで）。</p>
+          <ul className="mt-1 flex flex-col divide-y divide-[var(--cn-card-line)]">
+            {overnight.map((r) => (
+              <li key={r.task.id} className="py-2">
+                <p className="flex flex-wrap items-baseline gap-x-2">
+                  <span className="font-bold">{r.timeText}</span>
+                  <span className="font-bold">{r.label}</span>
+                  {r.count && <span className="text-[14px]">{r.count}</span>}
+                </p>
+                <p className="flex flex-wrap items-center gap-x-2 text-[16px] text-[var(--cn-ink-soft)]">
+                  {r.isBreak ? "休憩" : "担当"}: {r.assignees.length > 0 ? r.assignees.map((x) => x.surname).join("・") : "まだいません"}
+                  <Badge row={r} />
+                </p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {rows.length === 0 ? (
         <section className="m-4 flex flex-col items-start gap-3 rounded-xl bg-white p-4">

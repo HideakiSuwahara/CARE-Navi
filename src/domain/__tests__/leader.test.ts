@@ -130,3 +130,19 @@ test("付き添い: 一括の業務は対象の方から外す候補（既定は
     else assert.equal(l.defaultOn, true);
   }
 });
+
+test("夜勤明け: 朝のリーダーには、前日の夜勤の業務のうちこれからのもの（朝食・申し送りなど）を時計の時刻で出す", async () => {
+  const { overnightRows } = await import("../leader.ts");
+  const s = state();
+  // 11/4 の朝 7:00 に、11/3 の夜勤の業務が見える
+  const rows = overnightRows(s, "2026-11-04", toMin(7));
+  assert.ok(rows.length > 0);
+  assert.ok(rows.some((r) => r.label.startsWith("申し送り")));
+  for (const r of rows) {
+    assert.ok(r.task.date === DATE);
+    assert.ok(r.task.endMin > toMin(31));
+    assert.doesNotMatch(r.timeText, /翌/);
+  }
+  // 9:30 には何も残らない（申し送りは 翌8:30–9:00）
+  assert.equal(overnightRows(s, "2026-11-04", toMin(9, 30)).filter((r) => !r.isBreak).length, 0);
+});

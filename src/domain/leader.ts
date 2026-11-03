@@ -6,7 +6,8 @@
 import type { Event } from "./events.ts";
 import { applyEvents } from "./reducer.ts";
 import { assigneesOf, headcountStatus, rankCandidates, rosterForDate, taskLabel, tasksForDate, tasksOfStaff, type Candidate } from "./checks.ts";
-import { fmtRange, overlaps } from "./time.ts";
+import { addDays } from "./pattern.ts";
+import { fmtMin, fmtRange, overlaps } from "./time.ts";
 import { residentLabel } from "./display.ts";
 import { staffTaskName } from "./myday.ts";
 import { MAX_MINUTES, type DateKey, type HeadcountStatus, type ID, type Minutes, type Resident, type RosterEntry, type Staff, type State, type TaskInstance } from "./types.ts";
@@ -68,6 +69,21 @@ export function allRows(state: State, date: DateKey, now: Minutes): AllRow[] {
         isBreak,
         past,
       };
+    });
+}
+
+/**
+ * 夜勤明け: 前の業務日の夜勤帯の業務のうち、いま（この業務日の時刻）より後に終わるもの。
+ * 夜勤帯の業務はその夜勤が始まった業務日に属する（data-model）ので、朝のリーダーの一覧には入らない。読み取り用に並べる。
+ */
+export function overnightRows(state: State, date: DateKey, now: Minutes): (AllRow & { timeText: string })[] {
+  const prev = addDays(date, -1);
+  return allRows(state, prev, now + 1440)
+    .filter((r) => r.task.endMin > now + 1440 && !r.cancelled)
+    .map((r) => {
+      const s = r.task.startMin;
+      const start = s >= 1440 ? fmtMin(s - 1440) : `前日 ${fmtMin(s)}`;
+      return { ...r, timeText: `${start}–${fmtMin(r.task.endMin - 1440)}` };
     });
 }
 

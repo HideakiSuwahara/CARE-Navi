@@ -134,3 +134,16 @@ test.describe("全体（リーダーのスマホ）", () => {
     await expect(page.locator(`[data-all-task="${id}"]`)).not.toContainText("担当未定");
   });
 });
+
+test.describe("全体（夜勤明け）", () => {
+  test("翌日の朝のリーダーには、前日の夜勤の業務が「夜勤明け」に見るだけで出る", async ({ page }) => {
+    await page.goto("/me?now=7:00&date=2026-11-04");
+    await page.evaluate(() => localStorage.clear());
+    await page.goto("/me?now=7:00&date=2026-11-04");
+    await page.getByRole("list", { name: "きょうの出勤者" }).getByRole("button", { name: /^佐藤 / }).click();
+    await page.getByRole("navigation", { name: "自分の予定と全体の切替" }).getByRole("link", { name: "全体" }).click();
+    const sec = page.getByRole("region", { name: "夜勤明け（前日の夜勤の業務）" });
+    await expect(sec).toContainText("申し送り");
+    await expect(sec.getByRole("button")).toHaveCount(0);
+  });
+});
