@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { rosterForDate } from "@/domain/checks";
 import { canSeeAll } from "@/domain/leader";
-import { viewerMinutes } from "@/domain/myday";
+import { viewerDay } from "@/domain/myday";
 import { fmtRange } from "@/domain/time";
 import type { ID } from "@/domain/types";
 import { useAppState, useNowMinutes } from "@/store/react";
@@ -35,7 +35,7 @@ function writeMe(id: ID | null) {
   }
 }
 
-export function MyPage({ taskId, date = SAMPLE_DATE, view }: { taskId?: string; date?: string; view?: "all" }) {
+export function MyPage({ taskId, date = SAMPLE_DATE, view: viewKey }: { taskId?: string; date?: string; view?: "all" }) {
   const { state, ready } = useAppState();
   const clock = useNowMinutes();
   const [me, setMe] = useState<ID | null>(null);
@@ -56,22 +56,24 @@ export function MyPage({ taskId, date = SAMPLE_DATE, view }: { taskId?: string; 
     return <p className="p-5 text-[16px] text-[var(--cn-muted)]">読み込んでいます…</p>;
   }
 
-  const entry = me ? rosterForDate(state, date).find((e) => e.staffId === me && !e.absent) : undefined;
+  // 夜勤明けの人は前の業務日（夜勤が始まった日）を開く。それ以外は date のまま（夜勤帯の業務はその夜勤が始まった業務日に属する）
+  const view = viewerDay(state, date, me, clock);
+  const bizDate = view.date;
+  const now = view.now;
+  const entry = me ? rosterForDate(state, bizDate).find((e) => e.staffId === me && !e.absent) : undefined;
   if (!me || !state.staff[me] || !entry) return <NamePicker state={state} date={date} onChoose={choose} previous={me && state.staff[me] ? state.staff[me].surname : undefined} />;
-
-  // 夜勤の人は、勤務前の朝の時刻を「翌」として読む（夜勤明けの予定が出る）
-  const now = viewerMinutes(state, date, me, clock);
+  const date_ = bizDate;
   if (taskId && state.tasks[taskId]) {
-    return <PhoneTaskDetail state={state} date={date} taskId={taskId} me={me} now={now} />;
+    return <PhoneTaskDetail state={state} date={date_} taskId={taskId} me={me} now={now} />;
   }
   // リーダーの番の人には、画面下に［自分｜全体］（docs/screens.md §4.1）
-  const leader = canSeeAll(state, date, me);
-  if (leader && view === "all") {
-    return <AllView state={state} date={date} me={me} now={now} clock={clock} tabs={<LeaderTabs current="all" />} />;
+  const leader = canSeeAll(state, date_, me);
+  if (leader && viewKey === "all") {
+    return <AllView state={state} date={date_} me={me} now={now} clock={clock} tabs={<LeaderTabs current="all" />} />;
   }
   return (
     <>
-      <MyDayView state={state} date={date} me={me} now={now} onSwitch={() => choose(null)} missingTask={Boolean(taskId)} />
+      <MyDayView state={state} date={date_} me={me} now={now} onSwitch={() => choose(null)} missingTask={Boolean(taskId)} />
       {leader && (
         <>
           <div aria-hidden="true" className="h-[72px] print:hidden" />

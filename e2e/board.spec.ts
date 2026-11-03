@@ -61,13 +61,13 @@ test.describe("ボード（D1）", () => {
     await expect(panel).toHaveCount(0);
   });
 
-  test("担当の追加: ＋ → 「問題なし」の人の「追加」で、バッジが消え、元に戻せる（2操作）", async ({ page }) => {
+  test("担当の追加: ＋ → 「空いている人」の「追加」で、バッジが消え、元に戻せる（2操作）", async ({ page }) => {
     const card = page.locator('[data-task-id][data-badge="担当未定"]').first();
     const id = await card.getAttribute("data-task-id");
     await card.scrollIntoViewIfNeeded();
     await card.getByRole("button", { name: /に担当を追加$/ }).click();
     const panel = page.getByRole("dialog", { name: /.+/ });
-    await expect(panel.getByText(/^問題なし \d+人$/)).toBeVisible();
+    await expect(panel.getByText(/^空いている人 \d+人$/)).toBeVisible();
     await expect(panel.getByRole("button", { name: /^ほかの人（注意 \d+・勤務外 \d+）/ })).toBeVisible();
     await panel.getByRole("button", { name: /さんを追加$/ }).first().click();
     const after = page.locator(`[data-task-id="${id}"]`);
@@ -218,7 +218,7 @@ test.describe("ボード（翌朝）", () => {
     await page.evaluate(() => localStorage.clear());
     await page.goto("/board?now=10:12");
     const grid = page.getByLabel("時間割");
-    await expect(grid.getByText("ここから翌朝 6:00 以降（夜勤明け）")).toBeAttached();
+    await expect(grid.getByText(/ここから翌朝（11\/4 6:00 以降/)).toBeAttached();
     await expect(grid.getByText("翌7:00", { exact: true })).toBeAttached();
     const card = page.locator("[data-task-id]").filter({ hasText: "朝食介助" }).filter({ hasText: "翌7:30" }).first();
     await card.scrollIntoViewIfNeeded();

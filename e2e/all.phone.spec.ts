@@ -62,7 +62,10 @@ test.describe("全体（リーダーのスマホ）", () => {
     await page.getByRole("button", { name: "203 田中様" }).click();
     const dialog = page.getByRole("dialog");
     await dialog.getByRole("button", { name: "ほかの人から選ぶ" }).click();
-    await dialog.getByRole("button", { name: /^ほかの人/ }).click();
+    {
+      const others = dialog.getByRole("button", { name: /^ほかの人/ });
+      if ((await others.getAttribute("aria-expanded")) !== "true") await others.click();
+    }
     await dialog.getByRole("button", { name: "高橋さんを担当にする" }).click();
     await expect(dialog).toContainText("→ 担当 高橋");
     await expect(dialog).toContainText("ずらす: 高橋 の休憩");
@@ -142,7 +145,7 @@ test.describe("全体（夜勤明け）", () => {
     await page.goto("/me?now=7:00&date=2026-11-04");
     await page.getByRole("list", { name: "きょうの出勤者" }).getByRole("button", { name: /^佐藤 / }).click();
     await page.getByRole("navigation", { name: "自分の予定と全体の切替" }).getByRole("link", { name: "全体" }).click();
-    const sec = page.getByRole("region", { name: "夜勤明け（前日の夜勤の業務）" });
+    const sec = page.getByRole("region", { name: "昨夜の夜勤（11/3 から）の業務" });
     await expect(sec).toContainText("申し送り");
     await expect(sec.getByRole("button")).toHaveCount(0);
   });

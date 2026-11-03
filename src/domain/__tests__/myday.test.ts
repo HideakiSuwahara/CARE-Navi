@@ -127,10 +127,19 @@ test("印刷用の相談先の移り変わり: 早番A → 遅番 → 夜勤東"
   for (let i = 1; i < sched.length; i++) assert.equal(sched[i - 1].endMin <= sched[i].startMin, true);
 });
 
-test("困ったら: リーダー本人には、次の相談先（勤務中で次に順の人）を出す", () => {
+test("困ったら: リーダー本人には、リーダーの番の次に順の人を出す（同僚は出さない）。10:00 は誰もいない", async () => {
+  const { viewerDay } = await import("../myday.ts");
   const s = state();
   const c = leaderContact(s, DATE, toMin(10))!;
   assert.equal(c.leader.surname, "佐藤");
-  assert.ok(c.next, "次の人がいる");
-  assert.notEqual(c.next?.surname, "佐藤");
+  assert.equal(c.next, undefined, "10:00 に勤務中のリーダーの番は早番A だけ");
+  const evening = leaderContact(s, DATE, toMin(12))!;
+  assert.equal(evening.next?.surname, "木村");
+  assert.equal(evening.next?.slotName, "遅番");
+  // 夜勤明け: 11/4 の 7:00 に斉藤が開くと、業務日は 11/3 の翌7:00。相談先は 11/4 の早番A 佐藤
+  const v = viewerDay(s, "2026-11-04", "stf-saito", toMin(7));
+  assert.deepEqual(v, { date: DATE, now: toMin(31) });
+  assert.equal(leaderContact(s, DATE, toMin(31))?.leader.surname, "佐藤");
+  // 早番の佐藤が 11/4 の 7:00 に開くと、11/4 のまま
+  assert.deepEqual(viewerDay(s, "2026-11-04", "stf-sato", toMin(7)), { date: "2026-11-04", now: toMin(7) });
 });

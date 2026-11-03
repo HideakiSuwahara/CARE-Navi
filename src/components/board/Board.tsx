@@ -10,6 +10,7 @@ import { boardColumns, paletteRows } from "@/domain/layout";
 import { shortageGroups } from "@/domain/checks";
 import { fmtMin, fmtRange } from "@/domain/time";
 import { updatedAtLabel } from "@/domain/display";
+import { addDays } from "@/domain/pattern";
 import { TaskCard } from "./TaskCard";
 import { MorningBand } from "./MorningBand";
 import { TaskDetail } from "./TaskDetail";
@@ -29,6 +30,11 @@ const MIN_CARD_WIDTH = 130;
 /** 表示する範囲: 06:00 → 翌 06:00 */
 const VIEW_START = 6 * 60;
 const VIEW_END = 30 * 60;
+
+function shortDateOf(date: string): string {
+  const [, m, d] = date.split("-").map(Number);
+  return `${m}/${d}`;
+}
 
 function weekdayLabel(date: string): string {
   const [y, m, d] = date.split("-").map(Number);
@@ -138,13 +144,16 @@ export function Board({ date = SAMPLE_DATE }: { date?: string }) {
   // ドラッグで止めたときのお知らせ（元に戻すものはないので、ボタンなし）
   const [notice, setNotice] = useState<string | null>(null);
   // 設定の「登録する」から来たときの知らせ（取り込めなかった行があれば、次の1手と一緒に）。閉じるまで出す
-  const [setupNote, setSetupNote] = useState<{ text: string; errors: number } | null>(null);
+  const [setupNote, setSetupNote] = useState<{ text: string; residentErrors: number; staffErrors: number } | null>(null);
+  const setupNoteRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     try {
       const raw = window.sessionStorage.getItem(SETUP_NOTE_KEY);
       if (raw) {
         window.sessionStorage.removeItem(SETUP_NOTE_KEY);
         setSetupNote(JSON.parse(raw));
+        // 利用者の操作（登録する）の結果なので、知らせへフォーカスを移す
+        window.setTimeout(() => setupNoteRef.current?.focus(), 0);
       }
     } catch {
       // 読めない端末では出さない
@@ -164,21 +173,33 @@ export function Board({ date = SAMPLE_DATE }: { date?: string }) {
   const openDetail = (id: string) => openPanel("detail", id);
   const openAssign = (id: string) => openPanel("assign", id);
   const closePanel = useCallback(() => {
+    const opener = openerRef.current;
+    const taskId = panel?.taskId;
     setPanel(null);
-    openerRef.current?.focus();
-  }, []);
+    // 開いたチップが消えていたら（外したあと）、そのカードの業務名へ
+    window.setTimeout(() => {
+      if (opener && opener.isConnected) opener.focus();
+      else if (taskId) document.querySelector<HTMLElement>(`[data-task-id="${CSS.escape(taskId)}"] [data-card-title]`)?.focus();
+    }, 0);
+  }, [panel]);
+  // 新しい操作のときだけトーストを出す（元に戻して前の操作が先頭に戻ってきたときは出さない）
+  const seenBatches = useRef(new Set<string>());
   const lastLabel = lastUndo ? `${lastUndo.batchId}` : "";
   useEffect(() => {
-    if (!lastUndo) return;
+    if (!lastUndo || seenBatches.current.has(lastUndo.batchId)) return;
+    seenBatches.current.add(lastUndo.batchId);
     setToast(lastUndo.label);
-    const id = window.setTimeout(() => setToast(null), 8000);
-    return () => window.clearTimeout(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastLabel]);
+  useEffect(() => {
+    if (!toast) return;
+    const id = window.setTimeout(() => setToast(null), 8000);
+    return () => window.clearTimeout(id);
+  }, [toast]);
 
   const hours: number[] = [];
   for (let m = VIEW_START; m < gridEnd; m += 60) hours.push(m);
-  const nowInView = now !== null && now >= VIEW_START && now < VIEW_END;
+  const nowInView = now !== null && now >= VIEW_START && now < gridEnd;
 
   return (
     <>
@@ -249,14 +270,17 @@ export function Board({ date = SAMPLE_DATE }: { date?: string }) {
             >
               ⓘ
             </button>
-            {noteOpen && <span className="text-[14px] text-[var(--cn-ink-soft)]">予定の担当枠の差分です。ケアをしていない人数ではありません。</span>}
+            {noteOpen && <span className="text-[14px] text-[var(--cn-ink-soft)]">決めた人数にあと何人足りないか、です。ケアができていない数ではありません。</span>}
           </div>
         )}
         <div className="ml-auto flex items-center gap-2">
         {lastUndo && (
           <button
             type="button"
-            onClick={() => engine?.undo()}
+            onClick={async () => {
+              const done = await engine?.undo();
+              setToast(done ? `戻しました（${done.label}）` : null);
+            }}
             className="inline-flex h-[44px] items-center gap-2 rounded-lg border border-[var(--cn-card-line)] bg-white px-4 text-[14px]"
           >
             元に戻す<span className="text-[13px] text-[var(--cn-muted)]">（{lastUndo.label}）</span>
@@ -266,15 +290,34 @@ export function Board({ date = SAMPLE_DATE }: { date?: string }) {
         </div>
       </div>
 
-      {setupNote && (
-        <div role="status" className="mx-5 mb-3 flex flex-wrap items-center gap-3 rounded-xl border-2 border-[var(--cn-accent)] bg-[var(--cn-accent-soft)] px-4 py-2.5 text-[15px]">
-          <span className="min-w-0 flex-1">{setupNote.text}</span>
-          {setupNote.errors > 0 && (
-            <Link href="/setup" className="inline-flex h-[44px] items-center rounded-lg border border-[var(--cn-control-line)] bg-white px-4 font-bold">
-              設定で職員を足す
+      {setupNote && (!hasTasks || setupNote.residentErrors + setupNote.staffErrors > 0) && (
+        <div
+          ref={setupNoteRef}
+          tabIndex={-1}
+          className="mx-5 mb-3 flex flex-wrap items-center gap-3 rounded-xl border-2 border-[var(--cn-accent)] bg-[var(--cn-accent-soft)] px-4 py-2.5 text-[15px] outline-none"
+        >
+          <span className="min-w-0 flex-1">
+            {setupNote.text}
+            {hasTasks ? "" : " 下の「今日の時間割を作る」で、今日来る人の「出勤にする」を押してください。"}
+          </span>
+          {setupNote.residentErrors > 0 && (
+            <Link href="/residents" className="inline-flex h-[44px] items-center rounded-lg border border-[var(--cn-control-line)] bg-white px-4 font-bold">
+              利用者で足す（{setupNote.residentErrors}行）
             </Link>
           )}
-          <button type="button" onClick={() => setSetupNote(null)} className="h-[44px] rounded-lg border border-[var(--cn-control-line)] bg-white px-4">
+          {setupNote.staffErrors > 0 && (
+            <Link href="/setup" className="inline-flex h-[44px] items-center rounded-lg border border-[var(--cn-control-line)] bg-white px-4 font-bold">
+              設定で職員を足す（{setupNote.staffErrors}行）
+            </Link>
+          )}
+          <button
+            type="button"
+            onClick={() => {
+              setSetupNote(null);
+              document.getElementById("board-title")?.focus();
+            }}
+            className="h-[44px] rounded-lg border border-[var(--cn-control-line)] bg-white px-4"
+          >
             閉じる
           </button>
         </div>
@@ -303,7 +346,7 @@ export function Board({ date = SAMPLE_DATE }: { date?: string }) {
                 <div className="sticky left-0 z-10 bg-white px-2 py-2.5 text-[13px] text-[var(--cn-muted)]">時刻</div>
                 {columns.map((c) => (
                   <h2 key={c.id} className="border-l border-[var(--cn-grid)] px-3 py-2.5 font-bold">
-                    <span>{c.name}</span> {c.sub && <span className="text-[13px] font-normal text-[var(--cn-muted)]">{c.sub}</span>}
+                    <span>{c.name}</span> {c.sub && <span className="text-[14px] font-normal text-[var(--cn-muted)]">{c.sub}</span>}
                   </h2>
                 ))}
               </div>
@@ -317,10 +360,10 @@ export function Board({ date = SAMPLE_DATE }: { date?: string }) {
                   backgroundSize: `100% ${60 * PX_PER_MIN}px`,
                 }}
               >
-                <div className="sticky left-0 z-[5] bg-white text-[13px] text-[var(--cn-muted)]">
+                <div className="sticky left-0 z-[5] bg-white text-[14px] text-[var(--cn-muted)]">
                   {hours.map((m) => (
                     <div key={m} className="absolute left-2" style={{ top: (m - VIEW_START) * PX_PER_MIN + 4 }}>
-                      {m === VIEW_END ? <span className="font-bold text-[var(--cn-ink)]">翌朝</span> : fmtMin(m)}
+                      {m === VIEW_END ? <span className="font-bold text-[var(--cn-ink)]">{fmtMin(m)}</span> : fmtMin(m)}
                     </div>
                   ))}
                 </div>
@@ -345,7 +388,7 @@ export function Board({ date = SAMPLE_DATE }: { date?: string }) {
                 ))}
                 {gridEnd > VIEW_END && (
                   <div aria-hidden="true" className="pointer-events-none absolute left-0 right-0 z-[6] border-t-2 border-dashed border-[var(--cn-control-line)]" style={{ top: (VIEW_END - VIEW_START) * PX_PER_MIN }}>
-                    <span className="absolute left-16 -translate-y-1/2 rounded bg-white px-1.5 text-[13px] text-[var(--cn-ink-soft)]">ここから翌朝 6:00 以降（夜勤明け）</span>
+                    <span className="absolute left-16 -translate-y-1/2 rounded bg-white px-1.5 text-[14px] text-[var(--cn-ink-soft)]">ここから翌朝（{shortDateOf(addDays(date, 1))} 6:00 以降。きょうの夜勤の人の分）</span>
                   </div>
                 )}
                 {nowInView && (
@@ -373,7 +416,7 @@ export function Board({ date = SAMPLE_DATE }: { date?: string }) {
                 const later = now !== null && r.startMin > now;
                 return (
                   <li key={r.staffId}>
-                    <PaletteStaff staffId={r.staffId} later={later} label={`${r.surname} ${r.slotName} ${fmtRange(r.startMin, r.endMin)}${r.firstTimer ? " 初回" : ""}`}>
+                    <PaletteStaff staffId={r.staffId} later={later}>
                       <span className="shrink-0 font-bold">{r.surname}</span>
                       {r.firstTimer && <span className="shrink-0 rounded border border-[var(--cn-card-line)] bg-white px-1.5 text-[13px]">初回</span>}
                       <span className="min-w-0 truncate text-[13px] text-[var(--cn-muted)]">{r.slotName}</span>
@@ -440,7 +483,7 @@ export function Board({ date = SAMPLE_DATE }: { date?: string }) {
 }
 
 /** パレットの出勤者（ドラッグしてカードへ） */
-function PaletteStaff({ staffId, later, label, children }: { staffId: string; later: boolean; label: string; children: React.ReactNode }) {
+function PaletteStaff({ staffId, later, children }: { staffId: string; later: boolean; children: React.ReactNode }) {
   const { dragProps, setNodeRef, style, isDragging } = useStaffDrag(`staff:${staffId}`, { kind: "staff", staffId });
   return (
     <button
@@ -448,7 +491,6 @@ function PaletteStaff({ staffId, later, label, children }: { staffId: string; la
       type="button"
       {...dragProps}
       style={style}
-      aria-label={label}
       aria-roledescription="ドラッグできる職員"
       className={`flex min-h-[44px] w-full cursor-grab touch-none items-center gap-2.5 rounded-[10px] border px-3 py-2 text-left ${
         later ? "border-[var(--cn-border)] bg-[var(--cn-ground)]" : "border-[var(--cn-card-line)] bg-white"

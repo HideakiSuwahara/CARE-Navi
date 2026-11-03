@@ -34,9 +34,6 @@ export function MyDayView({
 }) {
   const day = useMemo(() => myDay(state, date, me, now), [state, date, me, now]);
   const hasDay = useMemo(() => tasksForDate(state, date).length > 0, [state, date]);
-  const [menu, setMenu] = useState(false);
-  const menuWrap = useRef<HTMLDivElement>(null);
-  const menuBtn = useRef<HTMLButtonElement>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
 
   // 開いたとき: 業務詳細から戻ったなら、押した行へフォーカスを返す。そうでなければ見出しへ（名前を選んだあとに画面が変わったと伝わる）
@@ -64,16 +61,6 @@ export function MyDayView({
     return () => window.removeEventListener("beforeprint", stamp);
   }, []);
 
-  useEffect(() => {
-    if (!menu) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
-      setMenu(false);
-      menuBtn.current?.focus();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [menu]);
 
   if (!day) return null;
   const [, m, d] = date.split("-").map(Number);
@@ -105,35 +92,13 @@ export function MyDayView({
             自分ではない（名前を選び直す）
           </button>
         </div>
-        <div ref={menuWrap} className="cn-noprint relative" onBlur={(e) => !menuWrap.current?.contains(e.relatedTarget as Node) && setMenu(false)}>
-          <button
-            ref={menuBtn}
-            type="button"
-            aria-expanded={menu}
-            aria-controls="me-menu"
-            aria-label="ほかの操作"
-            onClick={() => setMenu((v) => !v)}
-            className="inline-flex h-[44px] w-[44px] items-center justify-center rounded-lg border border-[var(--cn-control-line)] bg-white text-[18px] font-bold"
-          >
-            ⋯
-          </button>
-          {menu && (
-            <div id="me-menu" className="absolute right-0 top-[48px] z-30 w-[220px] overflow-hidden rounded-xl border border-[var(--cn-border)] bg-white py-1 shadow-lg">
-              <button
-                type="button"
-                autoFocus
-                onClick={() => {
-                  setMenu(false);
-                  menuBtn.current?.focus();
-                  window.print();
-                }}
-                className="flex min-h-[44px] w-full items-center px-4 text-left text-[16px]"
-              >
-                印刷
-              </button>
-            </div>
-          )}
-        </div>
+        <button
+          type="button"
+          onClick={() => window.print()}
+          className="cn-noprint inline-flex h-[44px] shrink-0 items-center rounded-lg border border-[var(--cn-control-line)] bg-white px-3 text-[16px]"
+        >
+          印刷
+        </button>
       </header>
 
       <HelpBar state={state} date={date} me={me} now={now} />

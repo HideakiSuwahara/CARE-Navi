@@ -163,7 +163,7 @@ function relocateBreak(
     const others = assignmentsOf(state, later.id).map((a) => state.staff[a.staffId]?.surname).filter(Boolean);
     return {
       events: [...removeEvs, ...assignEvents(later.id, staffId, ctx)],
-      text: `ずらす: ${name} の休憩 ${fmtRange(brk.startMin, brk.endMin)} → 「${later.name}」${fmtRange(later.startMin, later.endMin)}${others.length > 0 ? `（同じ時間に休憩: ${others.join("・")}）` : ""}`,
+      text: `ずらす: ${name} の休憩 ${fmtRange(brk.startMin, brk.endMin)} → ${fmtRange(later.startMin, later.endMin)} の休憩へ${others.length > 0 ? `（同じ時間に休憩: ${others.join("・")}）` : ""}`,
       fits: true,
     };
   }

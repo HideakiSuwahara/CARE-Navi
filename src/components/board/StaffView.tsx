@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef } from "react";
 import { layoutColumn, staffViewRows, unfilledTasks, watchLines, type StaffViewRow } from "@/domain/layout";
+import { tasksForDate } from "@/domain/checks";
 import { fmtMin, fmtRange } from "@/domain/time";
 import type { State } from "@/domain/types";
 
@@ -279,10 +280,16 @@ const PRINT_PAGES: { title: string; range: Range }[] = [
 /** 分担表（印刷用）。A4 横。日付・施設名・印刷時刻、最後に担当未定・担当あと n 人の枠の一覧 */
 export function StaffSheetPrint({ state, date, dateLabel, printedAt }: { state: State; date: string; dateLabel: string; printedAt: string }) {
   const unfilled = useMemo(() => unfilledTasks(state, date), [state, date]);
+  // 夜間のページは、翌 6:00 より後に終わる業務（夜勤明け）があればそこまで伸ばす（ボードと同じ）
+  const nightEnd = useMemo(() => {
+    const maxEnd = Math.max(30 * 60, ...tasksForDate(state, date).map((t) => t.endMin));
+    return Math.ceil(maxEnd / 60) * 60;
+  }, [state, date]);
+  const pages = PRINT_PAGES.map((p) => (p.range.start === 18 * 60 ? { title: `夜間 18:00–${fmtMin(nightEnd)}`, range: { start: 18 * 60, end: nightEnd } } : p));
   return (
     <div className="hidden text-[12px] print:block" data-testid="staff-sheet-print">
       <style>{"@media print { @page { size: A4 landscape; margin: 8mm; } .cn-staff-page + .cn-staff-page { break-before: page; } }"}</style>
-      {PRINT_PAGES.map((p, i) => (
+      {pages.map((p, i) => (
         <section key={p.title} className="cn-staff-page" aria-label={`分担表 ${p.title}`}>
           <div className="mb-2 flex items-baseline gap-4">
             <h2 className="text-[16px] font-bold">
@@ -292,10 +299,10 @@ export function StaffSheetPrint({ state, date, dateLabel, printedAt }: { state: 
             <span className="ml-auto">印刷 {printedAt}</span>
           </div>
           <StaffView state={state} date={date} now={null} print range={p.range} />
-          {i === PRINT_PAGES.length - 1 && (
+          {i === pages.length - 1 && (
             <section aria-label="担当未定・担当あと n 人の枠" className="mt-2 break-inside-avoid">
               <h3 className="font-bold">
-                担当未定・担当あと n 人の枠 <span className="font-normal">（予定の担当枠の差分です。ケアをしていない人数ではありません。）</span>
+                担当未定・担当あと n 人の枠 <span className="font-normal">（決めた人数にあと何人足りないか、です。ケアができていない数ではありません。）</span>
               </h3>
               {unfilled.length === 0 ? (
                 <p>ありません。</p>

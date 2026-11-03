@@ -12,7 +12,7 @@
 
 | 型 | 役割 | 主な項目 | 注意 |
 |---|---|---|---|
-| `Facility` | 施設 | `name`, `settings` | 設定: `checkMode`（warn/block）、`residentDisplayMode`、`firstTimerOnlyWarning`、`boardStartMin/EndMin`、`categories[]` |
+| `Facility` | 施設 | `name`, `settings` | 設定: `checkMode`（warn/block）、`residentDisplayMode`、`firstTimerOnlyWarning`、`boardStartMin/EndMin`（今は使っていない。ボードは 6:00〜翌 6:00 固定で、翌 6:00 より後に終わる業務があればそこまで伸ばす）、`categories[]` |
 | `Category` | 業務区分 | `name`, `kind: core/noncore/other` | 名称は施設が編集。`kind` は集計キー。区分はラベルで、可否を決めない |
 | `Group` | 管理グループ | `name`, `kind: unit/floor/common/other`, `sortOrder` | 「共通」は `kind=common` |
 | `Resident` | 利用者 | `displayName`, `surname`, `groupId`, `room` | 排泄状態・介助方法は持たない |

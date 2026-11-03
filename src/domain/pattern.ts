@@ -295,13 +295,11 @@ export function morningDraft(state: State, date: DateKey, newId: () => ID): Morn
   const lastWeek = addDays(date, -7);
   const prev = rosterForDate(state, lastWeek);
   if (prev.length === 0) {
-    // はじめての日: 職員を全員「休み」で並べ、番を仮に入れておく（来る人を1タップで出勤にする）
-    const used = new Set<ID>();
+    // はじめての日: 職員を全員「休み」で並べる。番は職種の言葉がある番（看護・介護助手・スポット）だけ仮に入れ、ほかは人が選ぶ
     const entries = Object.values(state.staff)
       .sort((a, b) => a.displayName.localeCompare(b.displayName, "ja"))
       .map((staff) => {
-        const slot = suggestSlot(state, staff.role, used);
-        if (slot) used.add(slot.id);
+        const slot = suggestSlot(state, staff.role);
         return {
           id: newId(),
           date,
@@ -309,7 +307,7 @@ export function morningDraft(state: State, date: DateKey, newId: () => ID): Morn
           slotId: slot?.id,
           startMin: slot?.defaultStartMin ?? 9 * 60,
           endMin: slot?.defaultEndMin ?? 18 * 60,
-          firstTimer: staff.role === "スポット",
+          firstTimer: isFirstTimeDefault(state, staff.id, date),
           absent: true,
         };
       });
@@ -345,9 +343,16 @@ export function suggestSlot(state: State, role: string, used: Set<ID> = new Set(
   const slots = Object.values(state.roleSlots).sort((a, b) => a.sortOrder - b.sortOrder);
   const special = ["介護助手", "看護", "スポット"];
   const key = special.find((k) => role.includes(k));
-  if (key) return slots.find((x) => x.name.includes(key) && !used.has(x.id)) ?? slots.find((x) => x.name.includes(key));
-  const general = slots.filter((x) => !special.some((k) => x.name.includes(k)));
-  return general.find((x) => !used.has(x.id)) ?? general[0] ?? slots[0];
+  // 職種の言葉がある番だけ仮に入れる。介護職員は番を空にして、人が選ぶ（勝手に夜勤や遅番に入れない）
+  if (!key) return undefined;
+  return slots.find((x) => x.name.includes(key) && !used.has(x.id)) ?? slots.find((x) => x.name.includes(key));
+}
+
+/** 初回の印の既定: 職種がスポットで、これまでに出勤（休み以外）が一度もない人 */
+export function isFirstTimeDefault(state: State, staffId: ID, date: DateKey): boolean {
+  const staff = state.staff[staffId];
+  if (!staff || staff.role !== "スポット") return false;
+  return !Object.values(state.roster).some((e) => e.staffId === staffId && e.date < date && !e.absent);
 }
 
 /**

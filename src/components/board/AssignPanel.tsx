@@ -28,7 +28,8 @@ export function AssignPanel({
   onDetail?: (taskId: ID) => void;
 }) {
   const task = state.tasks[taskId];
-  const [showOthers, setShowOthers] = useState(false);
+  // 「空いている人」が 0 人なら、ほかの人を最初から開いておく（押す回数を増やさない）
+  const [showOthers, setShowOthers] = useState(() => splitCandidates(rankCandidates(state, taskId)).open.length === 0);
   const closeRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -128,7 +129,7 @@ export function AssignPanel({
       <div className="flex flex-1 flex-col gap-3 overflow-auto p-4">
         <section aria-labelledby="ok-title">
           <h3 id="ok-title" className="mb-1.5 text-[14px] font-bold text-[var(--cn-muted)]">
-            問題なし {open.length}人
+            空いている人 {open.length}人
           </h3>
           {open.length > 0 ? (
             <ul className="divide-y divide-[var(--cn-grid)] rounded-xl border border-[var(--cn-border)]">{open.map((c) => row(c, true))}</ul>

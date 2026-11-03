@@ -31,16 +31,18 @@ test.describe("受け入れ: ボード", () => {
     await openSampleBoard(page);
   });
 
-  test("L27 ＋のパネル: 問題なしだけ開き、ほかの人は畳む。全員に理由が一文", async ({ page }) => {
+  test("L27 ＋のパネル: 空いている人だけ開き、ほかの人は畳む。全員に理由が一文", async ({ page }) => {
     const { panel } = await openBathPanel(page);
-    const okList = panel.locator("section").filter({ has: page.getByRole("heading", { name: /^問題なし \d+人$/ }) }).getByRole("listitem");
+    const okList = panel.locator("section").filter({ has: page.getByRole("heading", { name: /^空いている人 \d+人$/ }) }).getByRole("listitem");
     const okCount = await okList.count();
     const folded = panel.getByRole("button", { name: /^ほかの人（注意 (\d+)・勤務外 (\d+)）/ });
-    await expect(folded).toHaveAttribute("aria-expanded", "false");
-    // 畳んでいる間は、ほかの人の行は出ない
-    expect(await panel.getByRole("listitem").count()).toBe(okCount);
+    // 空いている人がいれば畳んでおく。0 人なら最初から開いている（押す回数を増やさない）
+    await expect(folded).toHaveAttribute("aria-expanded", okCount > 0 ? "false" : "true");
     const m = /注意 (\d+)・勤務外 (\d+)/.exec((await folded.innerText()) ?? "")!;
-    await folded.click();
+    if (okCount > 0) {
+      expect(await panel.getByRole("listitem").count()).toBe(okCount);
+      await folded.click();
+    }
     const all = panel.getByRole("listitem");
     expect(await all.count()).toBe(okCount + Number(m[1]) + Number(m[2]));
     // 全員に理由が一文（名前の下の p）
@@ -52,7 +54,8 @@ test.describe("受け入れ: ボード", () => {
   test("L28 注意（重なり・勤務外の一部・休憩・条件・初回のみ）は理由つきで追加でき、二重登録はできない", async ({ page }) => {
     const { panel, card } = await openBathPanel(page);
     const id = await card.getAttribute("data-task-id");
-    await panel.getByRole("button", { name: /^ほかの人/ }).click();
+    const others = panel.getByRole("button", { name: /^ほかの人/ });
+    if ((await others.getAttribute("aria-expanded")) !== "true") await others.click();
     const text = await panel.innerText();
     expect(text).toMatch(/注意: .*と重なります/);
     expect(text).toMatch(/条件「.+」を満たしていません/);
@@ -85,7 +88,10 @@ test.describe("受け入れ: ボード", () => {
     await card.scrollIntoViewIfNeeded();
     await card.getByRole("button", { name: /に担当を追加$/ }).click();
     const panel = page.getByRole("dialog");
-    await panel.getByRole("button", { name: /^ほかの人/ }).click();
+    {
+      const others = panel.getByRole("button", { name: /^ほかの人/ });
+      if ((await others.getAttribute("aria-expanded")) !== "true") await others.click();
+    }
     const kato = panel.getByRole("listitem").filter({ hasText: "加藤" });
     await expect(kato).toContainText("注意: 初回の方だけの配置になります");
     await kato.getByRole("button", { name: "加藤さんを追加" }).click();

@@ -11,7 +11,7 @@ import { assigneesOf, rosterOf, tasksOfStaff } from "./checks.ts";
 import { residentLabel } from "./display.ts";
 import { addDays } from "./pattern.ts";
 import { sheetRowFor } from "./routine.ts";
-import type { ID, Minutes, RosterEntry, Staff, State, TaskInstance } from "./types.ts";
+import type { DateKey, ID, Minutes, RosterEntry, Staff, State, TaskInstance } from "./types.ts";
 
 /** 時計の分（0–1439）を業務日の分へ。6:00 より前は前の日の夜勤帯（翌0:00〜翌6:00） */
 export function businessMinutes(clockMin: Minutes): Minutes {
@@ -23,6 +23,21 @@ export function businessMinutes(clockMin: Minutes): Minutes {
  * （夜勤明けの 翌6:00–翌9:00 の予定が出るように）。それ以外の人は businessMinutes と同じ。
  * 既に業務日の分（1440 以上。デモの ?now=30:30 など）ならそのまま。
  */
+/**
+ * 見ている人の業務日と時刻。夜勤帯の業務はその夜勤が始まった業務日に属する（data-model）ので、
+ * 前の業務日の勤務（翌9:00 まで など）の中にいる人は、前の業務日を開く（今日の勤務表より優先）。
+ * それ以外は date のまま、時刻は viewerMinutes。
+ */
+export function viewerDay(state: State, date: DateKey, staffId: ID | null, clockMin: Minutes): { date: DateKey; now: Minutes } {
+  if (staffId && clockMin < 24 * 60) {
+    const prev = addDays(date, -1);
+    const e = rosterOf(state, prev, staffId);
+    const at = clockMin + 24 * 60;
+    if (e && !e.absent && e.endMin > 24 * 60 && e.startMin <= at && at < e.endMin) return { date: prev, now: at };
+  }
+  return { date, now: viewerMinutes(state, date, staffId, clockMin) };
+}
+
 export function viewerMinutes(state: State, date: string, staffId: ID | null, clockMin: Minutes): Minutes {
   if (clockMin >= 24 * 60) return clockMin;
   const e = staffId ? rosterOf(state, date, staffId) : undefined;
@@ -45,8 +60,8 @@ export interface LeaderContact {
   /** リーダーが休憩中なら、その休憩の時刻と代わりの人 */
   onBreak?: { startMin: Minutes; endMin: Minutes };
   substitute?: ContactPerson;
-  /** リーダー本人が困ったときの次の相談先（勤務中で、次に順の人）。いなければ undefined */
-  next?: ContactPerson;
+  /** リーダー本人が困ったときの次の相談先（勤務中で、リーダーの番の次に順の人）。いなければ undefined */
+  next?: ContactPerson & { slotName: string };
 }
 
 const person = (s: Staff): ContactPerson => ({ staffId: s.id, surname: s.surname, phone: s.phone });
@@ -65,13 +80,14 @@ interface OnDuty {
   onBreak?: TaskInstance;
 }
 
-/** その時刻に勤務中の人。前の業務日の夜勤（翌9:00 まで など）も入れる */
+/** その時刻に勤務中の人。前の業務日の夜勤（翌9:00 まで など）と、翌朝（now が 1440 以上）なら次の日の早番も入れる */
 function onDutyAt(state: State, date: string, now: Minutes): OnDuty[] {
   const out: OnDuty[] = [];
   const prev = addDays(date, -1);
+  const next = addDays(date, 1);
   for (const e of Object.values(state.roster)) {
     if (e.absent || !state.staff[e.staffId]) continue;
-    const at = e.date === date ? now : e.date === prev ? now + 24 * 60 : undefined;
+    const at = e.date === date ? now : e.date === prev ? now + 24 * 60 : e.date === next && now >= 24 * 60 ? now - 24 * 60 : undefined;
     if (at === undefined || !(e.startMin <= at && at < e.endMin)) continue;
     const slot = e.slotId ? state.roleSlots[e.slotId] : undefined;
     out.push({ entry: e, at, rank: slot?.leaderRank, order: slot?.sortOrder ?? 999, onBreak: breakAt(state, e.date, e.staffId, at) });
@@ -93,12 +109,13 @@ export function leaderContact(state: State, date: string, now: Minutes): LeaderC
   const primary = byRank[0] ?? byOrder[0];
   if (!primary) return undefined;
   const leaderStaff = state.staff[primary.entry.staffId];
-  const nextDuty = [...byRank, ...byOrder].find((d) => d !== primary);
+  // リーダー本人の相談先は、リーダーの番（leaderRank）の人だけから（同僚ではなく、次の順の人）
+  const nextDuty = byRank.find((d) => d !== primary);
   const base = {
     leader: person(leaderStaff),
     isLeader: primary.rank !== undefined,
     slotName: primary.entry.slotId ? (state.roleSlots[primary.entry.slotId]?.name ?? "") : "",
-    next: nextDuty ? person(state.staff[nextDuty.entry.staffId]) : undefined,
+    next: nextDuty ? { ...person(state.staff[nextDuty.entry.staffId]), slotName: nextDuty.entry.slotId ? (state.roleSlots[nextDuty.entry.slotId]?.name ?? "") : "" } : undefined,
   };
   if (!primary.onBreak) return base;
   const sub = [...byRank, ...byOrder].find((d) => d !== primary && !d.onBreak);

@@ -50,6 +50,8 @@ export function TaskDetail({
   const unassign = (staffId: ID, surname: string) => {
     if (!engine) return;
     engine.dispatch(unassignEvents(engine.state, task.id, staffId, engine.context()), `${surname}さんを「${task.name}」の担当から外しました`);
+    // 押したボタンが消えるので、見出しへ
+    window.setTimeout(() => document.getElementById("task-detail-title")?.focus(), 0);
   };
   const shift = (delta: number) => {
     if (!engine) return;
@@ -71,7 +73,7 @@ export function TaskDetail({
     >
       <div className="flex items-start gap-3 border-b border-[var(--cn-border)] p-4">
         <div className="min-w-0 flex-1">
-          <h2 id="task-detail-title" className="text-[18px] font-bold">
+          <h2 id="task-detail-title" tabIndex={-1} className="text-[18px] font-bold outline-none">
             {task.name}
           </h2>
           <p className="text-[15px] text-[var(--cn-ink-soft)]">
@@ -105,7 +107,7 @@ export function TaskDetail({
                     type="button"
                     onClick={() => unassign(s.id, s.surname)}
                     aria-label={`${s.surname}さんを担当から外す`}
-                    className="inline-flex h-[44px] w-[40px] items-center justify-center rounded-full text-[17px]"
+                    className="inline-flex h-[44px] w-[44px] items-center justify-center rounded-full text-[17px]"
                   >
                     ×
                   </button>

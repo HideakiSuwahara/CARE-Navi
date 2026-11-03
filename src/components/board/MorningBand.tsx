@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useEngine } from "@/store/react";
-import { createDayEvents, morningDraft, suggestSlot } from "@/domain/pattern";
+import { createDayEvents, isFirstTimeDefault, morningDraft, suggestSlot } from "@/domain/pattern";
 import { fmtRange } from "@/domain/time";
 import type { DateKey, ID, RosterEntry, State } from "@/domain/types";
 
@@ -40,8 +40,7 @@ export function MorningBand({ state, date }: { state: State; date: DateKey }) {
   const addPerson = (staffId: ID) => {
     const staff = state.staff[staffId];
     if (!staff) return;
-    const isSpot = staff.role === "スポット";
-    // 既定の番: 職種の言葉を含む番、なければまだ誰にも当てていない番（人が選び直せる）
+    // 既定の番: 職種の言葉を含む番だけ（看護・介護助手・スポット）。ほかは人が選ぶ
     const slot = suggestSlot(state, staff.role, new Set(rows.filter((r) => !r.absent && r.slotId).map((r) => r.slotId as ID)));
     const entry: RosterEntry = {
       id: `draft-${date}-add-${staffId}`,
@@ -50,7 +49,7 @@ export function MorningBand({ state, date }: { state: State; date: DateKey }) {
       slotId: slot?.id,
       startMin: slot?.defaultStartMin ?? 540,
       endMin: slot?.defaultEndMin ?? 1080,
-      firstTimer: isSpot,
+      firstTimer: isFirstTimeDefault(state, staffId, date),
       absent: false,
     };
     setRows((prev) => [...prev, entry]);
@@ -80,7 +79,7 @@ export function MorningBand({ state, date }: { state: State; date: DateKey }) {
         )}
         {draft.source === "none" && (
           <p className="mt-1 text-[15px] text-[var(--cn-ink-soft)]">
-            はじめての日です。職員を全員「休み」で並べました。今日来る人の「出勤にする」を押してください（番は職種から仮に入れています。違えば選び直してください）。
+            はじめての日です。職員を全員「休み」で並べました。今日来る人の「出勤にする」を押し、番（早番A など、その日の役割）を選んでください。看護・介護助手・スポットの番は仮に入れています。業務表（その曜日の仕事の並び）は下で選べます。
           </p>
         )}
       </div>
@@ -98,7 +97,17 @@ export function MorningBand({ state, date }: { state: State; date: DateKey }) {
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <span className="shrink-0 font-bold">{staff?.surname}</span>
-                  {e.firstTimer && !e.absent && <span className="shrink-0 rounded border border-[var(--cn-card-line)] px-1.5 text-[13px]">初回</span>}
+                  {!e.absent && (e.firstTimer || staff?.role === "スポット") && (
+                    <button
+                      type="button"
+                      aria-pressed={e.firstTimer}
+                      onClick={() => update(e.id, { firstTimer: !e.firstTimer })}
+                      className={`h-[44px] shrink-0 rounded border px-1.5 text-[13px] ${e.firstTimer ? "border-[var(--cn-ink)] font-bold" : "border-[var(--cn-card-line)] text-[var(--cn-muted)]"}`}
+                      title="初回の印（押すと外せます）"
+                    >
+                      初回
+                    </button>
+                  )}
                   {e.absent ? (
                     <span className="text-[14px]">休み</span>
                   ) : (
@@ -106,8 +115,14 @@ export function MorningBand({ state, date }: { state: State; date: DateKey }) {
                       aria-label={`${staff?.surname} の番`}
                       value={e.slotId ?? ""}
                       onChange={(ev) => setSlot(e.id, ev.target.value)}
-                      className="h-[44px] min-w-0 flex-1 rounded-lg border border-[var(--cn-control-line)] bg-white px-2 text-[15px]"
+                      aria-invalid={!e.slotId || undefined}
+                      className={`h-[44px] min-w-0 flex-1 rounded-lg border bg-white px-2 text-[15px] ${e.slotId ? "border-[var(--cn-control-line)]" : "border-2 border-[var(--cn-alert-line)]"}`}
                     >
+                      {!e.slotId && (
+                        <option value="" disabled>
+                          番を選ぶ
+                        </option>
+                      )}
                       {slots.map((s) => (
                         <option key={s.id} value={s.id}>
                           {s.name}
@@ -175,12 +190,14 @@ export function MorningBand({ state, date }: { state: State; date: DateKey }) {
         <button
           type="button"
           onClick={create}
-          disabled={!patternId || rows.filter((r) => !r.absent).length === 0 || busy}
+          disabled={!patternId || rows.filter((r) => !r.absent).length === 0 || rows.some((r) => !r.absent && !r.slotId) || busy}
           className="h-[56px] rounded-xl bg-[var(--cn-accent)] px-8 text-[17px] font-bold text-white disabled:opacity-50"
         >
           この内容で作る
         </button>
-        <span className="text-[14px] text-[var(--cn-muted)]">作ったあとで直せます。元に戻すこともできます。</span>
+        <span className="text-[14px] text-[var(--cn-muted)]">
+          {rows.some((r) => !r.absent && !r.slotId) ? "番を選んでいない人がいます（赤い枠）。" : "作ったあとで直せます。元に戻すこともできます。"}
+        </span>
       </div>
     </section>
   );

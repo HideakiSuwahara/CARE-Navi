@@ -27,14 +27,18 @@ test.describe("設定", () => {
     await page.getByRole("button", { name: "登録する" }).click();
     await expect(page).toHaveURL(/\/board/);
     await expect(page.getByText("みどり荘")).toBeVisible();
-    await expect(page.getByText(/登録しました（グループ 2・利用者 1人・職員 2人）。取り込めなかった行が 1 行あります/)).toBeVisible();
+    await expect(page.getByText(/登録しました（グループ 2・利用者 1人・職員 2人）。取り込めなかった行: 利用者 1・職員 0/)).toBeVisible();
     await expect(page.getByRole("heading", { name: "今日の時間割を作る" })).toBeVisible();
     // はじめての日: 職員を全員「休み」で並べ、来る人を1タップで出勤にする。番の名前に雛形のグループ名が残らない
     const list = page.getByRole("list", { name: "今日の出勤者" });
     await expect(list.getByRole("button", { name: "出勤にする" })).toHaveCount(2);
     await list.getByRole("button", { name: "出勤にする" }).first().click();
-    const options = await list.getByRole("combobox").first().locator("option").allTextContents();
+    const select = list.getByRole("combobox").first();
+    const options = await select.locator("option").allTextContents();
     expect(options.join(" ")).not.toMatch(/東|さくら/);
+    // 介護職員は番が空（番を選ぶ）。選ぶまで「この内容で作る」は押せない
+    await expect(page.getByRole("button", { name: "この内容で作る" })).toBeDisabled();
+    await select.selectOption({ label: "早番A" });
     await page.getByRole("button", { name: "この内容で作る" }).click();
     await expect(page.getByRole("heading", { name: "今日の時間割を作る" })).toHaveCount(0);
   });

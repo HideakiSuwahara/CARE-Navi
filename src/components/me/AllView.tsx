@@ -33,7 +33,7 @@ import {
   type AllRow,
 } from "@/domain/leader";
 import { businessMinutes } from "@/domain/myday";
-import type { EventContext } from "@/domain/pattern";
+import { addDays, type EventContext } from "@/domain/pattern";
 import { fmtMin, fmtRange } from "@/domain/time";
 import { MAX_MINUTES, type ID, type State } from "@/domain/types";
 import type { Engine } from "@/store/engine";
@@ -77,6 +77,10 @@ export function AllView({ state, date, me, now, clock, tabs }: { state: State; d
   const rows = useMemo(() => allRows(state, date, now), [state, date, now]);
   const groups = useMemo(() => unfilledGroups(rows), [rows]);
   const overnight = useMemo(() => overnightRows(state, date, now), [state, date, now]);
+  const prevLabel = (() => {
+    const p = addDays(date, -1);
+    return `${Number(p.slice(5, 7))}/${Number(p.slice(8, 10))}`;
+  })();
   const [sheet, setSheet] = useState<SheetState>(null);
   const [flash, setFlash] = useState<Set<ID>>(new Set());
   const [toast, setToast] = useState<string | null>(null);
@@ -199,16 +203,16 @@ export function AllView({ state, date, me, now, clock, tabs }: { state: State; d
             ))}
           </div>
         ) : (
-          rows.length > 0 && <p className="mt-1 text-[16px] text-[var(--cn-ink-soft)]">これからの業務で、担当未定はありません。</p>
+          rows.length > 0 && <p className="mt-1 text-[16px] text-[var(--cn-ink-soft)]">きょうの業務で、担当未定はありません。</p>
         )}
       </header>
 
       {overnight.length > 0 && (
         <section aria-labelledby="overnight-title" className="mx-4 mt-4 rounded-xl border border-dashed border-[var(--cn-control-line)] bg-white p-3">
           <h2 id="overnight-title" className="text-[16px] font-bold">
-            夜勤明け（前日の夜勤の業務）
+            昨夜の夜勤（{prevLabel} から）の業務
           </h2>
-          <p className="text-[14px] text-[var(--cn-ink-soft)]">前日の時間割に入っている業務です。ここでは見るだけです（変えるときは前日のボードで）。</p>
+          <p className="text-[14px] text-[var(--cn-ink-soft)]">{prevLabel} の時間割に入っている業務です。ここでは見るだけです（変えるときは PC のボードで日付を {prevLabel} にして）。</p>
           <ul className="mt-1 flex flex-col divide-y divide-[var(--cn-card-line)]">
             {overnight.map((r) => (
               <li key={r.task.id} className="py-2">
@@ -501,8 +505,8 @@ function MenuSheet({ state, engine, taskId, now, onClose, onApply }: { state: St
 // ---------------------------------------------------------------------------
 
 function CandidateList({ state, cands, onPick, pickLabel }: { state: State; cands: Candidate[]; onPick: (c: Candidate) => void; pickLabel: string }) {
-  const [showOthers, setShowOthers] = useState(false);
   const { open, folded, warnCount, offCount } = splitCandidates(cands);
+  const [showOthers, setShowOthers] = useState(open.length === 0);
   const row = (c: Candidate, canAdd: boolean) => (
     <li key={c.staff.id} className="flex items-center gap-3 px-3 py-2">
       <div className="min-w-0 flex-1">
@@ -532,7 +536,7 @@ function CandidateList({ state, cands, onPick, pickLabel }: { state: State; cand
     <>
       <section aria-labelledby="cand-ok">
         <h3 id="cand-ok" className="mb-1.5 text-[14px] font-bold text-[var(--cn-muted)]">
-          問題なし {open.length}人
+          空いている人 {open.length}人
         </h3>
         {open.length > 0 ? (
           <ul className="divide-y divide-[var(--cn-grid)] rounded-xl border border-[var(--cn-border)] bg-white">{open.map((c) => row(c, true))}</ul>
@@ -745,18 +749,26 @@ function EscortFlow({ state, engine, date, now, onClose, onApply }: { state: Sta
           />
         ) : (
           <div className="flex flex-col items-start gap-2">
-            <span>まだ決めない（担当未定で足します）</span>
             <div className="flex flex-wrap gap-2">
-              {/* 「問題なし」の先頭の人を1タップで付けられる（docs/screens.md §4.1） */}
+              <button type="button" aria-pressed="true" className={chip(true)}>
+                まだ決めない（担当未定で足す）
+              </button>
+              {/* 「空いている人」の先頭を1タップで付けられる（docs/screens.md §4.1） */}
               {topCandidate && (
-                <button type="button" onClick={() => setStaffId(topCandidate.staff.id)} className={`${chip(false)} font-bold`}>
+                <button type="button" aria-pressed="false" onClick={() => setStaffId(topCandidate.staff.id)} className={chip(false)}>
                   {topCandidate.staff.surname}さんを担当にする
                 </button>
               )}
-              <button type="button" onClick={() => setPickStaff(true)} className={chip(false)}>
+              <button type="button" aria-pressed="false" onClick={() => setPickStaff(true)} className={chip(false)}>
                 {topCandidate ? "ほかの人から選ぶ" : "担当を選ぶ"}
               </button>
             </div>
+            {topCandidate && (
+              <p className="text-[14px] text-[var(--cn-ink-soft)]">
+                {topCandidate.staff.surname}
+                {topCandidate.entry?.slotId && state.roleSlots[topCandidate.entry.slotId] ? `（${state.roleSlots[topCandidate.entry.slotId].name}）` : ""}は、この時間に空いています。
+              </p>
+            )}
           </div>
         )}
       </section>

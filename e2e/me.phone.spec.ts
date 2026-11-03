@@ -65,7 +65,10 @@ test.describe("自分の予定（スマホ）", () => {
     await card.scrollIntoViewIfNeeded();
     await card.getByRole("button", { name: /に担当を追加$/ }).click();
     const panel = board.getByRole("dialog");
-    await panel.getByRole("button", { name: /^ほかの人/ }).click(); // 初回の方は「注意」に畳まれている
+    {
+      const others = panel.getByRole("button", { name: /^ほかの人/ });
+      if ((await others.getAttribute("aria-expanded")) !== "true") await others.click();
+    } // 初回の方は「注意」に畳まれている
     await panel.getByRole("button", { name: "加藤さんを追加" }).click();
     await expect(page.getByRole("heading", { name: "きょうの流れ" }).locator("..")).toContainText("面会対応", { timeout: 2000 });
   });

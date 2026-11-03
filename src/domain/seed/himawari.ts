@@ -910,6 +910,8 @@ const nightCommon: ItemSpec[] = [
   { id: "wakeup-east-night", tpl: TPL_WAKEUP, start: nx(6), end: nx(7), group: GRP_EAST, slots: [SLOT_YAKIN_EAST], hc: 1, rt: "rt-wake-east" },
   { id: "wakeup-sakura-night", tpl: TPL_WAKEUP, start: nx(6), end: nx(7), group: GRP_SAKURA, slots: [SLOT_YAKIN_SAKURA], hc: 1, rt: "rt-wake-sakura" },
   { id: "breakfast-sakura-night", tpl: TPL_BREAKFAST, start: nx(7, 30), end: nx(8, 30), group: GRP_SAKURA, slots: [SLOT_YAKIN_SAKURA], hc: 1, rt: "rt-breakfast-sakura" },
+  // 夜勤明けの東は朝食に 1 人入る（早番 2 人の枠は翌日の業務日。重ねて数えないよう日課は付けない）。申し送りは勤務の終わり際（夜勤 → 早番）
+  { id: "breakfast-east-night", tpl: TPL_BREAKFAST, start: nx(8), end: nx(8, 30), group: GRP_EAST, slots: [SLOT_YAKIN_EAST], hc: 1 },
   { id: "handover-night", tpl: TPL_HANDOVER, start: nx(8, 30), end: nx(9), group: GRP_COMMON, slots: [SLOT_YAKIN_EAST, SLOT_YAKIN_SAKURA], hc: 2 },
 ];
 
@@ -1019,17 +1021,15 @@ const roster: RosterEntry[] = [
   ros(D1, STF_SAITO, SLOT_YAKIN_EAST),
   ros(D1, STF_NOGUCHI, SLOT_YAKIN_SAKURA),
   ros(D1, STF_WATANABE, SLOT_JOSHU, { absent: true }),
-  // 11/4（水）平日。介護助手が出勤、スポットなし。
+  // 11/4（水）平日。介護助手が出勤、スポットなし。11/3 の夜勤（斉藤・野口）は明けで休み。夜勤は木村・山本
   ros(D2, STF_SATO, SLOT_HAYABAN_A),
   ros(D2, STF_TAKAHASHI, SLOT_HAYABAN_B),
   ros(D2, STF_SUZUKI, SLOT_NIKKIN_A),
   ros(D2, STF_ITO, SLOT_NIKKIN_B),
-  ros(D2, STF_YAMAMOTO, SLOT_NIKKIN_C),
   ros(D2, STF_OGAWA, SLOT_NIKKIN_SAKURA),
   ros(D2, STF_NAKAMURA, SLOT_KANGO),
-  ros(D2, STF_KIMURA, SLOT_OSOBAN),
-  ros(D2, STF_SAITO, SLOT_YAKIN_EAST),
-  ros(D2, STF_NOGUCHI, SLOT_YAKIN_SAKURA),
+  ros(D2, STF_KIMURA, SLOT_YAKIN_EAST),
+  ros(D2, STF_YAMAMOTO, SLOT_YAKIN_SAKURA),
   ros(D2, STF_WATANABE, SLOT_JOSHU),
 ];
 

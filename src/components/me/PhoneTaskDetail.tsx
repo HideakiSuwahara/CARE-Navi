@@ -171,7 +171,9 @@ export function PhoneTaskDetail({ state, date, taskId, me, now }: { state: State
             )}
             {lines.some((l) => l.timeMin !== undefined) && <p className="mt-2 text-[14px] text-[var(--cn-muted)]">右の時刻は、いつもと違う時刻の方です。</p>}
             <p className="mt-1 text-[14px] text-[var(--cn-muted)]">
-              {beforeShift && !supportShown && entry ? `お一人ずつの注意点は、勤務が始まる ${fmtMin(entry.startMin)} からここに出ます。` : "ほかに気になることは、相談先に確認してください。"}
+              {beforeShift && !supportShown && entry
+                ? `お一人ずつの注意点がある方は、勤務が始まる ${fmtMin(entry.startMin)} からここに出ます。お一人ずつの介助のしかたは、一緒に入る人か相談先に聞いてください。`
+                : "ほかに気になることは、相談先に確認してください。"}
             </p>
           </section>
         )}

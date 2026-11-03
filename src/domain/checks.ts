@@ -7,7 +7,7 @@
  * - 二重登録だけ禁止（block）。他は施設設定 checkMode が warn なら警告して許可。
  */
 
-import { fmtRange } from "./time.ts";
+import { fmtMin, fmtRange } from "./time.ts";
 import { overlaps, within } from "./time.ts";
 import type {
   Assignment,
@@ -129,10 +129,15 @@ export function checkAssignment(state: State, taskId: ID, staffId: ID): Issue[] 
   if (!entry) {
     issues.push({ code: "noRoster", severity: sev(state, "noRoster"), message: "本日の勤務予定がありません" });
   } else if (entry.absent) {
-    issues.push({ code: "absent", severity: sev(state, "absent"), message: "本日は欠勤です" });
+    issues.push({ code: "absent", severity: sev(state, "absent"), message: "本日休みです" });
   } else if (!within(task.startMin, task.endMin, entry.startMin, entry.endMin)) {
     const covers = overlaps(task.startMin, task.endMin, entry.startMin, entry.endMin);
-    const message = covers
+    // 番の既定より早く帰る（早退）なら、その言い方にする
+    const slotEnd = entry.slotId ? state.roleSlots[entry.slotId]?.defaultEndMin : undefined;
+    const leftEarly = slotEnd !== undefined && entry.endMin < slotEnd && task.startMin >= entry.endMin;
+    const message = leftEarly
+      ? `${fmtMin(entry.endMin)} までの勤務です（早退）`
+      : covers
       ? task.startMin < entry.startMin
         ? `${fmtRange(task.startMin, Math.min(entry.startMin, task.endMin))} は勤務前です（勤務 ${fmtRange(entry.startMin, entry.endMin)}）`
         : `${fmtRange(Math.max(entry.endMin, task.startMin), task.endMin)} は勤務後です（勤務 ${fmtRange(entry.startMin, entry.endMin)}）`

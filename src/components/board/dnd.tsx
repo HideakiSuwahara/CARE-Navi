@@ -28,9 +28,13 @@ export function BoardDnd({ engine, children, onNotice }: { engine: Engine | null
   const sensors = useSensors(
     // 少し動かしてから掴む（押すだけの操作は今までどおり）
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(KeyboardSensor),
+    // Enter は「詳細を開く」に空けておき、スペースで持ち上げる
+    useSensor(KeyboardSensor, { keyboardCodes: { start: ["Space"], cancel: ["Escape"], end: ["Space"] } }),
   );
 
+  // 読み上げ用（英語の既定文と内部 ID を出さない）
+  const who = (d: DragData | undefined) => (d && engine ? (engine.state.staff[d.staffId]?.surname ?? "") : "");
+  const where = (d: DropData | undefined) => (!d || !engine ? "" : d.kind === "palette" ? "出勤者一覧" : (engine.state.tasks[d.taskId]?.name ?? "カード"));
   // 持ち上げている人の名前（パレットのスクロールに切られないよう、上に重ねて出す）
   const [lifted, setLifted] = useState<string | null>(null);
   const onDragStart = (e: DragStartEvent) => {
@@ -83,7 +87,17 @@ export function BoardDnd({ engine, children, onNotice }: { engine: Engine | null
       autoScroll={{ threshold: { x: 0.04, y: 0.06 } }}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
-      onDragCancel={() => setLifted(null)} accessibility={{ screenReaderInstructions: { draggable: "スペースキーで持ち上げ、矢印キーで動かし、もう一度スペースキーで置きます。Esc でやめます。" } }}>
+      onDragCancel={() => setLifted(null)}
+      accessibility={{
+        screenReaderInstructions: { draggable: "Enter で業務の詳細（外すボタン）を開きます。スペースキーで持ち上げ、矢印キーで動かし、もう一度スペースキーで置きます。Esc でやめます。" },
+        announcements: {
+          onDragStart: ({ active }) => `${who(active.data.current as DragData | undefined)}さんを持ち上げました`,
+          onDragOver: ({ over }) => (over ? `${where(over.data.current as DropData | undefined)}の上です` : "カードの外です"),
+          onDragEnd: ({ active, over }) => (over ? `${who(active.data.current as DragData | undefined)}さんを${where(over.data.current as DropData | undefined)}に置きました` : "やめました"),
+          onDragCancel: () => "やめました",
+        },
+      }}
+    >
       {children}
       <DragOverlay dropAnimation={null}>
         {lifted && (

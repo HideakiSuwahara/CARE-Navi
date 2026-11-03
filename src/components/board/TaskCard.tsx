@@ -61,23 +61,24 @@ export function TaskCard({
     <StaffChip key={id} taskId={task.id} staffId={staff!.id} surname={staff!.surname} firstTimer={firstTimer} onOpen={() => onOpen?.(task.id)} />
   ));
 
-  const titleButton = (
-    <button
-      type="button"
-      onClick={() => onOpen?.(task.id)}
-      data-card-title=""
-      className={`-my-[10px] block min-h-[44px] min-w-[44px] shrink truncate py-[10px] text-left text-[15px] font-bold leading-6 hover:underline ${
-        isBreak ? "text-[var(--cn-break-ink)]" : ""
-      }`}
-    >
-      {title}
-    </button>
-  );
   const when = (
     <>
       {fmtRange(task.startMin, task.endMin)}
       {task.targetMode === "group" && targets.length > 0 && ` ・ ${targets.length}人`}
     </>
+  );
+  // 業務名のボタンは 2 行（名前・時刻）で高さ 44px。負のマージンで広げないので、隣の要素に押せる領域を取られない
+  const titleButton = (
+    <button
+      type="button"
+      onClick={() => onOpen?.(task.id)}
+      data-card-title=""
+      title={title}
+      className={`block w-full min-w-[44px] max-w-full text-left hover:underline ${mini ? "flex min-h-[44px] items-center" : "min-h-[44px]"}`}
+    >
+      <span className={`block truncate text-[15px] font-bold leading-6 ${isBreak ? "text-[var(--cn-break-ink)]" : ""}`}>{title}</span>
+      {!mini && <span className="block truncate text-[14px] font-normal leading-5 text-[var(--cn-muted)]">{when}</span>}
+    </button>
   );
   const plus = (
     <button
@@ -95,7 +96,7 @@ export function TaskCard({
       aria-label={`${title} ${fmtRange(task.startMin, task.endMin)}${short ? ` ${status.label}` : ""}`}
       className={`flex h-full gap-2 overflow-hidden rounded-[10px] px-2.5 py-1 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ${
         rail && !short ? "bg-[var(--cn-rail-bg)]" : ""
-      } ${frame} ${compact || mini ? "flex-row items-center" : "flex-col"}`}
+      } ${compact || mini ? "flex-row items-center" : "flex-col"} ${frame}`}
       data-task-id={task.id}
       data-level={isBreak ? "break" : status.level}
       data-badge={short ? status.label : undefined}
@@ -106,23 +107,18 @@ export function TaskCard({
           <div className="flex min-w-0 flex-1 items-center gap-2">
             {titleButton}
             {badge ?? (
-              <span className="min-w-0 truncate text-[13px] text-[var(--cn-accent)]">{assignees.map((a) => a.staff!.surname).join("・")}</span>
+              <span className="min-w-0 truncate text-[14px] text-[var(--cn-accent)]">{assignees.map((a) => a.staff!.surname).join("・")}</span>
             )}
           </div>
           {plus}
         </>
       ) : compact ? (
         <>
-          {/* 短い業務（2時間未満の高さ）: 左に 名前・時刻／バッジ・担当、右に ＋。状態（バッジ）を先に出して切らさない */}
-          <div className="flex min-w-0 flex-1 flex-col gap-1">
-            <div className="flex min-w-0 items-baseline gap-2">
-              {titleButton}
-              <span className="min-w-0 truncate text-[13px] text-[var(--cn-muted)]">{when}</span>
-            </div>
-            <div className="flex min-w-0 flex-nowrap items-center gap-1.5 overflow-hidden">
-              {badge}
-              {chips}
-            </div>
+          {/* 短い業務（2時間未満の高さ）: 1 行に 名前（2行）・バッジ・担当・＋。どれも高さ 44px で重ならない */}
+          <div className="min-w-0 flex-1">{titleButton}</div>
+          <div className="flex min-w-0 shrink items-center gap-1.5 overflow-hidden">
+            {badge}
+            {chips}
           </div>
           {plus}
         </>
@@ -130,10 +126,7 @@ export function TaskCard({
         <>
           {/* ＋ は右上（短いカードと同じ右側）。担当チップは押せる高さ 44px のまま折り返す */}
           <div className="flex min-w-0 items-start gap-2">
-            <div className="flex min-w-0 flex-1 flex-col pt-[10px]">
-              {titleButton}
-              <span className="truncate text-[13px] leading-5 text-[var(--cn-muted)]">{when}</span>
-            </div>
+            <div className="min-w-0 flex-1">{titleButton}</div>
             {plus}
           </div>
           <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5">
@@ -155,6 +148,12 @@ function StaffChip({ taskId, staffId, surname, firstTimer, onOpen }: { taskId: I
       type="button"
       {...dragProps}
       onClick={onOpen}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          onOpen();
+        }
+      }}
       style={style}
       className={`inline-flex h-[44px] min-w-[44px] shrink-0 cursor-grab touch-none items-center ${isDragging ? "opacity-80" : ""}`}
       aria-label={`${surname}${firstTimer ? "（初回）" : ""}`}
@@ -162,7 +161,7 @@ function StaffChip({ taskId, staffId, surname, firstTimer, onOpen }: { taskId: I
     >
       <span className={`inline-flex h-[28px] items-center gap-1 rounded-full border border-[var(--cn-accent)] bg-[var(--cn-accent-soft)] px-2.5 text-[14px] text-[var(--cn-accent)] ${isDragging ? "shadow-lg" : ""}`}>
         {surname}
-        {firstTimer && <span className="rounded border border-[var(--cn-card-line)] bg-white px-1 text-[12px] text-[var(--cn-ink)]">初回</span>}
+        {firstTimer && <span className="rounded border border-[var(--cn-card-line)] bg-white px-1 text-[13px] text-[var(--cn-ink)]">初回</span>}
       </span>
     </button>
   );

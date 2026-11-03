@@ -61,15 +61,17 @@ export function Setup() {
           onDone={async (events, r) => {
             if (!engine) return;
             await engine.reset(events);
-            const errors = r.residentErrors.length + r.staffErrors.length;
+            const residentErrors = r.residentErrors.length;
+            const staffErrors = r.staffErrors.length;
             try {
               window.sessionStorage.setItem(
                 SETUP_NOTE_KEY,
                 JSON.stringify({
                   text: `登録しました（グループ ${r.counts.groups}・利用者 ${r.counts.residents}人・職員 ${r.counts.staff}人）。${
-                    errors > 0 ? `取り込めなかった行が ${errors} 行あります。` : ""
-                  }下の「今日の時間割を作る」で、今日来る人の「出勤にする」を押してください。`,
-                  errors,
+                    residentErrors + staffErrors > 0 ? `取り込めなかった行: 利用者 ${residentErrors}・職員 ${staffErrors}。` : ""
+                  }`,
+                  residentErrors,
+                  staffErrors,
                 }),
               );
             } catch {

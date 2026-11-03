@@ -38,7 +38,8 @@ test.describe("ボードの職員表示と分担表", () => {
     await card.scrollIntoViewIfNeeded();
     await card.getByRole("button", { name: /に担当を追加$/ }).click();
     const panel = page.getByRole("dialog");
-    await panel.getByRole("button", { name: /^ほかの人/ }).click();
+    const others = panel.getByRole("button", { name: /^ほかの人/ });
+    if ((await others.getAttribute("aria-expanded")) !== "true") await others.click();
     const overlapper = panel.getByRole("listitem").filter({ hasText: "重なります" }).first();
     const surname = (await overlapper.getByRole("button", { name: /さんを追加$/ }).getAttribute("aria-label"))!.replace(/さんを追加$/, "").trim();
     await overlapper.getByRole("button", { name: /さんを追加$/ }).click();

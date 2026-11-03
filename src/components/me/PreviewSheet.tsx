@@ -81,7 +81,7 @@ export function PreviewSheet({
         <h3 id="pv-lines" className="mb-1.5 text-[14px] font-bold text-[var(--cn-muted)]">
           変わること
         </h3>
-        <p className="mb-1.5 text-[14px] text-[var(--cn-ink-soft)]">チェックを外すと、その行はしません。</p>
+        <p className="mb-1.5 text-[14px] text-[var(--cn-ink-soft)]">チェックのある行を行います。外すとその行はしません。「候補」の行は、チェックを入れると行います。</p>
         <ul className="flex flex-col divide-y divide-[var(--cn-grid)] rounded-xl border border-[var(--cn-border)] bg-white">
           {lines.map((l, i) => {
             const on = l.eventIds.every((id) => !unchecked.has(id));
@@ -90,7 +90,10 @@ export function PreviewSheet({
                 {l.optional && l.eventIds.length > 0 ? (
                   <label className="flex min-h-[44px] cursor-pointer items-start gap-3">
                     <input type="checkbox" checked={on} onChange={(e) => toggle(l.eventIds, e.target.checked)} className="mt-1 h-[22px] w-[22px] shrink-0 accent-[var(--cn-accent)]" />
-                    <span className={on ? "" : "text-[var(--cn-muted)] line-through"}>{l.text}</span>
+                    <span className={on ? "" : l.defaultOn === false ? "text-[var(--cn-ink-soft)]" : "text-[var(--cn-muted)] line-through"}>
+                      {!on && l.defaultOn === false && <span className="mr-1 rounded border border-[var(--cn-control-line)] px-1 text-[13px]">候補</span>}
+                      {l.text}
+                    </span>
                   </label>
                 ) : (
                   <p className={`flex min-h-[32px] items-start gap-2 ${l.kind === "effect" ? "font-bold text-[var(--cn-unassigned-ink)]" : ""}`}>
