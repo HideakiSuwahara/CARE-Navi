@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { Engine } from "../engine.ts";
+import { Engine, type UndoEntry } from "../engine.ts";
 import { MemoryStore } from "../datastore.ts";
 import { seedToEvents, deterministicContext } from "../../domain/loadSeed.ts";
 import { assignEvents, escortPreview } from "../../domain/commands.ts";
@@ -88,4 +88,27 @@ test("履歴は上限まで。古いものから戻せなくなる", async () =>
     if (u) labels.push(u.label);
   }
   assert.deepEqual(labels, ["4", "3", "2"]);
+});
+
+
+test("「元に戻す」の一覧を残しておくと、作り直した Engine でも戻せる（イベント列から打ち消しの状態を作り直す）", async () => {
+  const { engine, store } = makeEngine();
+  void engine;
+  const saved: { log: UndoEntry[] } = { log: [] };
+  const undoLog = { load: () => [...saved.log], save: (e: UndoEntry[]) => void (saved.log = [...e]) };
+  let n = 0;
+  const e1 = new Engine({ store, newId: () => `u-${++n}`, now: () => new Date("2026-11-03T10:12:00+09:00"), undoLog });
+  await e1.start();
+  const bath = findTask(e1.state, "入浴介助");
+  await e1.dispatch(assignEvents(bath.id, "s-kato", e1.context()), "加藤さんを入れました");
+  assert.equal(headcountStatus(e1.state, bath.id).assigned, 3);
+  assert.equal(saved.log.length, 1);
+  // 読み込み直し（別の Engine）
+  const e2 = new Engine({ store, newId: () => `v-${++n}`, now: () => new Date("2026-11-03T10:13:00+09:00"), undoLog });
+  await e2.start();
+  assert.equal(e2.lastUndo?.label, "加藤さんを入れました");
+  const done = await e2.undo();
+  assert.ok(done);
+  assert.equal(headcountStatus(e2.state, bath.id).assigned, 2);
+  assert.equal(saved.log.length, 0);
 });

@@ -25,6 +25,36 @@ export interface UndoEntry {
   at: string;
 }
 
+/** 「元に戻す」の一覧を端末に残す（読み込み直しても戻せる）。保存は batchId と label だけ。打ち消しに要る状態は起動時にイベント列から作り直す */
+export interface UndoLog {
+  load(): UndoEntry[];
+  save(entries: UndoEntry[]): void;
+}
+
+/** ブラウザの localStorage に残す UndoLog（保存層ごとに鍵を分ける） */
+export function localUndoLog(key: string): UndoLog {
+  return {
+    load() {
+      try {
+        const raw = typeof localStorage !== "undefined" ? localStorage.getItem(key) : null;
+        const parsed = raw ? (JSON.parse(raw) as UndoEntry[]) : [];
+        return Array.isArray(parsed) ? parsed.filter((u) => u && typeof u.batchId === "string" && typeof u.label === "string") : [];
+      } catch {
+        return [];
+      }
+    },
+    save(entries) {
+      try {
+        if (typeof localStorage === "undefined") return;
+        if (entries.length === 0) localStorage.removeItem(key);
+        else localStorage.setItem(key, JSON.stringify(entries));
+      } catch {
+        // 残せなくても、このタブでは戻せる
+      }
+    },
+  };
+}
+
 export interface EngineOptions {
   store: DataStore;
   newId?: () => ID;
@@ -32,6 +62,8 @@ export interface EngineOptions {
   actorId?: ID;
   /** 戻せる手数 */
   historyLimit?: number;
+  /** 「元に戻す」の一覧を残す場所（省略ならメモリだけ） */
+  undoLog?: UndoLog;
 }
 
 function defaultNewId(): ID {
@@ -48,6 +80,7 @@ export class Engine {
   private readonly newId: () => ID;
   private readonly now: () => Date;
   private readonly historyLimit: number;
+  private readonly undoLog: UndoLog | null;
   private unsubscribeStore: (() => void) | null = null;
   actorId?: ID;
   ready = false;
@@ -58,6 +91,7 @@ export class Engine {
     this.now = opts.now ?? (() => new Date());
     this.actorId = opts.actorId;
     this.historyLimit = opts.historyLimit ?? 10;
+    this.undoLog = opts.undoLog ?? null;
   }
 
   get state(): State {
@@ -67,7 +101,21 @@ export class Engine {
   /** 保存済みイベントを読み込み、以後の配信を受ける */
   async start(): Promise<void> {
     const events = await this.store.load();
-    this._state = applyEvents(emptyState(), events);
+    // 端末に残した「元に戻す」の一覧があれば、そのバッチの打ち消しに要る状態（各イベントの直前）をイベント列から作り直す
+    const saved = this.undoLog?.load() ?? [];
+    const present = new Set(events.map((e) => e.batchId));
+    const wanted = new Set(saved.filter((u) => present.has(u.batchId)).map((u) => u.batchId));
+    if (wanted.size > 0) {
+      let s = emptyState();
+      for (const ev of events) {
+        if (wanted.has(ev.batchId)) this.history.push({ event: ev, before: s });
+        s = applyEvents(s, [ev]);
+      }
+      this._state = s;
+      this.undoStack = saved.filter((u) => wanted.has(u.batchId));
+    } else {
+      this._state = applyEvents(emptyState(), events);
+    }
     this.unsubscribeStore = this.store.subscribe((incoming) => {
       this._state = applyEvents(this._state, incoming);
       this.emit();
@@ -112,6 +160,7 @@ export class Engine {
       this.history.push(...items);
       this.undoStack.push({ batchId: events[0].batchId, label, at: events[0].ts });
       this.trimHistory();
+      this.undoLog?.save(this.undoStack);
     }
     this.emit();
     await this.store.append(events);
@@ -131,6 +180,7 @@ export class Engine {
     const events: Event[] = inverse.map((ev) => ({ ...ev, eventId: ctx.newId(), ts: ctx.ts, batchId: ctx.batchId, actorId: ctx.actorId }));
     this.undoStack.splice(idx, 1);
     this.history = this.history.filter((h) => h.event.batchId !== entry.batchId);
+    this.undoLog?.save(this.undoStack);
     await this.dispatch(events);
     return entry;
   }
@@ -148,6 +198,7 @@ export class Engine {
     await this.store.clear();
     this.history = [];
     this.undoStack = [];
+    this.undoLog?.save([]);
     this._state = applyEvents(emptyState(), events);
     this.emit();
     await this.store.append(events);

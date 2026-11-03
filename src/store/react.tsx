@@ -9,7 +9,7 @@
  */
 
 import { createContext, useContext, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
-import { Engine } from "./engine.ts";
+import { Engine, localUndoLog } from "./engine.ts";
 import { LocalStore, type DataStore, type SyncStatus } from "./datastore.ts";
 import { sampleEvents } from "./sample.ts";
 import { supabaseEnv, supabaseSyncClient } from "./supabaseClient.ts";
@@ -17,11 +17,11 @@ import { readSyncCode } from "./syncJoin.ts";
 import { SyncStore } from "./syncstore.ts";
 
 /** 保存層を選ぶ: 施設コードで参加していて、環境変数がそろっていれば同期。それ以外はブラウザ内保存 */
-function chooseStore(): DataStore {
+function chooseStore(): { store: DataStore; undoKey: string } {
   const code = readSyncCode();
   const env = supabaseEnv();
-  if (code && env) return new SyncStore(code, supabaseSyncClient(env));
-  return new LocalStore();
+  if (code && env) return { store: new SyncStore(code, supabaseSyncClient(env)), undoKey: `care-navi.undo.sync.${code}` };
+  return { store: new LocalStore(), undoKey: "care-navi.undo.local" };
 }
 import { emptyState, type State } from "../domain/types.ts";
 
@@ -30,7 +30,9 @@ const EngineContext = createContext<Engine | null>(null);
 export function EngineProvider({ children }: { children: ReactNode }) {
   const engine = useMemo(() => {
     if (typeof window === "undefined") return null;
-    return new Engine({ store: chooseStore() });
+    const { store, undoKey } = chooseStore();
+    // 「元に戻す」の一覧は端末に残す（読み込み直しても戻せる。10手）
+    return new Engine({ store, undoLog: localUndoLog(undoKey) });
   }, []);
 
   useEffect(() => {

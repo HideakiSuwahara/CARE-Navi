@@ -226,3 +226,21 @@ test.describe("ボード（翌朝）", () => {
     await expect(page.getByRole("heading", { name: /東フロア 利用者 20人/ })).toBeVisible();
   });
 });
+
+test.describe("ボード（元に戻すの記録）", () => {
+  test("読み込み直しても「元に戻す」が残り、戻せる", async ({ page }) => {
+    await page.goto("/board?now=10:12");
+    await page.evaluate(() => localStorage.clear());
+    await page.goto("/board?now=10:12");
+    const card = page.locator('[data-task-id][data-badge="担当未定"]').first();
+    const id = (await card.getAttribute("data-task-id"))!;
+    await card.scrollIntoViewIfNeeded();
+    await card.getByRole("button", { name: /に担当を追加$/ }).click();
+    await page.getByRole("dialog").getByRole("button", { name: /さんを追加$/ }).first().click();
+    await expect(page.locator(`[data-task-id="${id}"]`)).not.toHaveAttribute("data-badge", "担当未定");
+    await page.reload();
+    await expect(page.locator(`[data-task-id="${id}"]`)).not.toHaveAttribute("data-badge", "担当未定");
+    await page.getByRole("button", { name: /^元に戻す/ }).first().click();
+    await expect(page.locator(`[data-task-id="${id}"]`)).toHaveAttribute("data-badge", "担当未定");
+  });
+});

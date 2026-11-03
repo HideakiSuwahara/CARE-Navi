@@ -78,7 +78,7 @@ EventMeta = { id, ts, batchId, actorId? }
 | `task.setTargets` | `task.setTargets`（変更前の一覧） |
 | `roster.upsert` | `roster.upsert`（変更前）または `roster.remove`（新規だった場合） |
 | `day.setPattern` | `day.setPattern`（変更前） |
-UI の「元に戻す」は直近 10 の batchId を対象にする。
+UI の「元に戻す」は直近 10 の batchId を対象にする。一覧（batchId と label）は端末の localStorage に残し、読み込み直しても戻せる（打ち消しに要る「直前の状態」は起動時にイベント列から作り直す。他の端末で先に変わっていれば、打ち消しはその時点の状態に対して行う）。
 
 ## 5. 役割枠から担当を作る手順（「型を当てる」）
 コマンド層（UI に近い純関数）が次を計算し、1つの batchId でイベント列を作る。
