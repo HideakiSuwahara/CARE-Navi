@@ -25,6 +25,8 @@ export interface DataStore {
   subscribeStatus?(listener: () => void): () => void;
   /** 購読をやめる（同期） */
   stop?(): void;
+  /** 未送信の件数（同期） */
+  readonly pendingCount?: number;
 }
 
 /** テストや SSR 用。何も残さない */

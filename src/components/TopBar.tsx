@@ -17,13 +17,13 @@ const NAV: { id: TopBarPage; href: string; label: string }[] = [
 export function TopBar({ current, children }: { current: TopBarPage; children?: ReactNode }) {
   const { state } = useAppState();
   return (
-    <header className="cn-noprint flex h-14 shrink-0 items-center gap-5 border-b border-[var(--cn-border)] bg-white px-5">
-      <h1 className="flex items-center gap-2.5">
+    <header className="cn-noprint flex min-h-[56px] shrink-0 flex-wrap items-center gap-x-5 gap-y-1 border-b border-[var(--cn-border)] bg-white px-4 py-1 sm:px-5">
+      <h1 className="flex shrink-0 items-center gap-2.5 whitespace-nowrap">
         <span aria-hidden="true" className="inline-block h-7 w-7 rounded-lg bg-[var(--cn-accent)]" />
         <span className="text-[18px] font-bold">ケアナビ</span>
-        <span className="text-[14px] font-normal text-[var(--cn-muted)]">{state.facility?.name ?? ""}</span>
+        <span className="hidden text-[14px] font-normal text-[var(--cn-muted)] sm:inline">{state.facility?.name ?? ""}</span>
       </h1>
-      <nav aria-label="主な画面" className="flex gap-1">
+      <nav aria-label="主な画面" className="flex gap-1 overflow-x-auto whitespace-nowrap">
         {NAV.map((n) =>
           n.id === current ? (
             <Link

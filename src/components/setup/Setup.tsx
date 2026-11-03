@@ -6,14 +6,15 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { TopBar } from "@/components/TopBar";
 import { residentLabel } from "@/domain/display";
 import { himawariSeed } from "@/domain/seed";
-import { buildOwnFacility, facilityCode, parseStaffPaste, settingsEvent, staffEvents } from "@/domain/setup";
+import { buildOwnFacility, parseStaffPaste, settingsEvent, staffEvents } from "@/domain/setup";
 import type { ResidentDisplayMode } from "@/domain/types";
 import { useAppState, useEngine, useSyncStatus } from "@/store/react";
 import { SETUP_NOTE_KEY } from "./setupNote";
 import { sampleEvents } from "@/store/sample";
 import { LocalStore } from "@/store/datastore";
 import { supabaseEnv, supabaseSyncClient } from "@/store/supabaseClient";
-import { joinUrl, normalizeCode, readSyncCode, writeSyncCode } from "@/store/syncJoin";
+import { joinUrl, newFacilityCode, normalizeCode, readSyncCode, writeSyncCode } from "@/store/syncJoin";
+import { SyncBadge } from "@/components/SyncBadge";
 import type { Event } from "@/domain/events";
 
 /**
@@ -53,25 +54,36 @@ function writeChosen(on: boolean) {
 }
 
 export function Setup({ join }: { join?: string }) {
-  const { state, ready } = useAppState();
+  const { state, ready, loaded } = useAppState();
   const engine = useEngine();
   const router = useRouter();
   const sync = useSyncStatus();
   const [chosen, setChosen] = useState<boolean | null>(null);
   const [own, setOwn] = useState(false);
+  const [joinOpen, setJoinOpen] = useState(false);
   useEffect(() => setChosen(readChosen()), []);
   // QR や URL から来た「施設コードで参加」（/setup?join=コード）
+  const [joinNote, setJoinNote] = useState<string | null>(null);
   useEffect(() => {
-    if (!join || !supabaseEnv()) return;
+    if (!join) return;
     const code = normalizeCode(join);
-    if (code && code !== readSyncCode()) {
+    if (!supabaseEnv()) {
+      setJoinNote("この版では施設コードで参加できません（同期の設定がありません）。");
+      return;
+    }
+    if (code === readSyncCode()) {
+      setJoinNote("すでにこの施設コードで同期しています。");
+      return;
+    }
+    if (code) {
       writeSyncCode(code);
       writeChosen(true);
-      window.location.replace("/board");
+      writeSetupNote(`施設コード ${spaced(code)} で参加しました。`);
+      window.location.replace(window.innerWidth < 768 ? "/me" : "/board");
     }
   }, [join]);
 
-  if (!ready || chosen === null) return <p className="p-6 text-[15px] text-[var(--cn-muted)]">読み込んでいます…</p>;
+  if (chosen === null || (!loaded && !ready)) return <p className="p-6 text-[15px] text-[var(--cn-muted)]">読み込んでいます…</p>;
 
   const trySample = async () => {
     writeChosen(true);
@@ -122,13 +134,18 @@ export function Setup({ join }: { join?: string }) {
     );
   }
 
-  if (!chosen) {
+  if (!chosen && !(sync.kind === "sync" && loaded)) {
     return (
       <Shell>
         <section aria-labelledby="start-title" className="mx-auto flex max-w-[640px] flex-col gap-5 pt-10">
           <h2 id="start-title" className="text-[22px] font-bold">
             はじめに
           </h2>
+          {joinNote && (
+            <p role="alert" className="rounded-xl border-2 border-[var(--cn-alert-line)] bg-white p-3 text-[15px]">
+              {joinNote}
+            </p>
+          )}
           <p className="text-[16px]">入力なしで、架空の施設（ひまわり苑）の一日を触れます。自分の施設は、名簿を貼り付けて始められます。</p>
           <div className="flex flex-wrap gap-3">
             <button type="button" onClick={trySample} className="h-[56px] rounded-xl bg-[var(--cn-accent)] px-6 text-[17px] font-bold text-white">
@@ -137,7 +154,23 @@ export function Setup({ join }: { join?: string }) {
             <button type="button" onClick={() => setOwn(true)} className="h-[56px] rounded-xl border-2 border-[var(--cn-control-line)] bg-white px-6 text-[17px] font-bold">
               自分の施設で始める
             </button>
+            {supabaseEnv() && (
+              <button
+                type="button"
+                aria-expanded={joinOpen}
+                onClick={() => setJoinOpen((v) => !v)}
+                className="h-[56px] rounded-xl border-2 border-[var(--cn-control-line)] bg-white px-6 text-[17px] font-bold"
+              >
+                施設コードで参加
+              </button>
+            )}
           </div>
+          {joinOpen && (
+            <div className="rounded-xl border border-[var(--cn-border)] bg-white p-4">
+              <p className="mb-2 text-[15px] text-[var(--cn-ink-soft)]">施設の PC（設定）で発行した 6 文字のコードを入れると、同じ時間割を見られます。QR を読んだ場合は自動で入ります。</p>
+              <JoinForm label="施設コード" autoFocus />
+            </div>
+          )}
         </section>
       </Shell>
     );
@@ -351,6 +384,11 @@ function Everyday({ onOwn, onSample }: { onOwn: () => void; onSample: () => void
   const [toast, setToast] = useState<string | null>(null);
   const [staffText, setStaffText] = useState("");
   useEffect(() => {
+    const note = readSetupNote();
+    if (note) setToast(note);
+    document.getElementById("setup-title")?.focus();
+  }, []);
+  useEffect(() => {
     if (!toast) return;
     const id = window.setTimeout(() => setToast(null), 8000);
     return () => window.clearTimeout(id);
@@ -361,7 +399,17 @@ function Everyday({ onOwn, onSample }: { onOwn: () => void; onSample: () => void
     if (done) setToast(`戻しました（${done.label}）`);
   };
   const f = state.facility;
-  if (!f) return null;
+  if (!f) {
+    // 同期で参加したが、その施設コードにまだ内容がない（コードの打ち間違いなど）
+    return (
+      <div className="mx-auto flex w-full max-w-[880px] flex-col gap-4">
+        <h2 id="setup-title" tabIndex={-1} className="text-[22px] font-bold outline-none">
+          設定
+        </h2>
+        <SyncEmpty />
+      </div>
+    );
+  }
   const settings = f.settings;
   const example = Object.values(state.residents).sort((a, b) => a.room.localeCompare(b.room, "ja", { numeric: true }))[0];
   const modes: { mode: ResidentDisplayMode; label: string }[] = [
@@ -393,7 +441,9 @@ function Everyday({ onOwn, onSample }: { onOwn: () => void; onSample: () => void
   return (
     <div className="mx-auto flex w-full max-w-[880px] flex-col gap-5">
       <div className="flex flex-wrap items-center gap-3">
-        <h2 className="text-[22px] font-bold">設定</h2>
+        <h2 id="setup-title" tabIndex={-1} className="text-[22px] font-bold outline-none">
+          設定
+        </h2>
         <span className="text-[15px] text-[var(--cn-ink-soft)]">{f.name}</span>
         <span className="ml-auto flex items-center gap-2">
           <button type="button" disabled={!lastUndo} onClick={undo} className="h-[44px] rounded-lg border border-[var(--cn-control-line)] bg-white px-4 font-bold disabled:text-[var(--cn-muted)]">
@@ -405,9 +455,9 @@ function Everyday({ onOwn, onSample }: { onOwn: () => void; onSample: () => void
 
       <section aria-labelledby="s-code" className="rounded-xl border border-[var(--cn-border)] bg-white p-4">
         <h3 id="s-code" className="mb-1 text-[16px] font-bold">
-          施設コード
+          ほかの端末からも見る（施設コード）
         </h3>
-        <SyncSection facilityId={f.id} facilityName={f.name} onToast={setToast} />
+        <SyncSection facilityName={f.name} />
       </section>
 
       <section aria-labelledby="s-name" className="rounded-xl border border-[var(--cn-border)] bg-white p-4">
@@ -503,16 +553,15 @@ function Everyday({ onOwn, onSample }: { onOwn: () => void; onSample: () => void
 // 施設コードと同期（決定記録 0009）
 // ---------------------------------------------------------------------------
 
-function SyncSection({ facilityId, facilityName, onToast }: { facilityId: string; facilityName: string; onToast: (t: string) => void }) {
+function SyncSection({ facilityName }: { facilityName: string }) {
   const sync = useSyncStatus();
   const available = supabaseEnv();
   const [code, setCode] = useState<string | null>(null);
-  const [joinText, setJoinText] = useState("");
   const [busy, setBusy] = useState(false);
   const [qr, setQr] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [confirmLeave, setConfirmLeave] = useState(false);
   useEffect(() => setCode(readSyncCode()), []);
-  const shownCode = code ?? facilityCode(facilityId);
   useEffect(() => {
     if (!code) {
       setQr(null);
@@ -534,96 +583,219 @@ function SyncSection({ facilityId, facilityName, onToast }: { facilityId: string
     setError(null);
     try {
       const events = await new LocalStore().load();
-      const newCode = facilityCode(facilityId);
+      // 発行のたびに違うコード（施設 ID から決めると、サンプル施設が全員同じコードになる）
+      const newCode = newFacilityCode();
       await supabaseSyncClient(available).insert(newCode, events);
       writeSyncCode(newCode);
+      writeSetupNote(`ほかの端末と同じ内容にする設定を始めました（施設コード ${spaced(newCode)}）。`);
       window.location.assign("/setup");
     } catch {
       setError("送れませんでした。接続を確かめて、もう一度押してください。");
       setBusy(false);
     }
   };
-  const joinByCode = () => {
-    const c = normalizeCode(joinText);
-    if (!/^[A-Z0-9]{4,12}$/.test(c)) {
-      setError("施設コードは英数字 4〜12 文字です。");
-      return;
+  const leave = async () => {
+    if (!code || busy) return;
+    setBusy(true);
+    // いまの内容（同期で届いた分を含む）をこの端末だけの保存に写してから切る。施設コードの側はそのまま残る
+    const cache = new LocalStore(`care-navi.sync.${code}.v1`);
+    const events = await cache.load();
+    const local = new LocalStore();
+    await local.clear();
+    await local.append(events);
+    await cache.clear();
+    try {
+      window.localStorage.removeItem(`care-navi.pending.${code}`);
+      window.localStorage.removeItem(`care-navi.undo.sync.${code}`);
+    } catch {
+      // 消せなくても動く
     }
-    writeSyncCode(c);
-    window.location.assign("/board");
-  };
-  const leave = () => {
     writeSyncCode(null);
-    onToast("この端末だけの保存に戻しました");
+    writeSetupNote("ほかの端末と同じ内容にするのをやめました。いまの内容はこの端末に残っています。ほかの端末の内容はそのままです。");
     window.location.assign("/setup");
   };
-  const btn = "h-[44px] rounded-lg border border-[var(--cn-control-line)] bg-white px-4 font-bold";
+  const btn = "h-[44px] rounded-lg border border-[var(--cn-control-line)] bg-white px-4 text-[15px] font-bold text-[var(--cn-ink)]";
+
+  if (!available) {
+    return (
+      <p className="text-[14px] text-[var(--cn-ink-soft)]">
+        この版では、ほかの端末と同じ内容にすること（同期）は使えません。保存はこのブラウザの中だけです（同じブラウザの別のタブにはすぐ反映されます）。
+      </p>
+    );
+  }
+
+  if (sync.kind === "sync" && code) {
+    return (
+      <div className="flex flex-col gap-3">
+        <p className="text-[28px] font-bold tracking-[0.2em] tabular-nums">
+          <span aria-hidden="true">{code}</span>
+          <span className="sr-only">{spaced(code)}</span>
+        </p>
+        <p className="flex flex-wrap items-center gap-2 text-[15px]">
+          <span>この施設コードで、ほかの端末と同じ内容にしています（{facilityName}）。</span>
+          <SyncBadge />
+        </p>
+        <div className="flex flex-wrap items-start gap-4">
+          {qr ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={qr} width={192} height={192} alt={`参加用の QR コード（施設コード ${spaced(code)}）`} className="rounded-lg border border-[var(--cn-border)]" />
+          ) : (
+            <div aria-hidden="true" className="h-[192px] w-[192px] rounded-lg border border-[var(--cn-border)] bg-[var(--cn-ground)]" />
+          )}
+          <div className="flex flex-col gap-2 text-[14px] text-[var(--cn-ink-soft)]">
+            <p>ほかの端末（スマホなど）は、この QR を読むか、設定の「施設コードで参加」にこのコードを入れると、同じ時間割を見られます。</p>
+            <p>QR はこの画面の URL を含みます。スマホから開ける URL（公開した URL）でこの画面を開いてから読んでください。</p>
+            <p>
+              施設コードは暗証番号ではありません。コードを知っている人は誰でも見て変えられます。辞めた人・応援が終わった人の端末では「この端末だけにする」を押してもらってください（コードを新しくすることは、この版ではできません）。
+            </p>
+            {!confirmLeave ? (
+              <button type="button" onClick={() => setConfirmLeave(true)} className={`${btn} self-start`}>
+                この端末だけにする（同期をやめる）
+              </button>
+            ) : (
+              <div className="flex flex-col gap-2 rounded-xl border-2 border-[var(--cn-alert-line)] bg-white p-3 text-[15px] text-[var(--cn-ink)]">
+                <p>やめると、この端末はいまの内容を持ったまま、ほかの端末と別々になります。ほかの端末の内容はそのまま残ります。</p>
+                <div className="flex flex-wrap gap-2">
+                  <button type="button" onClick={leave} aria-busy={busy} className="h-[44px] rounded-lg bg-[var(--cn-accent)] px-4 font-bold text-white">
+                    やめる
+                  </button>
+                  <button type="button" onClick={() => setConfirmLeave(false)} className={btn}>
+                    やめない
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+        {error && (
+          <p role="alert" className="rounded-lg border-2 border-[var(--cn-alert-line)] bg-white p-2 text-[15px]">
+            {error}
+          </p>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-[28px] font-bold tracking-[0.2em] tabular-nums" aria-label={`施設コード ${shownCode}`}>
-        {shownCode}
+      <p className="text-[15px]">このブラウザだけに保存しています。ほかの端末（スマホなど）からも同じ時間割を見るには、同期を始めてコードを渡します。</p>
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={startSync}
+          aria-disabled={busy}
+          aria-busy={busy}
+          className={`h-[44px] rounded-lg px-4 font-bold text-white ${busy ? "bg-[var(--cn-muted)]" : "bg-[var(--cn-accent)]"}`}
+        >
+          {busy ? "送っています…" : "この施設を同期する（ほかの端末から見られるようにする）"}
+        </button>
+      </div>
+      <p className="text-[14px] text-[var(--cn-ink-soft)]">
+        施設コードは暗証番号ではありません。この版では鍵が公開されるため、試用では架空の名簿だけを入れてください。実在の利用者・職員の名簿を入れた施設は、この版では同期しないでください。
       </p>
-      {!available ? (
-        <p className="text-[14px] text-[var(--cn-ink-soft)]">
-          この版の保存は、このブラウザの中だけです（同じブラウザの別のタブにはすぐ反映されます）。端末間の同期は、環境変数（README）が設定されたときに使えます。施設コードは認証ではありません。
-        </p>
-      ) : sync.kind === "sync" ? (
-        <>
-          <p className="flex flex-wrap items-center gap-2 text-[15px]">
-            <span>この施設コードで同期しています（{facilityName}）。</span>
-            <span className={`inline-flex h-[28px] items-center rounded-md border px-2 text-[14px] font-bold ${sync.status === "online" ? "border-[var(--cn-accent)] text-[var(--cn-accent)]" : "border-[var(--cn-alert-line)] text-[var(--cn-unassigned-ink)]"}`}>
-              {sync.status === "online" ? "同期中" : sync.status === "offline" ? "この端末の内容（届いていません）" : "接続中"}
-            </span>
-          </p>
-          <div className="flex flex-wrap items-start gap-4">
-            {qr && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={qr} width={192} height={192} alt={`参加用の QR コード（施設コード ${shownCode}）`} className="rounded-lg border border-[var(--cn-border)]" />
-            )}
-            <div className="flex flex-col gap-2 text-[14px] text-[var(--cn-ink-soft)]">
-              <p>ほかの端末（スマホなど）は、この QR を読むか、設定の「施設コードで参加」にこのコードを入れると、同じ時間割を見られます。</p>
-              <p>施設コードは認証ではありません。コードを知っている端末は同じ施設の内容を読み書きできます（試用の範囲で使ってください）。</p>
-              <button type="button" onClick={leave} className={`${btn} self-start`}>
-                この端末だけにする（同期をやめる）
-              </button>
-            </div>
-          </div>
-        </>
-      ) : (
-        <>
-          <p className="text-[14px] text-[var(--cn-ink-soft)]">
-            いまの保存は、このブラウザの中だけです（同じブラウザの別のタブにはすぐ反映されます）。ほかの端末からも見るには、この施設を同期するか、施設コードで参加します。施設コードは認証ではありません。
-          </p>
-          <div className="flex flex-wrap items-center gap-2">
-            <button type="button" onClick={startSync} disabled={busy} className="h-[44px] rounded-lg bg-[var(--cn-accent)] px-4 font-bold text-white disabled:bg-[var(--cn-muted)]">
-              {busy ? "送っています…" : "この施設を同期する（ほかの端末から見られるようにする）"}
-            </button>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <label htmlFor="s-join" className="font-bold">
-              施設コードで参加
-            </label>
-            <input
-              id="s-join"
-              value={joinText}
-              onChange={(e) => setJoinText(e.target.value)}
-              placeholder="例: ABC234"
-              autoCapitalize="characters"
-              autoComplete="off"
-              className="h-[44px] w-[160px] rounded-lg border border-[var(--cn-control-line)] px-3 tracking-[0.15em] placeholder:text-[var(--cn-muted)]"
-            />
-            <button type="button" onClick={joinByCode} className={btn}>
-              参加する
-            </button>
-          </div>
-        </>
-      )}
+      <JoinForm label="ほかの端末で発行した施設コードで参加" />
       {error && (
         <p role="alert" className="rounded-lg border-2 border-[var(--cn-alert-line)] bg-white p-2 text-[15px]">
           {error}
         </p>
       )}
+    </div>
+  );
+}
+
+/** 施設コードを 1 文字ずつ読めるように（読み上げ用） */
+function spaced(code: string): string {
+  return code.split("").join(" ");
+}
+
+/** 「施設コードで参加」の入力と「参加する」。はじめの画面と、ふだんの設定の両方で使う */
+function JoinForm({ label, autoFocus }: { label: string; autoFocus?: boolean }) {
+  const [joinText, setJoinText] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const joinByCode = () => {
+    const c = normalizeCode(joinText);
+    if (!/^[A-Z0-9]{4,12}$/.test(c)) {
+      setError("施設コードは英数字 4〜12 文字です。");
+      window.setTimeout(() => document.getElementById("s-join")?.focus(), 0);
+      return;
+    }
+    if (c === readSyncCode()) {
+      setError("すでにこの施設コードで同期しています。");
+      return;
+    }
+    writeSyncCode(c);
+    writeChosen(true);
+    writeSetupNote(`施設コード ${spaced(c)} で参加しました。`);
+    window.location.assign(window.innerWidth < 768 ? "/me" : "/board");
+  };
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label htmlFor="s-join" className="font-bold">
+        {label}
+      </label>
+      <div className="flex flex-wrap items-center gap-2">
+        <input
+          id="s-join"
+          value={joinText}
+          onChange={(e) => {
+            setJoinText(e.target.value);
+            setError(null);
+          }}
+          onKeyDown={(e) => e.key === "Enter" && joinByCode()}
+          placeholder="例: ABC234"
+          autoCapitalize="characters"
+          autoComplete="off"
+          autoCorrect="off"
+          spellCheck={false}
+          maxLength={12}
+          autoFocus={autoFocus}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? "s-join-err" : undefined}
+          className="h-[44px] w-[180px] rounded-lg border border-[var(--cn-control-line)] px-3 text-[16px] tracking-[0.15em] placeholder:text-[var(--cn-muted)]"
+        />
+        <button type="button" onClick={joinByCode} className="h-[44px] rounded-lg border border-[var(--cn-control-line)] bg-white px-4 text-[15px] font-bold">
+          参加する
+        </button>
+      </div>
+      {error && (
+        <p id="s-join-err" role="alert" className="rounded-lg border-2 border-[var(--cn-alert-line)] bg-white p-2 text-[15px]">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
+const SETUP_TOAST_KEY = "cn-setup-toast";
+function writeSetupNote(text: string) {
+  try {
+    window.sessionStorage.setItem(SETUP_TOAST_KEY, text);
+  } catch {
+    // 残せなければ出さない
+  }
+}
+function readSetupNote(): string | null {
+  try {
+    const v = window.sessionStorage.getItem(SETUP_TOAST_KEY);
+    if (v) window.sessionStorage.removeItem(SETUP_TOAST_KEY);
+    return v;
+  } catch {
+    return null;
+  }
+}
+
+/** 同期で参加したコードに、まだ内容がないときの案内（次の 1 手: この端末だけにする） */
+export function SyncEmpty() {
+  const leave = () => {
+    writeSyncCode(null);
+    window.location.assign("/setup");
+  };
+  return (
+    <div className="flex flex-col items-start gap-3 rounded-xl border-2 border-[var(--cn-alert-line)] bg-white p-4 text-[16px]">
+      <p>この施設コードの内容は届いていません。コードを確かめてください（施設の PC の設定に出ている 6 文字）。</p>
+      <button type="button" onClick={leave} className="h-[48px] rounded-xl border border-[var(--cn-control-line)] bg-white px-4 font-bold">
+        この端末だけにする（同期をやめる）
+      </button>
     </div>
   );
 }

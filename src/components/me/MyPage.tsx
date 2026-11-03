@@ -12,6 +12,7 @@ import { SAMPLE_DATE } from "@/store/sample";
 import { AllView } from "./AllView";
 import { LeaderTabs } from "./LeaderTabs";
 import { MyDayView } from "./MyDayView";
+import { SyncEmpty } from "@/components/setup/Setup";
 import { PhoneTaskDetail } from "./PhoneTaskDetail";
 
 /**
@@ -37,7 +38,7 @@ function writeMe(id: ID | null) {
 }
 
 export function MyPage({ taskId, date = SAMPLE_DATE, view: viewKey }: { taskId?: string; date?: string; view?: "all" }) {
-  const { state, ready } = useAppState();
+  const { state, ready, loaded: engineLoaded } = useAppState();
   const clock = useNowMinutes();
   const [me, setMe] = useState<ID | null>(null);
   const [loaded, setLoaded] = useState(false);
@@ -53,8 +54,17 @@ export function MyPage({ taskId, date = SAMPLE_DATE, view: viewKey }: { taskId?:
     window.scrollTo(0, 0);
   }, []);
 
-  if (!ready || !loaded || clock === null) {
+  if (!loaded || clock === null || (!ready && !engineLoaded)) {
     return <p className="p-5 text-[16px] text-[var(--cn-muted)]">読み込んでいます…</p>;
+  }
+  if (!ready) {
+    // 同期で参加したコードに、まだ内容がない
+    return (
+      <main className="mx-auto flex min-h-screen max-w-[480px] flex-col gap-4 bg-[var(--cn-ground)] px-4 py-5 text-[16px]">
+        <h1 className="text-[20px] font-bold">自分の予定</h1>
+        <SyncEmpty />
+      </main>
+    );
   }
 
   // 夜勤明けの人は前の業務日（夜勤が始まった日）を開く。それ以外は date のまま（夜勤帯の業務はその夜勤が始まった業務日に属する）
@@ -102,6 +112,19 @@ function NamePicker({
   previous?: string;
 }) {
   const slotOrder = (id?: ID) => (id ? (state.roleSlots[id]?.sortOrder ?? 999) : 999);
+  // 設定（施設コードで参加）から来たときの一言
+  const [note, setNote] = useState<string | null>(null);
+  useEffect(() => {
+    try {
+      const v = window.sessionStorage.getItem("cn-setup-toast");
+      if (v) {
+        window.sessionStorage.removeItem("cn-setup-toast");
+        setNote(v);
+      }
+    } catch {
+      // 読めなければ出さない
+    }
+  }, []);
   // 夜勤明け（前の業務日の勤務がまだ続いている人）も、きょうの出勤者の前に並べる
   const overnight = rosterForDate(state, addDays(date, -1))
     .filter((e) => !e.absent && state.staff[e.staffId] && e.endMin > 1440 && e.startMin <= clock + 1440 && clock + 1440 < e.endMin)
@@ -114,7 +137,12 @@ function NamePicker({
     <main className="mx-auto flex min-h-screen max-w-[480px] flex-col gap-4 bg-[var(--cn-ground)] px-4 py-5 text-[16px]">
       <h1 className="text-[20px] font-bold">自分の予定</h1>
       {previous && <p className="text-[16px]">{previous}さんは、きょうの出勤に入っていません。名前を選び直してください。</p>}
-      <p className="text-[16px] text-[var(--cn-ink-soft)]">あなたの名前を選んでください。この端末が覚えます。</p>
+      {note && (
+        <p role="status" className="rounded-xl border-2 border-[var(--cn-accent)] bg-[var(--cn-accent-soft)] p-3 text-[16px]">
+          {note}
+        </p>
+      )}
+      <p className="text-[16px] text-[var(--cn-ink-soft)]">あなたの名前を選んでください。この端末が覚えます。共有の端末は、使い終わったら「自分ではない」を押してください。</p>
       {entries.length === 0 && (
         <div className="flex flex-col items-start gap-3 rounded-xl bg-white p-4">
           <p>きょうの出勤者がまだ入っていません。リーダーが今日の時間割を作ると、ここに名前が出ます。</p>

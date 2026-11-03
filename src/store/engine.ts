@@ -118,6 +118,8 @@ export class Engine {
     }
     this.unsubscribeStore = this.store.subscribe((incoming) => {
       this._state = applyEvents(this._state, incoming);
+      this.incomingCount += 1;
+      this.incomingAt = incoming[incoming.length - 1]?.ts ?? this.now().toISOString();
       this.emit();
     });
     this.ready = true;
@@ -140,6 +142,12 @@ export class Engine {
   subscribeStatus(listener: () => void): () => void {
     return this.store.subscribeStatus?.(listener) ?? (() => {});
   }
+  get pendingCount(): number {
+    return this.store.pendingCount ?? 0;
+  }
+  /** ほかの端末・タブから届いた回数と最後の時刻（画面の「ほかの端末で変更がありました」に） */
+  incomingCount = 0;
+  incomingAt: string | null = null;
 
   /** コマンドがイベントを作るための文脈。1回の操作＝1つの batchId */
   context(batchId: ID = this.newId()): EventContext {

@@ -10,9 +10,10 @@ test.describe("設定", () => {
     await page.goto("/setup");
   });
 
-  test("はじめて開くとボタン2つだけ。「サンプル施設で試す」でボードへ", async ({ page }) => {
+  test("はじめて開くとボタン2つだけ（同期が使える環境では3つ）。「サンプル施設で試す」でボードへ", async ({ page }) => {
     const main = page.locator("main");
-    await expect(main.getByRole("button")).toHaveCount(2);
+    // 同期が使える環境では「施設コードで参加」が加わって 3 つ
+    await expect(main.getByRole("button")).toHaveCount(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 3 : 2);
     await main.getByRole("button", { name: "サンプル施設で試す" }).click();
     await expect(page).toHaveURL(/\/board/);
   });

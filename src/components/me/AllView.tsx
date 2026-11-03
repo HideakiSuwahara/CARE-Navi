@@ -37,7 +37,7 @@ import { addDays, type EventContext } from "@/domain/pattern";
 import { fmtMin, fmtRange } from "@/domain/time";
 import { MAX_MINUTES, type ID, type State } from "@/domain/types";
 import type { Engine } from "@/store/engine";
-import { useEngine } from "@/store/react";
+import { useEngine, useIncoming } from "@/store/react";
 import { SyncBadge } from "@/components/SyncBadge";
 import { PreviewSheet } from "./PreviewSheet";
 import { Sheet } from "./Sheet";
@@ -76,6 +76,15 @@ export function AllView({ state, date, me, now, clock, tabs }: { state: State; d
     () => null,
   );
   const rows = useMemo(() => allRows(state, date, now), [state, date, now]);
+  const incoming = useIncoming();
+  const seenIncoming = useRef(0);
+  useEffect(() => {
+    if (incoming.count === 0 || incoming.count === seenIncoming.current) return;
+    seenIncoming.current = incoming.count;
+    const d = incoming.at ? new Date(incoming.at) : new Date();
+    setToast(`ほかの端末で変更がありました（更新 ${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}）`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [incoming.count]);
   const groups = useMemo(() => unfilledGroups(rows), [rows]);
   const overnight = useMemo(() => overnightRows(state, date, now), [state, date, now]);
   const prevLabel = (() => {

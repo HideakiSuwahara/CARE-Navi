@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { TopBar } from "@/components/TopBar";
 import { SETUP_NOTE_KEY } from "@/components/setup/setupNote";
-import { useAppState, useEngine, useNowMinutes } from "@/store/react";
+import { useAppState, useEngine, useIncoming, useNowMinutes, useSyncStatus } from "@/store/react";
+import { SyncEmpty } from "@/components/setup/Setup";
 import { SyncBadge } from "@/components/SyncBadge";
 import { SAMPLE_DATE } from "@/store/sample";
 import { boardColumns, paletteRows } from "@/domain/layout";
@@ -44,7 +45,19 @@ function weekdayLabel(date: string): string {
 }
 
 export function Board({ date = SAMPLE_DATE }: { date?: string }) {
-  const { state, ready } = useAppState();
+  const { state, ready, loaded } = useAppState();
+  const syncInfo = useSyncStatus();
+  const incoming = useIncoming();
+  // ほかの端末から届いたら一言（自分の操作のトーストと同じ場所。8秒で消える）
+  const seenIncoming = useRef(0);
+  useEffect(() => {
+    if (incoming.count === 0 || incoming.count === seenIncoming.current) return;
+    seenIncoming.current = incoming.count;
+    if (syncInfo.kind !== "sync") return;
+    const d = incoming.at ? new Date(incoming.at) : new Date();
+    showNotice(`ほかの端末で変更がありました（更新 ${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}）`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [incoming.count]);
   const engine = useEngine();
   const lastUndo = useSyncExternalStore(
     (cb) => (engine ? engine.subscribe(cb) : () => {}),
@@ -350,7 +363,7 @@ export function Board({ date = SAMPLE_DATE }: { date?: string }) {
             {weekdayLabel(date)}の時間割
           </h2>
           {!ready ? (
-            <div className="p-6 text-[var(--cn-muted)]">読み込んでいます…</div>
+            <div className="p-6 text-[var(--cn-muted)]">{loaded && syncInfo.kind === "sync" ? <SyncEmpty /> : "読み込んでいます…"}</div>
           ) : !hasTasks ? (
             <MorningBand state={state} date={date} />
           ) : view === "staff" ? (

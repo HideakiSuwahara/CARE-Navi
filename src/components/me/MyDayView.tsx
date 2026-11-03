@@ -7,6 +7,7 @@ import { leaderSchedule, myDay, type MyItem } from "@/domain/myday";
 import { fmtMin, fmtRange } from "@/domain/time";
 import type { ID, State } from "@/domain/types";
 import { contactName, HelpBar } from "./HelpBar";
+import { SyncBadge } from "@/components/SyncBadge";
 import { LAST_TASK_KEY, meHref } from "./links";
 
 /**
@@ -101,6 +102,9 @@ export function MyDayView({
         </button>
       </header>
 
+      <div className="cn-noprint flex justify-end bg-white px-4 pb-1 empty:hidden">
+        <SyncBadge offlineOnly />
+      </div>
       <HelpBar state={state} date={date} me={me} now={now} />
 
       {/* 印刷: 相談先を時間帯ごとに（10:00 に刷っても夕方の相談先が分かるように）。1枚目の上に置く */}

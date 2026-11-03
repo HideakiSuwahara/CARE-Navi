@@ -5,7 +5,7 @@
 create table if not exists public.events (
   id bigint generated always as identity primary key,
   facility_code text not null,
-  event_id text not null unique,
+  event_id text not null unique, -- 「施設コード:イベントID」（施設ごとに分ける）
   batch_id text not null,
   ts timestamptz not null,
   payload jsonb not null,

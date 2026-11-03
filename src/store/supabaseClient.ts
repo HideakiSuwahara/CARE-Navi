@@ -52,9 +52,10 @@ export function supabaseSyncClient(env: { url: string; anonKey: string }): SyncC
     },
     async insert(code, events) {
       for (let i = 0; i < events.length; i += CHUNK) {
+        // event_id はテーブル全体で一意。サンプル施設のイベント ID は固定なので、施設コードを前に付けて施設ごとに分ける
         const rows = events.slice(i, i + CHUNK).map((e) => ({
           facility_code: code,
-          event_id: e.eventId,
+          event_id: `${code}:${e.eventId}`,
           batch_id: e.batchId,
           ts: e.ts,
           payload: e,
@@ -64,14 +65,17 @@ export function supabaseSyncClient(env: { url: string; anonKey: string }): SyncC
         if (error) throw error;
       }
     },
-    onInsert(code, cb) {
+    onInsert(code, cb, onStatus) {
       const channel = sb
         .channel(`events:${code}`)
         .on("postgres_changes", { event: "INSERT", schema: "public", table: "events", filter: `facility_code=eq.${code}` }, (msg) => {
           const row = msg.new as Row;
           if (row?.payload) cb([row.payload]);
         })
-        .subscribe();
+        .subscribe((status) => {
+          // SUBSCRIBED → つながった。CHANNEL_ERROR / TIMED_OUT / CLOSED → 切れた
+          onStatus?.(status === "SUBSCRIBED");
+        });
       return () => {
         void sb.removeChannel(channel);
       };

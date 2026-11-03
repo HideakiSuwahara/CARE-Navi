@@ -33,7 +33,8 @@ export function BoardMenu({
   const toggle = useRef<HTMLButtonElement>(null);
   const firstItem = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
-  const isSample = state.facility?.id === "fac-himawari";
+  // 同期中は「サンプルに戻す」を出さない（遠くの保存は消せない。戻すなら設定の「はじめから → サンプル施設で試す」）
+  const isSample = state.facility?.id === "fac-himawari" && engine?.storeKind !== "sync";
 
   useEffect(() => {
     if (!open) return;

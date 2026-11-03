@@ -14,8 +14,8 @@ export interface SyncClient {
   fetchAll(code: string): Promise<Event[]>;
   /** 追記（同じ eventId は無視される） */
   insert(code: string, events: Event[]): Promise<void>;
-  /** 届いたイベントを受ける。戻り値は購読解除 */
-  onInsert(code: string, cb: (events: Event[]) => void): () => void;
+  /** 届いたイベントを受ける。onStatus はつながった／切れた の知らせ。戻り値は購読解除 */
+  onInsert(code: string, cb: (events: Event[]) => void, onStatus?: (connected: boolean) => void): () => void;
 }
 
 const PENDING_PREFIX = "care-navi.pending.";
@@ -117,14 +117,41 @@ export class SyncStore implements DataStore {
     }
     for (const e of events) this.known.add(e.eventId);
     this.unsubscribeRemote?.();
-    this.unsubscribeRemote = this.client.onInsert(this.code, (evs) => {
-      const fresh = evs.filter((e) => !this.known.has(e.eventId));
-      if (fresh.length === 0) return;
-      void this.cache.append(fresh);
-      this.receive(fresh);
-      this.setStatus("online");
-    });
+    this.unsubscribeRemote = this.client.onInsert(
+      this.code,
+      (evs) => {
+        const fresh = evs.filter((e) => !this.known.has(e.eventId));
+        if (fresh.length === 0) return;
+        void this.cache.append(fresh);
+        this.receive(fresh);
+        this.setStatus("online");
+      },
+      (connected) => {
+        // 切れたら「この端末の内容」。戻ったら、切れていた間の分を取り直してから「同期中」
+        if (!connected) {
+          this.setStatus("offline");
+          return;
+        }
+        void this.catchUp();
+      },
+    );
     return events;
+  }
+
+  /** つながり直したとき: 未送信を送り、届いていなかった分を取り直す */
+  private async catchUp(): Promise<void> {
+    try {
+      await this.flushPending();
+      const remote = await this.client.fetchAll(this.code);
+      const fresh = remote.filter((e) => !this.known.has(e.eventId));
+      if (fresh.length > 0) {
+        await this.cache.append(fresh);
+        this.receive(fresh);
+      }
+      this.setStatus("online");
+    } catch {
+      this.setStatus("offline");
+    }
   }
 
   async append(events: Event[]): Promise<void> {

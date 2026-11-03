@@ -85,7 +85,7 @@ export function assignEvents(taskId: ID, staffId: ID, ctx: EventContext): Event[
 export function unassignEvents(state: State, taskId: ID, staffId: ID, ctx: EventContext): Event[] {
   return assignmentsOf(state, taskId)
     .filter((a) => a.staffId === staffId)
-    .map((a) => ({ ...metaOf(ctx), type: "assignment.remove" as const, id: a.id }));
+    .map((a) => ({ ...metaOf(ctx), type: "assignment.remove" as const, id: a.id, taskId: a.taskId, staffId: a.staffId }));
 }
 
 /** 担当を別の業務へ移す（カードからカードへ） */

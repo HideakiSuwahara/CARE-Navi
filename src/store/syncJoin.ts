@@ -25,6 +25,15 @@ export function writeSyncCode(code: string | null): void {
   }
 }
 
+/** 新しい施設コード（6 文字の乱数。0/O・1/I を除く）。発行のたびに違うコードにする（施設 ID から決めると、サンプル施設が全員同じコードになる） */
+export function newFacilityCode(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const buf = new Uint32Array(6);
+  if (typeof crypto !== "undefined" && "getRandomValues" in crypto) crypto.getRandomValues(buf);
+  else for (let i = 0; i < 6; i++) buf[i] = Math.floor(Math.random() * 0xffffffff);
+  return Array.from(buf, (n) => chars[n % chars.length]).join("");
+}
+
 /** 入力された施設コードを整える（小文字→大文字、空白を除く） */
 export function normalizeCode(text: string): string {
   return text.replace(/\s+/g, "").toUpperCase();

@@ -21,17 +21,18 @@ test.describe("同期（別端末）", () => {
     await pcPage.getByRole("button", { name: "サンプル施設で試す" }).click();
     await pcPage.waitForURL(/\/board/);
     await pcPage.goto("/setup");
-    // 施設コードを発行して送る。発行されるコードは施設 ID から決まるので、テストでは参加 URL で任意のコードに入り直す
+    // 施設コードを発行して送る（発行のたびに乱数のコード。テスト同士が混ざらない）
     await pcPage.getByRole("button", { name: /この施設を同期する/ }).click();
     await pcPage.waitForURL(/\/setup/);
-    await expect(pcPage.getByText(/この施設コードで同期しています/)).toBeVisible({ timeout: 30_000 });
-    const issued = (await pcPage.getByLabel(/^施設コード /).textContent())?.trim() ?? "";
+    await expect(pcPage.getByText(/この施設コードで、ほかの端末と同じ内容にしています/)).toBeVisible({ timeout: 30_000 });
+    const issued = (await pcPage.locator("p.tracking-\\[0\\.2em\\] span[aria-hidden]").textContent())?.trim() ?? "";
     expect(issued).toMatch(/^[A-Z0-9]{4,12}$/);
     // 端末2（スマホ）: 施設コードで参加
     const phone = await browser.newContext({ viewport: { width: 412, height: 915 }, isMobile: true, hasTouch: true });
     const phonePage = await phone.newPage();
     await phonePage.goto(`/setup?join=${issued}`);
-    await phonePage.waitForURL(/\/board/);
+    await phonePage.waitForURL(/\/me/);
+    await expect(phonePage.getByRole("status")).toContainText("で参加しました");
     await phonePage.goto("/me?now=10:12");
     await phonePage.getByRole("list", { name: "きょうの出勤者" }).getByRole("button", { name: /^高橋 / }).click({ timeout: 30_000 });
     await expect(phonePage.getByRole("heading", { level: 1, name: /高橋 さん/ })).toBeVisible();
@@ -49,10 +50,33 @@ test.describe("同期（別端末）", () => {
     if ((await others.getAttribute("aria-expanded")) !== "true") await others.click();
     await panel.getByRole("button", { name: "高橋さんを追加" }).click();
 
-    // 端末2: 読み込み直さずに届く
+    // 端末2: 読み込み直さずに届く。「ほかの端末で変更がありました」
     await expect(phonePage.locator("main")).toContainText("リネン回収", { timeout: 30_000 });
 
+    // 端末1: 同期をやめても、いまの内容（高橋さんの担当）はこの端末に残る
+    await pcPage.goto("/setup");
+    await pcPage.getByRole("button", { name: "この端末だけにする（同期をやめる）" }).click();
+    await pcPage.getByRole("button", { name: "やめる", exact: true }).click();
+    await pcPage.waitForURL(/\/setup/);
+    await expect(pcPage.getByRole("status")).toContainText("やめました", { timeout: 30_000 });
+    await pcPage.goto("/board?now=10:12");
+    const after = pcPage.locator("[data-task-id]").filter({ hasText: "リネン回収" }).first();
+    await expect(after).toContainText("高橋");
+    await expect(pcPage.getByRole("status").filter({ hasText: "同期中" })).toHaveCount(0);
+
     await pc.close();
+    await phone.close();
+  });
+
+  test("内容のない施設コードで参加すると、案内と「この端末だけにする」が出る", async ({ browser }) => {
+    const phone = await browser.newContext({ viewport: { width: 412, height: 915 }, isMobile: true, hasTouch: true });
+    const page = await phone.newPage();
+    await page.goto(`/setup?join=ZZ${Date.now().toString(36).toUpperCase().slice(-5)}`);
+    await page.waitForURL(/\/me/);
+    await expect(page.getByText("この施設コードの内容は届いていません")).toBeVisible({ timeout: 30_000 });
+    await page.getByRole("button", { name: "この端末だけにする（同期をやめる）" }).click();
+    await page.waitForURL(/\/setup/);
+    await expect(page.getByRole("heading", { name: "設定" })).toBeVisible();
     await phone.close();
   });
 });

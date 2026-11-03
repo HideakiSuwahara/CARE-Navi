@@ -59,25 +59,37 @@ export function useEngine(): Engine | null {
 
 const EMPTY = emptyState();
 
-export function useAppState(): { state: State; ready: boolean } {
+export function useAppState(): { state: State; ready: boolean; loaded: boolean } {
   const engine = useEngine();
   const state = useSyncExternalStore(
     (cb) => (engine ? engine.subscribe(cb) : () => {}),
     () => engine?.state ?? EMPTY,
     () => EMPTY,
   );
-  return { state, ready: Boolean(engine?.ready && state.facility) };
+  // loaded: 保存を読み終えた（施設がなくても true。同期で空のコードに参加したときの案内に使う）
+  return { state, ready: Boolean(engine?.ready && state.facility), loaded: Boolean(engine?.ready) };
+}
+
+/** ほかの端末・タブから届いた回数（増えたら「ほかの端末で変更がありました」を出す） */
+export function useIncoming(): { count: number; at: string | null } {
+  const engine = useEngine();
+  const count = useSyncExternalStore(
+    (cb) => (engine ? engine.subscribe(cb) : () => {}),
+    () => engine?.incomingCount ?? 0,
+    () => 0,
+  );
+  return { count, at: engine?.incomingAt ?? null };
 }
 
 /** 同期の状態（見出しの「同期中」「この端末の内容」）。local は常に "local" */
-export function useSyncStatus(): { kind: DataStore["kind"]; status: SyncStatus } {
+export function useSyncStatus(): { kind: DataStore["kind"]; status: SyncStatus; pending: number } {
   const engine = useEngine();
   const status = useSyncExternalStore(
     (cb) => (engine ? engine.subscribeStatus(cb) : () => {}),
     () => engine?.syncStatus ?? "local",
     () => "local" as SyncStatus,
   );
-  return { kind: engine?.storeKind ?? "local", status };
+  return { kind: engine?.storeKind ?? "local", status, pending: engine?.pendingCount ?? 0 };
 }
 
 function minutesOf(d: Date): number {

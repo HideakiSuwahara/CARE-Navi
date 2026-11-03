@@ -118,10 +118,12 @@ export function reduce(state: State, ev: Event): State {
       return task ? touchDay(next, task.date, ev.ts) : next;
     }
     case "assignment.remove": {
-      const prev = state.assignments[ev.id];
+      const byId = state.assignments[ev.id];
+      const prev =
+        byId ?? (ev.taskId && ev.staffId ? Object.values(state.assignments).find((a) => a.taskId === ev.taskId && a.staffId === ev.staffId) : undefined);
       if (!prev) return state;
       const task = state.tasks[prev.taskId];
-      const next = { ...state, assignments: omit(state.assignments, ev.id) };
+      const next = { ...state, assignments: omit(state.assignments, prev.id) };
       return task ? touchDay(next, task.date, ev.ts) : next;
     }
 
@@ -246,7 +248,7 @@ export function invertEvent(ev: Event, before: State): Event[] {
     case "task.setTargets":
       return [{ ...meta, type: "task.setTargets", id: ev.id, residentIds: before.targets[ev.id] ?? [] }];
     case "assignment.add":
-      return [{ ...meta, type: "assignment.remove", id: ev.assignment.id }];
+      return [{ ...meta, type: "assignment.remove", id: ev.assignment.id, taskId: ev.assignment.taskId, staffId: ev.assignment.staffId }];
     case "assignment.remove": {
       const prev = before.assignments[ev.id];
       return prev ? [{ ...meta, type: "assignment.add", assignment: prev }] : [];
