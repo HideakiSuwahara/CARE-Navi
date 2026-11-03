@@ -14,6 +14,11 @@ create table if not exists public.events (
 
 create index if not exists events_facility_idx on public.events (facility_code, id);
 
+-- テーブルの権限（新しいプロジェクトでは既定で付かないことがある。RLS のポリシーとは別に要る）
+grant usage on schema public to anon, authenticated;
+grant select, insert on public.events to anon, authenticated;
+grant usage, select on all sequences in schema public to anon, authenticated;
+
 alter table public.events enable row level security;
 
 -- 試用の版: anon キーで読み書きできる（施設コードを知っている端末が同じ施設を見る）
