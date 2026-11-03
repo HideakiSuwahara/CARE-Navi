@@ -64,3 +64,41 @@ test("施設コードは6文字で、同じ施設なら同じ。ふだんの設�
   assert.equal(s2.facility?.settings.residentDisplayMode, "full");
   assert.equal(s2.facility?.settings.firstTimerOnlyWarning, false);
 });
+
+test("自分の施設で始める: 雛形の施設に固有の文・番の名前・対象の方を決めた業務は写さない。グループは種類で当てはめる", () => {
+  const res = buildOwnFacility(
+    { name: "みどり荘", groupsText: "2階\n3階\nあおばユニット", residentsText: "", staffText: "" },
+    himawariSeed,
+    deterministicContext("own2", "2026-11-03T08:00:00+09:00", "b-own2"),
+  );
+  const s = applyEvents(emptyState(), res.events);
+  assert.deepEqual(res.mapping, [
+    { group: "2階", kind: "従来型" },
+    { group: "3階", kind: "従来型" },
+    { group: "あおばユニット", kind: "ユニット" },
+  ]);
+  const slotNames = Object.values(s.roleSlots).map((x) => x.name);
+  assert.ok(!slotNames.some((n) => /東|さくら/.test(n)), `雛形のグループ名が残らない: ${slotNames.join("・")}`);
+  assert.ok(slotNames.includes("夜勤 2階") && slotNames.includes("夜勤 3階") && slotNames.some((n) => n.includes("あおばユニット")));
+  for (const t of Object.values(s.templates)) {
+    assert.equal(t.contact, undefined);
+    assert.equal(t.supplies, undefined);
+  }
+  for (const p of Object.values(s.patterns)) for (const it of p.items) assert.notEqual(it.targetRule, "residents");
+  assert.ok(res.skippedPersonal.length > 0);
+  // 2階と3階の両方に従来型の業務が入る
+  const g2 = Object.values(s.groups).find((g) => g.name === "2階")!.id;
+  const g3 = Object.values(s.groups).find((g) => g.name === "3階")!.id;
+  const p0 = Object.values(s.patterns)[0];
+  assert.ok(p0.items.some((it) => it.groupId === g2) && p0.items.some((it) => it.groupId === g3));
+  // 業務の番は実在する番だけ
+  for (const p of Object.values(s.patterns)) for (const it of p.items) for (const sid of it.slotIds) assert.ok(s.roleSlots[sid], sid);
+});
+
+test("職員の貼り付け: 見出し行は飛ばす。区切りがない行・1列目が数字の行は理由つきで止める", () => {
+  const r = parseStaffPaste(emptyState(), "氏名, 職種\n1001, 野村, 介護職員\n野村 ミホ 介護職員\n川口ジュン, 介護職員");
+  assert.equal(r.staff.length, 1);
+  assert.equal(r.staff[0].noSpace, true);
+  assert.match(r.errors.find((e) => e.line === 2)!.reason, /数字/);
+  assert.match(r.errors.find((e) => e.line === 3)!.reason, /区切り/);
+});

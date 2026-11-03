@@ -196,6 +196,8 @@ const roleSlots: RoleSlot[] = [
 
 const CAT_CORE = "core";
 const CAT_NONCORE = "noncore";
+/** 申し送り・記録・到着の案内など、コアにもノンコアにも入れない業務（見直しの図では「その他」） */
+const CAT_OTHER = "other";
 // PHS は画面の「困ったら」で、その時刻のリーダーから出す（ここに番号を書くと夜に違う人を指す）
 const LEADER = "いまのリーダー（画面の上の「困ったら」）";
 const CONTACT_CARE = "一緒に入る常勤の職員";
@@ -668,7 +670,7 @@ const templates: TaskTemplate[] = [
     id: TPL_RECORDS,
     name: "記録入力",
     kind: "care",
-    categoryId: CAT_NONCORE,
+    categoryId: CAT_OTHER,
     targetMode: "none",
     defaultDurationMin: 60,
     defaultHeadcount: 1,
@@ -700,7 +702,7 @@ const templates: TaskTemplate[] = [
     id: TPL_HANDOVER,
     name: "申し送り",
     kind: "care",
-    categoryId: CAT_NONCORE,
+    categoryId: CAT_OTHER,
     targetMode: "none",
     defaultDurationMin: 30,
     defaultHeadcount: 2,
@@ -716,7 +718,7 @@ const templates: TaskTemplate[] = [
     id: TPL_ARRIVAL,
     name: "到着・案内",
     kind: "care",
-    categoryId: CAT_NONCORE,
+    categoryId: CAT_OTHER,
     targetMode: "none",
     defaultDurationMin: 15,
     defaultHeadcount: 2,
@@ -1410,6 +1412,7 @@ export const himawariSeed: SeedData = {
       categories: [
         { id: CAT_CORE, name: "コア業務", kind: "core" },
         { id: CAT_NONCORE, name: "ノンコア業務", kind: "noncore" },
+        { id: CAT_OTHER, name: "その他（申し送り・記録など）", kind: "other" },
       ],
     },
   },

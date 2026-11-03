@@ -20,7 +20,7 @@ test.describe("設定", () => {
   test("自分の施設で始める: 貼り付けの失敗行は理由つきで、他は取り込んでボードへ", async ({ page }) => {
     await page.getByRole("button", { name: "自分の施設で始める" }).click();
     await page.getByLabel("施設の名前").fill("みどり荘");
-    await page.getByLabel(/グループ（1行に1つ/).fill("2階\nあおばユニット");
+    await page.getByLabel(/^グループ（必須/).fill("2階\nあおばユニット");
     await page.getByRole("textbox", { name: "2. 利用者を貼り付け" }).fill("菅野 ハル, 2階, 201\n熊谷 トメ, 3階, 301");
     await page.getByRole("textbox", { name: "3. 職員を貼り付け" }).fill("野村 ミホ, 介護福祉士, 入浴担当可, 811\n川口 ジュン, 介護職員");
     await expect(page.getByText("2行目: グループ「3階」が見つかりません")).toBeVisible();
@@ -28,9 +28,17 @@ test.describe("設定", () => {
     await expect(page).toHaveURL(/\/board/);
     await expect(page.getByText("みどり荘")).toBeVisible();
     await expect(page.getByRole("heading", { name: "今日の時間割を作る" })).toBeVisible();
+    // はじめての日: 職員を全員「休み」で並べ、来る人を1タップで出勤にする。番の名前に雛形のグループ名が残らない
+    const list = page.getByRole("list", { name: "今日の出勤者" });
+    await expect(list.getByRole("button", { name: "出勤にする" })).toHaveCount(2);
+    await list.getByRole("button", { name: "出勤にする" }).first().click();
+    const options = await list.getByRole("combobox").first().locator("option").allTextContents();
+    expect(options.join(" ")).not.toMatch(/東|さくら/);
+    await page.getByRole("button", { name: "この内容で作る" }).click();
+    await expect(page.getByRole("heading", { name: "今日の時間割を作る" })).toHaveCount(0);
   });
 
-  test("ふだんの設定: 施設コード・利用者名・初回の方の警告。変えると元に戻せる", async ({ page }) => {
+  test("ふだんの設定: 施設コード・利用者名・初回の職員の警告。変えると元に戻せる", async ({ page }) => {
     await page.getByRole("button", { name: "サンプル施設で試す" }).click();
     await page.goto("/setup");
     await expect(page.getByRole("heading", { name: "施設コード" })).toBeVisible();
@@ -38,7 +46,7 @@ test.describe("設定", () => {
     await full.click();
     await expect(full).toHaveAttribute("aria-pressed", "true");
     await expect(page.getByRole("status")).toContainText("フルネーム");
-    await page.getByRole("button", { name: "元に戻す" }).click();
+    await page.getByRole("button", { name: "元に戻す" }).first().click();
     await expect(page.getByRole("button", { name: /^部屋番号＋姓/ })).toHaveAttribute("aria-pressed", "true");
     await page.getByRole("button", { name: "しない" }).click();
     await expect(page.getByRole("button", { name: "しない" })).toHaveAttribute("aria-pressed", "true");

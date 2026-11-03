@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useEngine } from "@/store/react";
-import { createDayEvents, morningDraft } from "@/domain/pattern";
+import { createDayEvents, morningDraft, suggestSlot } from "@/domain/pattern";
 import { fmtRange } from "@/domain/time";
 import type { DateKey, ID, RosterEntry, State } from "@/domain/types";
 
@@ -41,8 +41,8 @@ export function MorningBand({ state, date }: { state: State; date: DateKey }) {
     const staff = state.staff[staffId];
     if (!staff) return;
     const isSpot = staff.role === "スポット";
-    // 既定の番: スポットは名前に「スポット」を含む番、他は最初の番
-    const slot = (isSpot ? slots.find((s) => s.name.includes("スポット")) : undefined) ?? slots[0];
+    // 既定の番: 職種の言葉を含む番、なければまだ誰にも当てていない番（人が選び直せる）
+    const slot = suggestSlot(state, staff.role, new Set(rows.filter((r) => !r.absent && r.slotId).map((r) => r.slotId as ID)));
     const entry: RosterEntry = {
       id: `draft-${date}-add-${staffId}`,
       date,
@@ -78,7 +78,11 @@ export function MorningBand({ state, date }: { state: State; date: DateKey }) {
             先週の同じ曜日（{shortDate(draft.entries[0]?.carriedFrom ?? date)}）と同じ番で並べました。違うところだけ直してください。
           </p>
         )}
-        {draft.source === "none" && <p className="mt-1 text-[15px] text-[var(--cn-ink-soft)]">今日来る人を足してください。</p>}
+        {draft.source === "none" && (
+          <p className="mt-1 text-[15px] text-[var(--cn-ink-soft)]">
+            はじめての日です。職員を全員「休み」で並べました。今日来る人の「出勤にする」を押してください（番は職種から仮に入れています。違えば選び直してください）。
+          </p>
+        )}
       </div>
 
       <ul aria-label="今日の出勤者" className="grid grid-cols-[repeat(auto-fill,minmax(270px,1fr))] gap-2">
@@ -121,7 +125,7 @@ export function MorningBand({ state, date }: { state: State; date: DateKey }) {
                   e.absent ? "border-[var(--cn-ink)] bg-white font-bold text-[var(--cn-ink)]" : "border-[var(--cn-control-line)] bg-white text-[var(--cn-ink-soft)]"
                 }`}
               >
-                {e.absent ? "出勤に戻す" : "休み"}
+                {e.absent ? (draft.source === "none" ? "出勤にする" : "出勤に戻す") : "休み"}
               </button>
             </li>
           );

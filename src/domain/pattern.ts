@@ -294,7 +294,27 @@ export function morningDraft(state: State, date: DateKey, newId: () => ID): Morn
   if (today.length > 0) return { date, patternId, entries: today.map((e) => ({ ...e })), source: "today" };
   const lastWeek = addDays(date, -7);
   const prev = rosterForDate(state, lastWeek);
-  if (prev.length === 0) return { date, patternId, entries: [], source: "none" };
+  if (prev.length === 0) {
+    // はじめての日: 職員を全員「休み」で並べ、番を仮に入れておく（来る人を1タップで出勤にする）
+    const used = new Set<ID>();
+    const entries = Object.values(state.staff)
+      .sort((a, b) => a.displayName.localeCompare(b.displayName, "ja"))
+      .map((staff) => {
+        const slot = suggestSlot(state, staff.role, used);
+        if (slot) used.add(slot.id);
+        return {
+          id: newId(),
+          date,
+          staffId: staff.id,
+          slotId: slot?.id,
+          startMin: slot?.defaultStartMin ?? 9 * 60,
+          endMin: slot?.defaultEndMin ?? 18 * 60,
+          firstTimer: staff.role === "スポット",
+          absent: true,
+        };
+      });
+    return { date, patternId, entries, source: "none" };
+  }
   const entries = prev
     .filter((e) => {
       const staff = state.staff[e.staffId];
@@ -315,6 +335,19 @@ export function morningDraft(state: State, date: DateKey, newId: () => ID): Morn
       };
     });
   return { date, patternId, entries, source: "lastWeek" };
+}
+
+/**
+ * 番の既定値（仮）。職種の言葉を含む番（介護助手・看護・スポット）があればそれ、
+ * なければ、まだ誰にも当てていない番を並び順で。人が選び直す前提の既定値で、可否は担当条件で決まる。
+ */
+export function suggestSlot(state: State, role: string, used: Set<ID> = new Set()) {
+  const slots = Object.values(state.roleSlots).sort((a, b) => a.sortOrder - b.sortOrder);
+  const special = ["介護助手", "看護", "スポット"];
+  const key = special.find((k) => role.includes(k));
+  if (key) return slots.find((x) => x.name.includes(key) && !used.has(x.id)) ?? slots.find((x) => x.name.includes(key));
+  const general = slots.filter((x) => !special.some((k) => x.name.includes(k)));
+  return general.find((x) => !used.has(x.id)) ?? general[0] ?? slots[0];
 }
 
 /**
