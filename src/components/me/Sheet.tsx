@@ -22,10 +22,28 @@ export function Sheet({
   children: ReactNode;
 }) {
   const headRef = useRef<HTMLHeadingElement>(null);
+  const boxRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     headRef.current?.focus();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
+      if (e.key !== "Tab" || !boxRef.current) return;
+      // フォーカスをシートの中にとどめる（最後の次は最初へ、最初の前は最後へ）
+      const items = [...boxRef.current.querySelectorAll<HTMLElement>("button:not([disabled]), input:not([disabled]), a[href], [tabindex]:not([tabindex='-1'])")];
+      if (items.length === 0) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      const active = document.activeElement;
+      if (e.shiftKey && (active === first || active === headRef.current)) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault();
+        first.focus();
+      } else if (!boxRef.current.contains(active)) {
+        e.preventDefault();
+        first.focus();
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -33,7 +51,7 @@ export function Sheet({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div role="dialog" aria-modal="true" aria-labelledby="sheet-title" className="flex max-h-[92vh] w-full max-w-[480px] flex-col rounded-t-2xl bg-[var(--cn-ground)] text-[16px]">
+      <div ref={boxRef} role="dialog" aria-modal="true" aria-labelledby="sheet-title" className="flex max-h-[92vh] w-full max-w-[480px] flex-col rounded-t-2xl bg-[var(--cn-ground)] text-[16px]">
         <div className="flex items-start gap-3 rounded-t-2xl border-b border-[var(--cn-border)] bg-white px-4 py-3">
           <div className="min-w-0 flex-1">
             {subtitle && <p className="text-[14px] text-[var(--cn-ink-soft)]">{subtitle}</p>}

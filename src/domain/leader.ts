@@ -5,10 +5,11 @@
 
 import type { Event } from "./events.ts";
 import { applyEvents } from "./reducer.ts";
-import { assigneesOf, headcountStatus, rankCandidates, rosterForDate, taskLabel, tasksForDate, type Candidate } from "./checks.ts";
+import { assigneesOf, headcountStatus, rankCandidates, rosterForDate, taskLabel, tasksForDate, tasksOfStaff, type Candidate } from "./checks.ts";
+import { fmtRange, overlaps } from "./time.ts";
 import { residentLabel } from "./display.ts";
 import { staffTaskName } from "./myday.ts";
-import type { DateKey, HeadcountStatus, ID, Minutes, Resident, RosterEntry, Staff, State, TaskInstance } from "./types.ts";
+import { MAX_MINUTES, type DateKey, type HeadcountStatus, type ID, type Minutes, type Resident, type RosterEntry, type Staff, type State, type TaskInstance } from "./types.ts";
 
 /**
  * その人に［自分｜全体］を出すか。
@@ -40,16 +41,21 @@ export interface AllRow {
   past: boolean;
 }
 
-/** 時間順の一覧（中止も残す。開始 → 終わり → 名前の順） */
+/**
+ * 時間順の一覧（中止も残す。開始 → 終わり → 名前の順）。
+ * - 誰も入っていない休憩カードは出さない（休憩は埋める枠ではない）
+ * - 時刻を過ぎた業務は「担当未定」に数えず、＋も出さない（これからの分だけを見る）
+ */
 export function allRows(state: State, date: DateKey, now: Minutes): AllRow[] {
   return tasksForDate(state, date, true)
-    .slice()
+    .filter((t) => t.kind !== "break" || assigneesOf(state, t.id).length > 0)
     .sort((a, b) => a.startMin - b.startMin || a.endMin - b.endMin || a.name.localeCompare(b.name, "ja"))
     .map((task) => {
       const isBreak = task.kind === "break";
       const cancelled = task.status === "cancelled";
       const status = headcountStatus(state, task.id);
-      const unfilled = !isBreak && !cancelled && (status.level === "unassigned" || status.level === "short");
+      const past = task.endMin <= now;
+      const unfilled = !isBreak && !cancelled && !past && (status.level === "unassigned" || status.level === "short");
       const n = (state.targets[task.id] ?? []).length;
       return {
         task,
@@ -60,14 +66,58 @@ export function allRows(state: State, date: DateKey, now: Minutes): AllRow[] {
         unfilled,
         cancelled,
         isBreak,
-        past: task.endMin <= now,
+        past,
       };
     });
 }
 
-/** 見出しの「担当未定 2件」「担当あと 1 人 1件」。押すと最初の該当行へ */
+/** 見出しの「担当未定 2件」「担当あと 1 人 1件」の件数（これからの分）。押すと最初の該当行へ */
 export function unfilledCount(rows: AllRow[]): number {
   return rows.filter((r) => r.unfilled).length;
+}
+
+/** 見出し用: ラベルごとの件数（担当未定 → 担当あと n 人の n が小さい順）。これからの分だけ */
+export function unfilledGroups(rows: AllRow[]): { label: string; level: "unassigned" | "short"; count: number }[] {
+  const map = new Map<string, { label: string; level: "unassigned" | "short"; count: number; gap: number }>();
+  for (const r of rows) {
+    if (!r.unfilled) continue;
+    const level = r.status.level === "unassigned" ? "unassigned" : "short";
+    const cur = map.get(r.status.label) ?? { label: r.status.label, level, count: 0, gap: level === "unassigned" ? -1 : r.status.gap };
+    cur.count++;
+    map.set(r.status.label, cur);
+  }
+  return [...map.values()].sort((a, b) => a.gap - b.gap).map(({ label, level, count }) => ({ label, level, count }));
+}
+
+/** 「● いまの時間」を差し込む位置（始まりがいまより後の最初の行。いま行っている業務はその上に並ぶ） */
+export function firstUpcomingIndex(rows: AllRow[], now: Minutes): number {
+  return rows.findIndex((r) => r.task.startMin > now);
+}
+
+/**
+ * 業務を delta 分ずらす前の確かめ（休憩以外）。
+ * - その日の時間割（0:00〜翌 23:59）の外へは出さない（日をまたぐ移動は作らない）
+ * - 担当の人のほかの予定と重なるなら、その一文を返す（止めない。トーストに添える）
+ */
+export function shiftCheck(state: State, taskId: ID, delta: Minutes): { ok: boolean; message?: string; conflicts: string[] } {
+  const t = state.tasks[taskId];
+  if (!t) return { ok: false, message: "業務が見つかりません", conflicts: [] };
+  const s = t.startMin + delta;
+  const e = t.endMin + delta;
+  if (s < 0 || e > MAX_MINUTES - 1) return { ok: false, message: "その日の時間割の外へはずらせません", conflicts: [] };
+  const conflicts: string[] = [];
+  for (const a of assigneesOf(state, taskId)) {
+    for (const o of tasksOfStaff(state, t.date, a.id)) {
+      if (o.id === taskId || !overlaps(s, e, o.startMin, o.endMin)) continue;
+      conflicts.push(`${a.surname}さんは「${o.kind === "break" ? "休憩" : taskLabel(state, o)} ${fmtRange(o.startMin, o.endMin)}」と重なります`);
+    }
+  }
+  return { ok: true, conflicts };
+}
+
+/** 早退の時刻（15分切り上げ。勤務の始まりより前にはしない） */
+export function leaveAt(entry: RosterEntry, now: Minutes): Minutes {
+  return Math.max(Math.ceil(now / 15) * 15, entry.startMin);
 }
 
 /** イベントで変わる業務（決定後に一覧で3秒強調する行） */

@@ -2,8 +2,8 @@
 
 import { useState, type ReactNode } from "react";
 import type { Event } from "@/domain/events";
-import { defaultUnchecked, selectPreview, type Preview } from "@/domain/commands";
-import type { ID } from "@/domain/types";
+import { defaultUnchecked, effectLines, selectPreview, type Preview } from "@/domain/commands";
+import type { DateKey, ID, State } from "@/domain/types";
 import { Sheet } from "./Sheet";
 
 /**
@@ -18,10 +18,15 @@ export function PreviewSheet({
   onBack,
   backLabel,
   onDecide,
+  state,
+  date,
   resetKey,
   children,
 }: {
   preview: Preview;
+  /** 結果の行（担当未定になります）をチェックに合わせて作り直すため */
+  state: State;
+  date: DateKey;
   /** 入力（種類・時間・担当）が変わったら、チェックを既定に戻す。シートは開いたまま（フォーカスを動かさない） */
   resetKey?: string;
   title: string;
@@ -36,6 +41,8 @@ export function PreviewSheet({
   const unchecked = checks.key === resetKey ? checks.unchecked : defaultUnchecked(preview);
   const setUnchecked = (fn: (prev: Set<ID>) => Set<ID>) => setChecks((c) => ({ key: c.key, unchecked: fn(c.unchecked) }));
   const events = selectPreview(preview, unchecked);
+  // 結果の行は、いま選んでいる行だけを当てた結果で出す（チェックを外したら書き換わる）
+  const lines = [...preview.lines.filter((l) => !l.computed), ...effectLines(state, events, date)];
   const toggle = (ids: ID[], on: boolean) =>
     setUnchecked((prev) => {
       const next = new Set(prev);
@@ -74,8 +81,9 @@ export function PreviewSheet({
         <h3 id="pv-lines" className="mb-1.5 text-[14px] font-bold text-[var(--cn-muted)]">
           変わること
         </h3>
+        <p className="mb-1.5 text-[14px] text-[var(--cn-ink-soft)]">チェックを外すと、その行はしません。</p>
         <ul className="flex flex-col divide-y divide-[var(--cn-grid)] rounded-xl border border-[var(--cn-border)] bg-white">
-          {preview.lines.map((l, i) => {
+          {lines.map((l, i) => {
             const on = l.eventIds.every((id) => !unchecked.has(id));
             return (
               <li key={i} className="px-3 py-2">

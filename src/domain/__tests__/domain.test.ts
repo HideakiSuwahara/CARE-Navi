@@ -402,7 +402,7 @@ test("休憩をずらす: 人を選べば、その人だけが動く（休憩カ
   // 勤務を超えるずらしは作らない
   const tooLate = shiftBreakPreview(s, brk.id, 7 * 60, deterministicContext("r"), "s-suzuki");
   assert.equal(tooLate.events.length, 0);
-  assert.match(tooLate.lines[0].text, /18:00 までのため/);
+  assert.match(tooLate.lines[0].text, /–18:00 のため/);
 });
 
 test("早退: 勤務中なら今の時刻（15分切り上げ）で早退にし、それ以降の担当だけ外す", () => {

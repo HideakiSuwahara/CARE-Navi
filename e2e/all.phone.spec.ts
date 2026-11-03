@@ -25,7 +25,7 @@ test.describe("全体（リーダーのスマホ）", () => {
   test("各行に「⋯」、未充足の行に「＋」。画面下にクイック操作と元に戻す。休憩にバッジはない", async ({ page }) => {
     await openAll(page);
     const list = page.getByRole("list", { name: "きょうの業務（時間順）" });
-    const rows = list.getByRole("listitem");
+    const rows = list.locator("[data-all-task]");
     const n = await rows.count();
     expect(n).toBeGreaterThan(10);
     await expect(list.getByRole("button", { name: /のほかの操作/ })).toHaveCount(n);
@@ -61,11 +61,44 @@ test.describe("全体（リーダーのスマホ）", () => {
     await page.getByRole("button", { name: "付き添い・外出" }).click();
     await page.getByRole("button", { name: "203 田中様" }).click();
     const dialog = page.getByRole("dialog");
-    await dialog.getByRole("button", { name: "担当を選ぶ" }).click();
+    await dialog.getByRole("button", { name: "ほかの人から選ぶ" }).click();
     await dialog.getByRole("button", { name: /^ほかの人/ }).click();
     await dialog.getByRole("button", { name: "高橋さんを担当にする" }).click();
     await expect(dialog).toContainText("→ 担当 高橋");
     await expect(dialog).toContainText("ずらす: 高橋 の休憩");
+  });
+
+  test("付き添いの担当は「問題なし」の先頭の人を1タップで付けられる", async ({ page }) => {
+    await openAll(page);
+    await page.getByRole("button", { name: "付き添い・外出" }).click();
+    await page.getByRole("button", { name: "203 田中様" }).click();
+    const dialog = page.getByRole("dialog");
+    const top = dialog.getByRole("button", { name: /さんを担当にする$/ });
+    const label = (await top.textContent()) ?? "";
+    await top.click();
+    await expect(dialog).toContainText(`→ 担当 ${label.replace("さんを担当にする", "")}`);
+  });
+
+  test("欠勤・早退: 勤務中の人でも、来ていなければ1タップで欠勤に直せる", async ({ page }) => {
+    await openAll(page, "7:10");
+    await page.getByRole("button", { name: "欠勤・早退" }).click();
+    await page.getByRole("dialog").getByRole("button", { name: /高橋/ }).click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog.getByRole("heading", { name: "高橋さん 早退" })).toBeVisible();
+    await dialog.getByRole("button", { name: "欠勤（来ていない）" }).click();
+    await expect(dialog.getByRole("heading", { name: "高橋さん 欠勤" })).toBeVisible();
+    await expect(dialog).toContainText("高橋 を本日「欠勤」にする");
+  });
+
+  test("開くと、いまの時間の行へ寄る。シートを開いている間は Tab がシートの外へ出ない", async ({ page }) => {
+    await openAll(page, "17:30", "木村");
+    await expect(page.getByText("● いまの時間 17:30")).toBeInViewport();
+    await page.locator("[data-all-task]").first().getByRole("button", { name: /のほかの操作/ }).click();
+    const dialog = page.getByRole("dialog");
+    for (let i = 0; i < 15; i++) {
+      await page.keyboard.press("Tab");
+      expect(await dialog.evaluate((d) => d.contains(document.activeElement))).toBe(true);
+    }
   });
 
   test("欠勤・早退: ボタン → 木村 → 決定 で欠勤。担当が外れる", async ({ page }) => {

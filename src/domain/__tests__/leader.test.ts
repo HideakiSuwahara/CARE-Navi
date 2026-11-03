@@ -89,3 +89,44 @@ test("付き添いで選べる利用者は、表示名の設定（既定: 部屋
   const list = escortChoices(s);
   assert.ok(list.some((x) => x.label === "203 田中様"));
 });
+
+test("時刻を過ぎた担当未定は見出しに数えない。誰もいない休憩カードは一覧に出さない", async () => {
+  const { unfilledGroups } = await import("../leader.ts");
+  const s = state();
+  const early = allRows(s, DATE, toMin(6));
+  const late = allRows(s, DATE, toMin(15));
+  assert.ok(unfilledCount(late) <= unfilledCount(early));
+  for (const r of late.filter((x) => x.past)) assert.equal(r.unfilled, false);
+  assert.equal(unfilledGroups(late).reduce((n, g) => n + g.count, 0), unfilledCount(late));
+  for (const r of late.filter((x) => x.isBreak)) assert.ok(r.assignees.length > 0);
+});
+
+test("ずらす前の確かめ: 時間割の外へは出さない。担当のほかの予定との重なりを一文で返す", async () => {
+  const { shiftCheck } = await import("../leader.ts");
+  const s = state();
+  const first = allRows(s, DATE, 0).find((r) => !r.isBreak && r.assignees.length > 0)!;
+  assert.equal(shiftCheck(s, first.task.id, -24 * 60).ok, false);
+  const c = shiftCheck(s, first.task.id, 30);
+  assert.equal(c.ok, true);
+  assert.ok(c.conflicts.every((x) => x.includes("と重なります")));
+});
+
+test("欠勤・早退: 勤務開始の直後でも、来ていなければ欠勤を選べる。夜勤の人は朝の時刻なら欠勤", () => {
+  const s = state();
+  const ctx = deterministicContext("abs2", "2026-11-03T07:10:00+09:00", "b-abs2");
+  assert.equal(absencePreview(s, DATE, "stf-takahashi", ctx, toMin(7, 10)).title, "早退");
+  assert.equal(absencePreview(s, DATE, "stf-takahashi", ctx, toMin(7, 10), "absent").title, "欠勤");
+  // 今夜 17:00 からの夜勤東の人に 7:00 の時点で連絡が来た → 欠勤（業務日の時刻で比べる）
+  assert.equal(absencePreview(s, DATE, "stf-saito", ctx, toMin(7)).title, "欠勤");
+});
+
+test("付き添い: 一括の業務は対象の方から外す候補（既定はチェックなし）。端だけ重なる個別業務の中止も既定はチェックなし", () => {
+  const s = state();
+  const ctx = deterministicContext("esc2", "2026-11-03T10:00:00+09:00", "b-esc2");
+  const p = escortPreview(s, { date: DATE, residentId: "res-203-tanaka", startMin: toMin(9, 15), endMin: toMin(10, 45) }, ctx);
+  for (const l of p.lines.filter((x) => x.kind === "remove")) assert.equal(l.defaultOn, false);
+  for (const l of p.lines.filter((x) => x.kind === "cancel")) {
+    if (l.text.includes("一部だけ重なります")) assert.equal(l.defaultOn, false);
+    else assert.equal(l.defaultOn, true);
+  }
+});
