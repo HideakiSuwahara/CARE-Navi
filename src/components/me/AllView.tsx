@@ -38,6 +38,7 @@ import { fmtMin, fmtRange } from "@/domain/time";
 import { MAX_MINUTES, type ID, type State } from "@/domain/types";
 import type { Engine } from "@/store/engine";
 import { useEngine } from "@/store/react";
+import { SyncBadge } from "@/components/SyncBadge";
 import { PreviewSheet } from "./PreviewSheet";
 import { Sheet } from "./Sheet";
 
@@ -183,7 +184,10 @@ export function AllView({ state, date, me, now, clock, tabs }: { state: State; d
           <span className="text-[16px] text-[var(--cn-ink-soft)]">
             {m}/{d}（{wd}）
           </span>
-          {updated && <span className="ml-auto text-[14px] text-[var(--cn-muted)]">{updated}</span>}
+          <span className="ml-auto flex items-center gap-2">
+            {updated && <span className="text-[14px] text-[var(--cn-muted)]">{updated}</span>}
+            <SyncBadge />
+          </span>
         </div>
         {groups.length > 0 ? (
           <div className="mt-2 flex flex-wrap gap-2">

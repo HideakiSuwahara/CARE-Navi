@@ -8,9 +8,25 @@ import { residentLabel } from "@/domain/display";
 import { himawariSeed } from "@/domain/seed";
 import { buildOwnFacility, facilityCode, parseStaffPaste, settingsEvent, staffEvents } from "@/domain/setup";
 import type { ResidentDisplayMode } from "@/domain/types";
-import { useAppState, useEngine } from "@/store/react";
+import { useAppState, useEngine, useSyncStatus } from "@/store/react";
 import { SETUP_NOTE_KEY } from "./setupNote";
 import { sampleEvents } from "@/store/sample";
+import { LocalStore } from "@/store/datastore";
+import { supabaseEnv, supabaseSyncClient } from "@/store/supabaseClient";
+import { joinUrl, normalizeCode, readSyncCode, writeSyncCode } from "@/store/syncJoin";
+import type { Event } from "@/domain/events";
+
+/**
+ * 同期をやめて、ブラウザ内保存を events で作り直し、画面を読み込み直す（Engine を作り直す）。
+ * 「サンプル施設で試す」「自分の施設で始める」は、同期中の施設へ送らない。
+ */
+async function resetLocalAndReload(events: Event[], to: string) {
+  writeSyncCode(null);
+  const local = new LocalStore();
+  await local.clear();
+  await local.append(events);
+  window.location.assign(to);
+}
 
 /**
  * 設定（PC）。docs/screens.md §3
@@ -36,19 +52,34 @@ function writeChosen(on: boolean) {
   }
 }
 
-export function Setup() {
+export function Setup({ join }: { join?: string }) {
   const { state, ready } = useAppState();
   const engine = useEngine();
   const router = useRouter();
+  const sync = useSyncStatus();
   const [chosen, setChosen] = useState<boolean | null>(null);
   const [own, setOwn] = useState(false);
   useEffect(() => setChosen(readChosen()), []);
+  // QR や URL から来た「施設コードで参加」（/setup?join=コード）
+  useEffect(() => {
+    if (!join || !supabaseEnv()) return;
+    const code = normalizeCode(join);
+    if (code && code !== readSyncCode()) {
+      writeSyncCode(code);
+      writeChosen(true);
+      window.location.replace("/board");
+    }
+  }, [join]);
 
   if (!ready || chosen === null) return <p className="p-6 text-[15px] text-[var(--cn-muted)]">読み込んでいます…</p>;
 
   const trySample = async () => {
-    if (engine && state.facility?.id !== himawariSeed.facility.id) await engine.reset(sampleEvents());
     writeChosen(true);
+    if (sync.kind === "sync") {
+      await resetLocalAndReload(sampleEvents(), "/board");
+      return;
+    }
+    if (engine && state.facility?.id !== himawariSeed.facility.id) await engine.reset(sampleEvents());
     router.push("/board");
   };
 
@@ -60,6 +91,12 @@ export function Setup() {
           isSample={state.facility?.id === himawariSeed.facility.id}
           onDone={async (events, r) => {
             if (!engine) return;
+            if (sync.kind === "sync") {
+              // 同期中の施設の内容を上書きしない。この端末をブラウザ内保存に戻して作る
+              writeChosen(true);
+              await resetLocalAndReload(events, "/board");
+              return;
+            }
             await engine.reset(events);
             const residentErrors = r.residentErrors.length;
             const staffErrors = r.staffErrors.length;
@@ -370,10 +407,7 @@ function Everyday({ onOwn, onSample }: { onOwn: () => void; onSample: () => void
         <h3 id="s-code" className="mb-1 text-[16px] font-bold">
           施設コード
         </h3>
-        <p className="text-[28px] font-bold tracking-[0.2em] tabular-nums">{facilityCode(f.id)}</p>
-        <p className="text-[14px] text-[var(--cn-ink-soft)]">
-          この版の保存は、このブラウザの中だけです（同じブラウザの別のタブにはすぐ反映されます）。スマホなど別の端末で同じ時間割を見る同期と、認証・権限は、本番の要件として README に書いています。施設コードは認証ではありません。
-        </p>
+        <SyncSection facilityId={f.id} facilityName={f.name} onToast={setToast} />
       </section>
 
       <section aria-labelledby="s-name" className="rounded-xl border border-[var(--cn-border)] bg-white p-4">
@@ -461,6 +495,135 @@ function Everyday({ onOwn, onSample }: { onOwn: () => void; onSample: () => void
           </span>
         )}
       </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// 施設コードと同期（決定記録 0009）
+// ---------------------------------------------------------------------------
+
+function SyncSection({ facilityId, facilityName, onToast }: { facilityId: string; facilityName: string; onToast: (t: string) => void }) {
+  const sync = useSyncStatus();
+  const available = supabaseEnv();
+  const [code, setCode] = useState<string | null>(null);
+  const [joinText, setJoinText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [qr, setQr] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => setCode(readSyncCode()), []);
+  const shownCode = code ?? facilityCode(facilityId);
+  useEffect(() => {
+    if (!code) {
+      setQr(null);
+      return;
+    }
+    let alive = true;
+    import("qrcode")
+      .then((m) => m.toDataURL(joinUrl(window.location.origin, code), { width: 192, margin: 1 }))
+      .then((url) => alive && setQr(url))
+      .catch(() => alive && setQr(null));
+    return () => {
+      alive = false;
+    };
+  }, [code]);
+
+  const startSync = async () => {
+    if (!available || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const events = await new LocalStore().load();
+      const newCode = facilityCode(facilityId);
+      await supabaseSyncClient(available).insert(newCode, events);
+      writeSyncCode(newCode);
+      window.location.assign("/setup");
+    } catch {
+      setError("送れませんでした。接続を確かめて、もう一度押してください。");
+      setBusy(false);
+    }
+  };
+  const joinByCode = () => {
+    const c = normalizeCode(joinText);
+    if (!/^[A-Z0-9]{4,12}$/.test(c)) {
+      setError("施設コードは英数字 4〜12 文字です。");
+      return;
+    }
+    writeSyncCode(c);
+    window.location.assign("/board");
+  };
+  const leave = () => {
+    writeSyncCode(null);
+    onToast("この端末だけの保存に戻しました");
+    window.location.assign("/setup");
+  };
+  const btn = "h-[44px] rounded-lg border border-[var(--cn-control-line)] bg-white px-4 font-bold";
+
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="text-[28px] font-bold tracking-[0.2em] tabular-nums" aria-label={`施設コード ${shownCode}`}>
+        {shownCode}
+      </p>
+      {!available ? (
+        <p className="text-[14px] text-[var(--cn-ink-soft)]">
+          この版の保存は、このブラウザの中だけです（同じブラウザの別のタブにはすぐ反映されます）。端末間の同期は、環境変数（README）が設定されたときに使えます。施設コードは認証ではありません。
+        </p>
+      ) : sync.kind === "sync" ? (
+        <>
+          <p className="flex flex-wrap items-center gap-2 text-[15px]">
+            <span>この施設コードで同期しています（{facilityName}）。</span>
+            <span className={`inline-flex h-[28px] items-center rounded-md border px-2 text-[14px] font-bold ${sync.status === "online" ? "border-[var(--cn-accent)] text-[var(--cn-accent)]" : "border-[var(--cn-alert-line)] text-[var(--cn-unassigned-ink)]"}`}>
+              {sync.status === "online" ? "同期中" : sync.status === "offline" ? "この端末の内容（届いていません）" : "接続中"}
+            </span>
+          </p>
+          <div className="flex flex-wrap items-start gap-4">
+            {qr && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={qr} width={192} height={192} alt={`参加用の QR コード（施設コード ${shownCode}）`} className="rounded-lg border border-[var(--cn-border)]" />
+            )}
+            <div className="flex flex-col gap-2 text-[14px] text-[var(--cn-ink-soft)]">
+              <p>ほかの端末（スマホなど）は、この QR を読むか、設定の「施設コードで参加」にこのコードを入れると、同じ時間割を見られます。</p>
+              <p>施設コードは認証ではありません。コードを知っている端末は同じ施設の内容を読み書きできます（試用の範囲で使ってください）。</p>
+              <button type="button" onClick={leave} className={`${btn} self-start`}>
+                この端末だけにする（同期をやめる）
+              </button>
+            </div>
+          </div>
+        </>
+      ) : (
+        <>
+          <p className="text-[14px] text-[var(--cn-ink-soft)]">
+            いまの保存は、このブラウザの中だけです（同じブラウザの別のタブにはすぐ反映されます）。ほかの端末からも見るには、この施設を同期するか、施設コードで参加します。施設コードは認証ではありません。
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <button type="button" onClick={startSync} disabled={busy} className="h-[44px] rounded-lg bg-[var(--cn-accent)] px-4 font-bold text-white disabled:bg-[var(--cn-muted)]">
+              {busy ? "送っています…" : "この施設を同期する（ほかの端末から見られるようにする）"}
+            </button>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <label htmlFor="s-join" className="font-bold">
+              施設コードで参加
+            </label>
+            <input
+              id="s-join"
+              value={joinText}
+              onChange={(e) => setJoinText(e.target.value)}
+              placeholder="例: ABC234"
+              autoCapitalize="characters"
+              autoComplete="off"
+              className="h-[44px] w-[160px] rounded-lg border border-[var(--cn-control-line)] px-3 tracking-[0.15em] placeholder:text-[var(--cn-muted)]"
+            />
+            <button type="button" onClick={joinByCode} className={btn}>
+              参加する
+            </button>
+          </div>
+        </>
+      )}
+      {error && (
+        <p role="alert" className="rounded-lg border-2 border-[var(--cn-alert-line)] bg-white p-2 text-[15px]">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

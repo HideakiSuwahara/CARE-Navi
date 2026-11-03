@@ -7,6 +7,9 @@
 
 import type { Event } from "../domain/events.ts";
 
+/** 同期の状態。local は常に "local"。sync は接続前 connecting → 届けば online、届かなければ offline */
+export type SyncStatus = "local" | "connecting" | "online" | "offline";
+
 export interface DataStore {
   /** 保存済みのイベントを古い順に返す */
   load(): Promise<Event[]>;
@@ -17,6 +20,11 @@ export interface DataStore {
   /** すべて消す（「サンプルに戻す」） */
   clear(): Promise<void>;
   readonly kind: "memory" | "local" | "sync";
+  /** 同期の状態（省略は "local"）と、その変化の購読 */
+  readonly status?: SyncStatus;
+  subscribeStatus?(listener: () => void): () => void;
+  /** 購読をやめる（同期） */
+  stop?(): void;
 }
 
 /** テストや SSR 用。何も残さない */
@@ -68,6 +76,8 @@ export class LocalStore implements DataStore {
     try {
       if (typeof BroadcastChannel !== "undefined") {
         ch = new BroadcastChannel(`${facilityKey}.bus`);
+        // Node（テスト）では、開いたままだとプロセスが終わらない
+        (ch as unknown as { unref?: () => void }).unref?.();
         ch.onmessage = (msg: MessageEvent<{ events?: Event[] }>) => {
           const evs = msg.data?.events;
           if (Array.isArray(evs) && evs.length > 0) {

@@ -10,8 +10,19 @@
 
 import { createContext, useContext, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Engine } from "./engine.ts";
-import { LocalStore } from "./datastore.ts";
+import { LocalStore, type DataStore, type SyncStatus } from "./datastore.ts";
 import { sampleEvents } from "./sample.ts";
+import { supabaseEnv, supabaseSyncClient } from "./supabaseClient.ts";
+import { readSyncCode } from "./syncJoin.ts";
+import { SyncStore } from "./syncstore.ts";
+
+/** 保存層を選ぶ: 施設コードで参加していて、環境変数がそろっていれば同期。それ以外はブラウザ内保存 */
+function chooseStore(): DataStore {
+  const code = readSyncCode();
+  const env = supabaseEnv();
+  if (code && env) return new SyncStore(code, supabaseSyncClient(env));
+  return new LocalStore();
+}
 import { emptyState, type State } from "../domain/types.ts";
 
 const EngineContext = createContext<Engine | null>(null);
@@ -19,7 +30,7 @@ const EngineContext = createContext<Engine | null>(null);
 export function EngineProvider({ children }: { children: ReactNode }) {
   const engine = useMemo(() => {
     if (typeof window === "undefined") return null;
-    return new Engine({ store: new LocalStore() });
+    return new Engine({ store: chooseStore() });
   }, []);
 
   useEffect(() => {
@@ -28,7 +39,8 @@ export function EngineProvider({ children }: { children: ReactNode }) {
     (async () => {
       await engine.start();
       if (cancelled) return;
-      if (!engine.state.facility) await engine.reset(sampleEvents());
+      // 同期で参加した端末は、遠くの保存が空でもサンプルを入れない（施設の内容はコードを発行した端末が送る）
+      if (!engine.state.facility && engine.storeKind !== "sync") await engine.reset(sampleEvents());
     })();
     return () => {
       cancelled = true;
@@ -53,6 +65,17 @@ export function useAppState(): { state: State; ready: boolean } {
     () => EMPTY,
   );
   return { state, ready: Boolean(engine?.ready && state.facility) };
+}
+
+/** 同期の状態（見出しの「同期中」「この端末の内容」）。local は常に "local" */
+export function useSyncStatus(): { kind: DataStore["kind"]; status: SyncStatus } {
+  const engine = useEngine();
+  const status = useSyncExternalStore(
+    (cb) => (engine ? engine.subscribeStatus(cb) : () => {}),
+    () => engine?.syncStatus ?? "local",
+    () => "local" as SyncStatus,
+  );
+  return { kind: engine?.storeKind ?? "local", status };
 }
 
 function minutesOf(d: Date): number {

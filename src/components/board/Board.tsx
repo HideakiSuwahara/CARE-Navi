@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import { TopBar } from "@/components/TopBar";
 import { SETUP_NOTE_KEY } from "@/components/setup/setupNote";
 import { useAppState, useEngine, useNowMinutes } from "@/store/react";
+import { SyncBadge } from "@/components/SyncBadge";
 import { SAMPLE_DATE } from "@/store/sample";
 import { boardColumns, paletteRows } from "@/domain/layout";
 import { shortageGroups } from "@/domain/checks";
@@ -221,6 +222,7 @@ export function Board({ date = SAMPLE_DATE }: { date?: string }) {
       <TopBar current="board">
         <span className="text-[16px] font-bold">{weekdayLabel(date)}</span>
         {updated && <span className="text-[14px] text-[var(--cn-muted)]">{updated}</span>}
+        <SyncBadge />
       </TopBar>
 
       {/* ツールバー（1段） */}

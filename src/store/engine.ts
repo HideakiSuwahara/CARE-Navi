@@ -11,7 +11,7 @@ import type { Event } from "../domain/events.ts";
 import { applyEvents, invertBatch } from "../domain/reducer.ts";
 import type { EventContext } from "../domain/pattern.ts";
 import { emptyState, type ID, type State } from "../domain/types.ts";
-import type { DataStore } from "./datastore.ts";
+import type { DataStore, SyncStatus } from "./datastore.ts";
 
 export interface HistoryItem {
   event: Event;
@@ -79,6 +79,18 @@ export class Engine {
   stop(): void {
     this.unsubscribeStore?.();
     this.unsubscribeStore = null;
+    this.store.stop?.();
+  }
+
+  /** 保存層の種類と同期の状態（見出しの「同期中」「この端末の内容」に） */
+  get storeKind(): DataStore["kind"] {
+    return this.store.kind;
+  }
+  get syncStatus(): SyncStatus {
+    return this.store.status ?? "local";
+  }
+  subscribeStatus(listener: () => void): () => void {
+    return this.store.subscribeStatus?.(listener) ?? (() => {});
   }
 
   /** コマンドがイベントを作るための文脈。1回の操作＝1つの batchId */
