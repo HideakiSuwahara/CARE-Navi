@@ -211,3 +211,18 @@ test.describe("ボードの見え方", () => {
     }
   });
 });
+
+test.describe("ボード（翌朝）", () => {
+  test("翌 6:00 より後の業務は、時間の軸が「翌朝」まで伸びて同じ列に出る。列の見出しは「利用者 n人」", async ({ page }) => {
+    await page.goto("/board?now=10:12");
+    await page.evaluate(() => localStorage.clear());
+    await page.goto("/board?now=10:12");
+    const grid = page.getByLabel("時間割");
+    await expect(grid.getByText("ここから翌朝 6:00 以降（夜勤明け）")).toBeAttached();
+    await expect(grid.getByText("翌7:00", { exact: true })).toBeAttached();
+    const card = page.locator("[data-task-id]").filter({ hasText: "朝食介助" }).filter({ hasText: "翌7:30" }).first();
+    await card.scrollIntoViewIfNeeded();
+    await expect(card).toBeVisible();
+    await expect(page.getByRole("heading", { name: /東フロア 利用者 20人/ })).toBeVisible();
+  });
+});

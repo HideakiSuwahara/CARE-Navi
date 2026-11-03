@@ -129,7 +129,7 @@ export function checkAssignment(state: State, taskId: ID, staffId: ID): Issue[] 
   if (!entry) {
     issues.push({ code: "noRoster", severity: sev(state, "noRoster"), message: "本日の勤務予定がありません" });
   } else if (entry.absent) {
-    issues.push({ code: "absent", severity: sev(state, "absent"), message: "本日は欠勤・早退です" });
+    issues.push({ code: "absent", severity: sev(state, "absent"), message: "本日は欠勤です" });
   } else if (!within(task.startMin, task.endMin, entry.startMin, entry.endMin)) {
     const covers = overlaps(task.startMin, task.endMin, entry.startMin, entry.endMin);
     const message = covers
@@ -151,7 +151,8 @@ export function checkAssignment(state: State, taskId: ID, staffId: ID): Issue[] 
     issues.push({
       code: "onBreak",
       severity: sev(state, "onBreak"),
-      message: `${fmtRange(b.startMin, b.endMin)} の「${b.name}」と重なります`,
+      // 丸数字はボードのカードだけ（手元画面・候補の文では「休憩」）
+      message: `${fmtRange(b.startMin, b.endMin)} の休憩と重なります`,
       relatedTaskIds: breaks.map((t) => t.id),
     });
   }

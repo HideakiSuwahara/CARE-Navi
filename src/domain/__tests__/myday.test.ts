@@ -126,3 +126,11 @@ test("印刷用の相談先の移り変わり: 早番A → 遅番 → 夜勤東"
   assert.deepEqual([...new Set(names)], ["佐藤", "木村", "斉藤"]);
   for (let i = 1; i < sched.length; i++) assert.equal(sched[i - 1].endMin <= sched[i].startMin, true);
 });
+
+test("困ったら: リーダー本人には、次の相談先（勤務中で次に順の人）を出す", () => {
+  const s = state();
+  const c = leaderContact(s, DATE, toMin(10))!;
+  assert.equal(c.leader.surname, "佐藤");
+  assert.ok(c.next, "次の人がいる");
+  assert.notEqual(c.next?.surname, "佐藤");
+});

@@ -20,7 +20,11 @@ export function contactText(c: LeaderContact | undefined, me: ID): string {
     const who = !c.substitute ? "近くの職員へ" : c.substitute.staffId === me ? "代わりはあなたです" : `${c.substitute.surname}${phs(c.substitute)}`;
     return `${c.leader.surname}（${c.isLeader ? "リーダー" : c.slotName}）は休憩中 ${range} → ${who}`;
   }
-  if (c.leader.staffId === me) return c.isLeader ? "いまのリーダーはあなたです" : "近くの職員へ（詰所）";
+  // リーダー本人: 次の相談先（勤務中で次に順の人）を出す。いなければ詰所
+  if (c.leader.staffId === me) {
+    const next = c.next ? `${c.next.surname}${phs(c.next)}` : "近くの職員へ（詰所）";
+    return c.isLeader ? `いまのリーダーはあなたです。相談先: ${next}` : next;
+  }
   return contactName(c);
 }
 

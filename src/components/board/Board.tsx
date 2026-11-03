@@ -65,6 +65,11 @@ export function Board({ date = SAMPLE_DATE }: { date?: string }) {
   const scroller = useRef<HTMLDivElement>(null);
 
   const columns = useMemo(() => (ready ? boardColumns(state, date, MIN_VISUAL_MIN) : []), [state, date, ready]);
+  // 翌 6:00 より後に終わる業務（夜勤明けの朝食・申し送りなど）があれば、時間の軸をそこまで伸ばす（1時間単位）
+  const gridEnd = useMemo(() => {
+    const maxEnd = Math.max(VIEW_END, ...columns.flatMap((c) => c.cards.map((x) => x.task.endMin)));
+    return Math.ceil(maxEnd / 60) * 60;
+  }, [columns]);
   // 列の最小幅: 同じ時刻に横に並ぶ枚数に合わせて広げる（カードを細くしすぎない。足りなければ横にスクロール）
   const colTemplate = `64px ${columns
     .map((c) => {
@@ -172,7 +177,7 @@ export function Board({ date = SAMPLE_DATE }: { date?: string }) {
   }, [lastLabel]);
 
   const hours: number[] = [];
-  for (let m = VIEW_START; m < VIEW_END; m += 60) hours.push(m);
+  for (let m = VIEW_START; m < gridEnd; m += 60) hours.push(m);
   const nowInView = now !== null && now >= VIEW_START && now < VIEW_END;
 
   return (
@@ -307,7 +312,7 @@ export function Board({ date = SAMPLE_DATE }: { date?: string }) {
                 className="relative grid"
                 style={{
                   gridTemplateColumns: colTemplate,
-                  height: (VIEW_END - VIEW_START) * PX_PER_MIN,
+                  height: (gridEnd - VIEW_START) * PX_PER_MIN,
                   backgroundImage: "linear-gradient(var(--cn-grid) 1px, transparent 1px)",
                   backgroundSize: `100% ${60 * PX_PER_MIN}px`,
                 }}
@@ -315,7 +320,7 @@ export function Board({ date = SAMPLE_DATE }: { date?: string }) {
                 <div className="sticky left-0 z-[5] bg-white text-[13px] text-[var(--cn-muted)]">
                   {hours.map((m) => (
                     <div key={m} className="absolute left-2" style={{ top: (m - VIEW_START) * PX_PER_MIN + 4 }}>
-                      {fmtMin(m)}
+                      {m === VIEW_END ? <span className="font-bold text-[var(--cn-ink)]">翌朝</span> : fmtMin(m)}
                     </div>
                   ))}
                 </div>
@@ -338,6 +343,11 @@ export function Board({ date = SAMPLE_DATE }: { date?: string }) {
                     })}
                   </div>
                 ))}
+                {gridEnd > VIEW_END && (
+                  <div aria-hidden="true" className="pointer-events-none absolute left-0 right-0 z-[6] border-t-2 border-dashed border-[var(--cn-control-line)]" style={{ top: (VIEW_END - VIEW_START) * PX_PER_MIN }}>
+                    <span className="absolute left-16 -translate-y-1/2 rounded bg-white px-1.5 text-[13px] text-[var(--cn-ink-soft)]">ここから翌朝 6:00 以降（夜勤明け）</span>
+                  </div>
+                )}
                 {nowInView && (
                   <div aria-hidden="true" className="pointer-events-none absolute left-0 right-0 z-10" style={{ top: (now! - VIEW_START) * PX_PER_MIN }}>
                     <div className="absolute left-1 -translate-y-1/2 rounded bg-[var(--cn-now)] px-1.5 text-[13px] font-bold text-white">{fmtMin(now!)}</div>

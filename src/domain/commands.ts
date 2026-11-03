@@ -9,9 +9,15 @@
 import type { Event } from "./events.ts";
 import { applyEvents } from "./reducer.ts";
 import { metaOf, type EventContext } from "./pattern.ts";
-import { assignmentsOf, headcountStatus, rosterOf, taskLabel, tasksOfStaff } from "./checks.ts";
+import { assignmentsOf, headcountStatus, rosterOf, taskLabel as boardLabel, tasksOfStaff } from "./checks.ts";
+import { staffTaskName } from "./myday.ts";
 import { fmtRange, overlaps } from "./time.ts";
 import type { DateKey, ID, Minutes, State, TaskInstance } from "./types.ts";
+
+/** プレビューの文で使う業務名。休憩は丸数字を外す（丸数字はボードのカードだけ） */
+function taskLabel(state: State, task: TaskInstance): string {
+  return task.kind === "break" ? staffTaskName(task) : boardLabel(state, task);
+}
 
 export interface PreviewLine {
   kind: "add" | "remove" | "cancel" | "move" | "unassign" | "assign" | "effect";
@@ -441,7 +447,7 @@ export function shiftBreakPreview(state: State, taskId: ID, deltaMin: Minutes, c
   const lines: PreviewLine[] = [
     {
       kind: "move",
-      text: `「${t.name}」を ${fmtRange(t.startMin, t.endMin)} → ${fmtRange(to.startMin, to.endMin)} にする（全員）`,
+      text: `「${staffTaskName(t)}」を ${fmtRange(t.startMin, t.endMin)} → ${fmtRange(to.startMin, to.endMin)} にする（全員）`,
       eventIds: events.map((e) => e.eventId),
       optional: false,
     },

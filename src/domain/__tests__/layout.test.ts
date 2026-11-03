@@ -66,7 +66,7 @@ test("ボードの列はグループ順で、共通には休憩・対象なし�
     common.cards.map((c) => c.task.name).sort(),
     ["リネン回収", "休憩①"].sort(),
   );
-  assert.equal(cols[0].sub, "3人");
+  assert.equal(cols[0].sub, "利用者 3人");
 });
 
 test("パレット: 出勤者は番の順。休みの人は、その番の未充足の枠数だけを持つ（件数・時間は持たない）", async () => {

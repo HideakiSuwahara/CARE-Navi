@@ -45,6 +45,8 @@ export interface LeaderContact {
   /** リーダーが休憩中なら、その休憩の時刻と代わりの人 */
   onBreak?: { startMin: Minutes; endMin: Minutes };
   substitute?: ContactPerson;
+  /** リーダー本人が困ったときの次の相談先（勤務中で、次に順の人）。いなければ undefined */
+  next?: ContactPerson;
 }
 
 const person = (s: Staff): ContactPerson => ({ staffId: s.id, surname: s.surname, phone: s.phone });
@@ -91,10 +93,12 @@ export function leaderContact(state: State, date: string, now: Minutes): LeaderC
   const primary = byRank[0] ?? byOrder[0];
   if (!primary) return undefined;
   const leaderStaff = state.staff[primary.entry.staffId];
+  const nextDuty = [...byRank, ...byOrder].find((d) => d !== primary);
   const base = {
     leader: person(leaderStaff),
     isLeader: primary.rank !== undefined,
     slotName: primary.entry.slotId ? (state.roleSlots[primary.entry.slotId]?.name ?? "") : "",
+    next: nextDuty ? person(state.staff[nextDuty.entry.staffId]) : undefined,
   };
   if (!primary.onBreak) return base;
   const sub = [...byRank, ...byOrder].find((d) => d !== primary && !d.onBreak);

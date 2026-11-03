@@ -101,7 +101,7 @@ export function boardColumns(state: State, date: string, minVisualMin = 0): Boar
     return {
       id: g.id,
       name: g.name,
-      sub: g.kind === "common" ? "" : `${residentsIn(g.id)}人`,
+      sub: g.kind === "common" ? "" : `利用者 ${residentsIn(g.id)}人`,
       cards,
       hasRail,
       maxLanes,
