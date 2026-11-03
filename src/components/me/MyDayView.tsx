@@ -234,12 +234,11 @@ function FlowRow({ item }: { item: MyItem }) {
 function FocusCard({ item, open }: { item: MyItem; open: boolean }) {
   const t = item.task;
   const id = `fc-${t.id}`;
-  // 読み上げ名は時刻・業務名・「くわしく見る」だけにし、中身は説明として読む（初回の人のカードは文章が長い）
+  // 読み上げ名は見えている文字と同じ並び（時刻・業務名・中身・「くわしく見る」）。名前と見える文字がずれないように（2.5.3）
   return (
     <Link
       href={meHref(t.id)}
-      aria-labelledby={`${id}-time ${id}-title ${id}-more`}
-      aria-describedby={`${id}-body`}
+      aria-labelledby={`${id}-time ${id}-title ${id}-body ${id}-more`}
       className="block rounded-xl border-2 border-[var(--cn-accent)] bg-white p-4"
     >
       <p id={`${id}-time`} className="text-[16px] font-bold">
