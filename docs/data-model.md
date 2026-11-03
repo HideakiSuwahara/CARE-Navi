@@ -123,7 +123,7 @@ UI の「元に戻す」は直近 10 の batchId を対象にする。一覧（b
 
 ## 8. 保存と同期
 - **ローカル**: ブラウザ内保存（localStorage）にイベント列を追記し、BroadcastChannel で同じブラウザの別タブへ即時に配る。起動時はイベント列を順に適用。「サンプルに戻す」でクリアして再シード。データが大きくなればスナップショット＋IndexedDB へ移す。
-- **同期**: Supabase の `events` テーブル（`id uuid pk`, `facility_code text`, `seq bigserial`, `ts timestamptz`, `actor_id text`, `type text`, `payload jsonb`）。施設コードで絞った Realtime（insert）を購読し、`seq` 順に適用。ローカルで楽観的に追記し、サーバーの `id` と突き合わせて重複を捨てる。
+- **同期**（決定記録 0009、`supabase/schema.sql`）: Supabase の `events` テーブル（`id bigint identity pk`, `facility_code text`, `event_id text unique`, `batch_id text`, `ts timestamptz`, `payload jsonb`, `created_at`）。施設コードで絞った Realtime（insert）を購読し、`id` 順に適用。端末ではキャッシュに先に追記し、`event_id` で重複を捨てる。送れなかった分は未送信として端末に残し、次に送れたときに送る（`src/store/syncstore.ts`）。
 - 競合は「後勝ち」で十分（同じ枠を同時に触る頻度は低い。結果は両端末で同じ順に適用される）。
 - 施設コードは認証ではない。本番は認証と権限、端末に残さない設計が必要。
 
