@@ -27,7 +27,7 @@ const RAIL_WIDTH = 28;
 /** 短い業務も画面上はこの長さ（分）を占めるものとして並べる。20分 = 60px（1段のカードに ＋ が収まる） */
 const MIN_VISUAL_MIN = 20;
 /** 横に並ぶカード1枚あたりの最小幅(px) */
-const MIN_CARD_WIDTH = 130;
+const MIN_CARD_WIDTH = 112;
 /** 表示する範囲: 06:00 → 翌 06:00 */
 const VIEW_START = 6 * 60;
 const VIEW_END = 30 * 60;
@@ -80,7 +80,7 @@ export function Board({ date = SAMPLE_DATE }: { date?: string }) {
   // 列の最小幅: 同じ時刻に横に並ぶ枚数に合わせて広げる（カードを細くしすぎない。足りなければ横にスクロール）
   const colTemplate = `64px ${columns
     .map((c) => {
-      const min = Math.max(260, Math.ceil((c.maxLanes * MIN_CARD_WIDTH) / (c.hasRail ? 1 - RAIL_WIDTH / 100 : 1)));
+      const min = Math.max(220, Math.ceil((c.maxLanes * MIN_CARD_WIDTH) / (c.hasRail ? 1 - RAIL_WIDTH / 100 : 1)));
       // 余った幅も必要な幅の比で分ける
       return `minmax(${min}px, ${min}fr)`;
     })
@@ -145,6 +145,17 @@ export function Board({ date = SAMPLE_DATE }: { date?: string }) {
   // ドラッグで止めたときのお知らせ（元に戻すものはないので、ボタンなし）
   const [notice, setNotice] = useState<string | null>(null);
   // 設定の「登録する」から来たときの知らせ（取り込めなかった行があれば、次の1手と一緒に）。閉じるまで出す
+  // 横にはみ出しているか（1280 幅などでは右の列がスクロールの先にある。見出しに「→ 右に続き」を出す）
+  const [overflowX, setOverflowX] = useState(false);
+  useEffect(() => {
+    const root = scroller.current;
+    if (!root) return;
+    const check = () => setOverflowX(root.scrollWidth > root.clientWidth + 2);
+    check();
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(check) : null;
+    ro?.observe(root);
+    return () => ro?.disconnect();
+  }, [ready, view, colTemplate]);
   const [setupNote, setSetupNote] = useState<{ text: string; residentErrors: number; staffErrors: number } | null>(null);
   const setupNoteRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -328,7 +339,13 @@ export function Board({ date = SAMPLE_DATE }: { date?: string }) {
       {/* 本体 */}
       <BoardDnd engine={engine} onNotice={showNotice}>
       <main className="flex min-h-0 flex-1 gap-4 px-5 pb-5">
-        <section aria-label="時間割" className="min-w-0 flex-1 overflow-hidden rounded-xl border border-[var(--cn-border)] bg-white">
+        <section aria-label="時間割" className="relative min-w-0 flex-1 overflow-hidden rounded-xl border border-[var(--cn-border)] bg-white">
+          {/* 右の列がスクロールの先にあるとき（1280 幅など）の手掛かり。時間割の右上に重ねる */}
+          {overflowX && hasTasks && view === "group" && (
+            <div className="pointer-events-none absolute right-2 top-2.5 z-30 rounded bg-white/95 px-2 py-1 text-[14px] font-bold text-[var(--cn-ink-soft)] shadow" role="note">
+              → 右に続き（横にスクロール）
+            </div>
+          )}
           <h2 id="board-title" tabIndex={-1} className="sr-only">
             {weekdayLabel(date)}の時間割
           </h2>
@@ -346,6 +363,7 @@ export function Board({ date = SAMPLE_DATE }: { date?: string }) {
                 style={{ gridTemplateColumns: colTemplate }}
               >
                 <div className="sticky left-0 z-10 bg-white px-2 py-2.5 text-[13px] text-[var(--cn-muted)]">時刻</div>
+
                 {columns.map((c) => (
                   <h2 key={c.id} className="border-l border-[var(--cn-grid)] px-3 py-2.5 font-bold">
                     <span>{c.name}</span> {c.sub && <span className="text-[14px] font-normal text-[var(--cn-muted)]">{c.sub}</span>}
@@ -406,7 +424,7 @@ export function Board({ date = SAMPLE_DATE }: { date?: string }) {
 
         {/* 右パレット（職員表示では行が職員なので出さない） */}
         {hasTasks && view === "group" && (
-        <aside id="staff-palette" aria-label="きょうの出勤者" className="flex w-[300px] shrink-0 flex-col gap-3 overflow-auto">
+        <aside id="staff-palette" aria-label="きょうの出勤者" className="flex w-[280px] shrink-0 flex-col gap-3 overflow-auto">
           <DropZone id="palette" data={{ kind: "palette" }}>
           <div className="rounded-xl border border-[var(--cn-border)] bg-white p-3.5">
             <div className="flex items-baseline gap-2">

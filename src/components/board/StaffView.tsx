@@ -138,7 +138,7 @@ export function StaffView({
                   {line.segments.map((seg) => {
                     // 担当あと n 人のときは、入っている人の名字も並べる
                     const who = [seg.surnames.join("・"), seg.label].filter(Boolean).join("・");
-                    const cls = `absolute top-1 bottom-1 overflow-hidden rounded-md px-1 text-left leading-tight focus-visible:z-20 ${print ? "text-[11px]" : "text-[14px]"} ${
+                    const cls = `absolute top-1 bottom-1 overflow-hidden rounded-md px-1 text-left leading-tight focus-visible:z-20 ${print ? "text-[12px]" : "text-[14px]"} ${
                       seg.label
                         ? `border-2 border-dashed border-[var(--cn-alert-line)] font-bold ${seg.surnames.length === 0 ? "bg-[var(--cn-unassigned-bg)] text-[var(--cn-unassigned-ink)]" : "bg-[var(--cn-short-bg)] text-[var(--cn-short-ink)]"}`
                         : "border border-[var(--cn-control-line)] bg-white"
@@ -233,7 +233,7 @@ function StaffRowView({
           const top = 3 + (lane * (height - 6)) / n;
           const h = (height - 6) / n - 2;
           const visualEnd = print ? task.endMin : Math.max(task.endMin, task.startMin + MIN_VISUAL_MIN);
-          const cls = `absolute overflow-hidden rounded-md px-1 text-left leading-[1.15] focus-visible:z-20 ${print ? "text-[11px]" : "text-[15px]"} ${
+          const cls = `absolute overflow-hidden rounded-md px-1 text-left leading-[1.15] focus-visible:z-20 ${print ? "text-[12px]" : "text-[15px]"} ${
             bar.isBreak
               ? "border-2 border-dashed border-[var(--cn-break-ink)] bg-[var(--cn-break-bg)]"
               : bar.overlap
