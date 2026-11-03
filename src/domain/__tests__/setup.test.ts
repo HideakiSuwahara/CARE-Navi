@@ -8,10 +8,10 @@ import { buildOwnFacility, facilityCode, parseStaffPaste, settingsEvent } from "
 import { emptyState } from "../types.ts";
 
 test("職員の貼り付け: 名前, 職種, 担当条件, PHS。失敗した行は行番号と理由、ほかは取り込む", () => {
-  const r = parseStaffPaste(emptyState(), "青木 ミホ, 介護福祉士, 入浴担当可・喀痰吸引, 811\n\n石田 ジュン\t介護職員\n前田 ケン, 介護助手, , PHSなし\n，介護職員");
+  const r = parseStaffPaste(emptyState(), "野村 ミホ, 介護福祉士, 入浴担当可・喀痰吸引, 811\n\n川口 ジュン\t介護職員\n大野 ケン, 介護助手, , PHSなし\n，介護職員");
   assert.equal(r.staff.length, 2);
-  assert.deepEqual(r.staff[0], { line: 1, displayName: "青木 ミホ", surname: "青木", role: "介護福祉士", tags: ["入浴担当可", "喀痰吸引"], phone: "811" });
-  assert.equal(r.staff[1].surname, "石田");
+  assert.deepEqual(r.staff[0], { line: 1, displayName: "野村 ミホ", surname: "野村", role: "介護福祉士", tags: ["入浴担当可", "喀痰吸引"], phone: "811" });
+  assert.equal(r.staff[1].surname, "川口");
   assert.deepEqual(
     r.errors.map((e) => e.line),
     [4, 5],
@@ -24,8 +24,8 @@ test("自分の施設で始める: 施設・グループ・利用者・職員が
     {
       name: "みどり荘",
       groupsText: "1階\nあおばユニット\n",
-      residentsText: "岡田 ハル, 1階, 101\n小池 トメ, あおばユニット, 201\n間違い, 3階, 301",
-      staffText: "青木 ミホ, 介護福祉士, , 811\n石田 ジュン, 介護職員",
+      residentsText: "菅野 ハル, 1階, 101\n熊谷 トメ, あおばユニット, 201\n間違い, 3階, 301",
+      staffText: "野村 ミホ, 介護福祉士, , 811\n川口 ジュン, 介護職員",
     },
     himawariSeed,
     ctx,

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { TopBar } from "@/components/TopBar";
 import { hoursLabel, rangeLabel, weekLabel, weekReview, type HourBucket } from "@/domain/review";
@@ -52,7 +53,7 @@ export function Review({ date = SAMPLE_DATE }: { date?: string }) {
             {w.bands.map((b) => (
               <p key={b.slotId} className="mt-1 text-[14px] text-[var(--cn-ink-soft)]">
                 {b.name}の勤務帯は番の時刻（{fmtMin(b.startMin)}–{fmtMin(b.endMin)}）で示しています。今週の出勤予定:{" "}
-                {b.days.length > 0 ? b.days.map((d) => `${dayLabel(d.date)} ${fmtMin(d.startMin)}–${fmtMin(d.endMin)}`).join("、") : "勤務表がまだ入っていません"}
+                {b.days.length > 0 ? b.days.map((d) => `${dayLabel(d.date)} ${fmtMin(d.startMin)}–${fmtMin(d.endMin)}`).join("、") : "まだ入っていません（ボードの「今日の時間割を作る」で番を付けると入ります）"}
               </p>
             ))}
             <details className="mt-3" open>
@@ -98,9 +99,14 @@ export function Review({ date = SAMPLE_DATE }: { date?: string }) {
             <h3 id="nc-title" className="text-[16px] font-bold">
               {noncoreName}の枠（今週 {w.noncore.length}件）
             </h3>
-            <p className="mb-2 text-[14px] text-[var(--cn-ink-soft)]">番ごと・枠ごとの予定です。勤務帯の［中｜外］は、枠の時刻がその番の勤務帯にすっぽり入るかどうかです。</p>
+            <p className="mb-2 text-[14px] text-[var(--cn-ink-soft)]">番ごと・枠ごとの予定です。勤務帯の［中｜外］は、枠の時刻がその番の勤務帯にすっぽり入るかどうかです。任せられるかは、施設が設定する担当条件で決まります。</p>
             {w.noncore.length === 0 ? (
-              <p className="rounded-lg bg-[var(--cn-ground)] p-3">今週の業務表に{noncoreName}の枠はありません。</p>
+              <div className="flex flex-col items-start gap-2 rounded-lg bg-[var(--cn-ground)] p-3">
+                <p>今週の業務表に{noncoreName}の枠はありません。業務表は、ボードの ⋯ →「今日を業務表として保存」で作れます。</p>
+                <Link href="/board" className="inline-flex h-[44px] items-center rounded-lg border border-[var(--cn-control-line)] bg-white px-4 font-bold">
+                  ボードを開く
+                </Link>
+              </div>
             ) : (
               <table className="w-full border-collapse text-[14px]">
                 <caption className="sr-only">{noncoreName}の枠の一覧</caption>

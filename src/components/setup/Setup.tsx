@@ -141,7 +141,7 @@ function OwnFacilityForm({ onCancel, onDone, isSample }: { onCancel: () => void;
         <h2 id="own-title" className="text-[22px] font-bold">
           自分の施設で始める
         </h2>
-        <p className="text-[15px] text-[var(--cn-ink-soft)]">上から順に入れて「登録する」を押すと、業務の種類（約20種）と業務表（従来型／ユニット）が入った状態でボードが開きます。名簿はあとから足せます。</p>
+        <p className="text-[15px] text-[var(--cn-ink-soft)]">上から順に入れて「登録する」を押すと、業務の種類・番・業務表（従来型／ユニット）が入った状態でボードが開きます。名簿はあとから足せます。</p>
       </div>
 
       <section aria-labelledby="f1" className="rounded-xl border border-[var(--cn-border)] bg-white p-4">
@@ -164,7 +164,7 @@ function OwnFacilityForm({ onCancel, onDone, isSample }: { onCancel: () => void;
           2. 利用者を貼り付け
         </h3>
         <p className="mb-2 text-[14px] text-[var(--cn-ink-soft)]">1行に1人「名前, グループ, 部屋」。表計算ソフトからそのまま貼れます（カンマ・タブ）。</p>
-        <textarea aria-labelledby="f2" value={residentsText} onChange={(e) => setResidentsText(e.target.value)} rows={5} className={field} placeholder="岡田 ハル, 2階, 201" />
+        <textarea aria-labelledby="f2" value={residentsText} onChange={(e) => setResidentsText(e.target.value)} rows={5} className={field} placeholder="菅野 ハル, 2階, 201" />
         <PasteNote count={result.counts.residents} unit="人" errors={result.residentErrors} />
       </section>
 
@@ -173,7 +173,7 @@ function OwnFacilityForm({ onCancel, onDone, isSample }: { onCancel: () => void;
           3. 職員を貼り付け
         </h3>
         <p className="mb-2 text-[14px] text-[var(--cn-ink-soft)]">1行に1人「名前, 職種, 担当条件（任意。・で区切る）, PHS（任意）」。</p>
-        <textarea aria-labelledby="f3" value={staffText} onChange={(e) => setStaffText(e.target.value)} rows={5} className={field} placeholder="青木 ミホ, 介護福祉士, 入浴担当可, 811" />
+        <textarea aria-labelledby="f3" value={staffText} onChange={(e) => setStaffText(e.target.value)} rows={5} className={field} placeholder="野村 ミホ, 介護福祉士, 入浴担当可, 811" />
         <PasteNote count={result.counts.staff} unit="人" errors={result.staffErrors} />
       </section>
 
@@ -194,7 +194,7 @@ function OwnFacilityForm({ onCancel, onDone, isSample }: { onCancel: () => void;
         </button>
         <span className="text-[14px] text-[var(--cn-ink-soft)]">
           グループ {result.counts.groups}・利用者 {result.counts.residents}人・職員 {result.counts.staff}人を登録します。
-          {isSample ? "いまのサンプル施設の内容は、このブラウザから消えます（ボードの ⋯ からいつでもサンプルに戻せます）。" : "いまの施設の内容は、このブラウザから消えます。"}
+          {isSample ? "いまのサンプル施設の内容は、このブラウザから消えます（設定の「はじめから」→「サンプル施設で試す」でいつでも戻せます）。" : "いまの施設の内容は、このブラウザから消えます。"}
         </span>
       </div>
     </form>
@@ -335,7 +335,7 @@ function Everyday({ onOwn, onSample }: { onOwn: () => void; onSample: () => void
           </Link>
           の画面の「名簿を貼り付け」から足せます。
         </p>
-        <textarea aria-label="職員の貼り付け" value={staffText} onChange={(e) => setStaffText(e.target.value)} rows={4} className="w-full rounded-lg border border-[var(--cn-control-line)] p-2.5" placeholder="青木 ミホ, 介護福祉士, 入浴担当可, 811" />
+        <textarea aria-label="職員の貼り付け" value={staffText} onChange={(e) => setStaffText(e.target.value)} rows={4} className="w-full rounded-lg border border-[var(--cn-control-line)] p-2.5" placeholder="野村 ミホ, 介護福祉士, 入浴担当可, 811" />
         <PasteNote count={staffPaste.staff.length} unit="人" errors={staffPaste.errors} />
         <button type="button" disabled={staffPaste.staff.length === 0} onClick={addStaff} className="mt-2 h-[44px] rounded-lg bg-[var(--cn-accent)] px-4 font-bold text-white disabled:bg-[var(--cn-muted)]">
           職員を足す

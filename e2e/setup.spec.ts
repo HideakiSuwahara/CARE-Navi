@@ -21,8 +21,8 @@ test.describe("設定", () => {
     await page.getByRole("button", { name: "自分の施設で始める" }).click();
     await page.getByLabel("施設の名前").fill("みどり荘");
     await page.getByLabel(/グループ（1行に1つ/).fill("2階\nあおばユニット");
-    await page.getByRole("textbox", { name: "2. 利用者を貼り付け" }).fill("岡田 ハル, 2階, 201\n小池 トメ, 3階, 301");
-    await page.getByRole("textbox", { name: "3. 職員を貼り付け" }).fill("青木 ミホ, 介護福祉士, 入浴担当可, 811\n石田 ジュン, 介護職員");
+    await page.getByRole("textbox", { name: "2. 利用者を貼り付け" }).fill("菅野 ハル, 2階, 201\n熊谷 トメ, 3階, 301");
+    await page.getByRole("textbox", { name: "3. 職員を貼り付け" }).fill("野村 ミホ, 介護福祉士, 入浴担当可, 811\n川口 ジュン, 介護職員");
     await expect(page.getByText("2行目: グループ「3階」が見つかりません")).toBeVisible();
     await page.getByRole("button", { name: "登録する" }).click();
     await expect(page).toHaveURL(/\/board/);
