@@ -133,4 +133,4 @@
 
 ## 11. 文書の地図
 
-- `docs/concept.md` 構想 ／ `docs/decisions/` 決定記録（0001 スコープ、0002 AI を使わない、0003 画面と押す回数、0004 施設の日課と24時間シート、0005 ⋯ に作り直しを置かない、0006 困ったらの相談先、0007 リーダーの全体） ／ `docs/screens.md` 画面仕様 ／ `docs/data-model.md` データとイベント ／ `docs/acceptance.md` 受け入れ条件 ／ `docs/wording.md` 表現の規則 ／ `docs/usability-script.md` 試用台本 ／ `docs/video-storyboard.md` 動画の筋 ／ `docs/dev-process.md` 開発の進め方 ／ `docs/reviews/` レビューループの記録
+- `docs/concept.md` 構想 ／ `docs/decisions/` 決定記録（0001 スコープ、0002 AI を使わない、0003 画面と押す回数、0004 施設の日課と24時間シート、0005 ⋯ に作り直しを置かない、0006 困ったらの相談先、0007 リーダーの全体、0008 業務の見直しの数字） ／ `docs/screens.md` 画面仕様 ／ `docs/data-model.md` データとイベント ／ `docs/acceptance.md` 受け入れ条件 ／ `docs/wording.md` 表現の規則 ／ `docs/usability-script.md` 試用台本 ／ `docs/video-storyboard.md` 動画の筋 ／ `docs/dev-process.md` 開発の進め方 ／ `docs/reviews/` レビューループの記録

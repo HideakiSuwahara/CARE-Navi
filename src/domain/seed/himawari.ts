@@ -185,7 +185,7 @@ const roleSlots: RoleSlot[] = [
   { id: SLOT_OSOBAN, name: "遅番", defaultStartMin: t(11), defaultEndMin: t(20), groupId: GRP_EAST, sortOrder: 6, leaderRank: 2 },
   { id: SLOT_YAKIN_EAST, name: "夜勤東", defaultStartMin: t(17), defaultEndMin: nx(9), groupId: GRP_EAST, sortOrder: 7, leaderRank: 3 },
   { id: SLOT_YAKIN_SAKURA, name: "夜勤さくら", defaultStartMin: t(17), defaultEndMin: nx(9), groupId: GRP_SAKURA, sortOrder: 8 },
-  { id: SLOT_JOSHU, name: "介護助手", defaultStartMin: t(9), defaultEndMin: t(13), sortOrder: 9 },
+  { id: SLOT_JOSHU, name: "介護助手", defaultStartMin: t(9), defaultEndMin: t(13), sortOrder: 9, reviewBand: true },
   { id: SLOT_KANGO, name: "看護", defaultStartMin: t(9), defaultEndMin: t(18), sortOrder: 10 },
   { id: SLOT_SPOT_PM, name: "スポット午後", defaultStartMin: t(13), defaultEndMin: t(17), sortOrder: 11 },
 ];

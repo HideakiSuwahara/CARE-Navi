@@ -17,7 +17,7 @@
 | `Group` | 管理グループ | `name`, `kind: unit/floor/common/other`, `sortOrder` | 「共通」は `kind=common` |
 | `Resident` | 利用者 | `displayName`, `surname`, `groupId`, `room` | 排泄状態・介助方法は持たない |
 | `Staff` | 職員 | `displayName`, `surname`, `role`（自由ラベル）, `tags[]`（担当条件）, `homeGroupId?` | 役職から可否を決めない。`tags` が条件 |
-| `RoleSlot` | 役割枠 | `name`, `defaultStartMin/EndMin`, `groupId?`, `sortOrder`, `leaderRank?` | 早番A・日勤B・介護助手・看護・スポット…。`leaderRank` はきょうのリーダーを持つ順（1が先、施設が決める）。「困ったら」の相談先に使う（決定記録 0006） |
+| `RoleSlot` | 役割枠 | `name`, `defaultStartMin/EndMin`, `groupId?`, `sortOrder`, `leaderRank?` | 早番A・日勤B・介護助手・看護・スポット…。`leaderRank` はきょうのリーダーを持つ順（1が先、施設が決める）。「困ったら」の相談先に使う（決定記録 0006）。`reviewBand` は業務の見直しで勤務帯を図に重ねる番（介護助手等。施設が印を付ける。決定記録 0008） |
 | `TaskTemplate` | 業務の型 | `name`, `kind: care/break`, `categoryId?`, `targetMode`, `defaultDurationMin`, `defaultHeadcount`, `requiredTags[]`, `place?`, `scopeNote?`, `outOfScopeNote?`, `procedure[]`, `supplies?`, `contact?` | 定義。当日の予定とは別 |
 | `DayPattern` / `DayPatternItem` | 一日の型 | item: `templateId`, `startMin/endMin`, `groupId?`, `targetRule: allInGroup/residents/none`, `residentIds?`, `headcount`, `slotIds[]` | `slotIds` が役割枠への束ね |
 | `RosterEntry` | 今日の出勤者 | `date`, `staffId`, `slotId?`, `startMin/endMin`, `firstTimer`, `absent` | 役割が時間を与え、個別に直せる。初回は当日の印 |
