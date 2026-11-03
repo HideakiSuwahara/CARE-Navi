@@ -41,3 +41,6 @@ next-env.d.ts
 
 # 手元の作業用フォルダ（公開しない）
 Claude outputs/
+
+# 作業中の画面写真はリポジトリに入れない（scratchpad か test-results へ）
+/s/

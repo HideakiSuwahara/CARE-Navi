@@ -23,7 +23,7 @@
 
 ## 影響する場所
 - docs/decisions/0004 §7（冒頭に置き換えの 1 行）
-- docs/screens.md §1 ツールバー（変更なし。この決定と一致）
+- docs/screens.md §0.6・§1（「作り直し」のプレビューの記述を削る）、docs/acceptance.md「今日の時間割を作る」（作り直しの行をこの決定に合わせる）
 - src/components/board/BoardMenu.tsx（変更なし）
 
 ## 見直す条件
