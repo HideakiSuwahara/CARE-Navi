@@ -267,6 +267,19 @@ export function splitCandidates(cands: Candidate[]): { open: Candidate[]; folded
 }
 
 /**
+ * 終わっていない枠（決定記録 0010）: 終わりの時刻を過ぎて、「終わった」の印が無い業務。休憩・中止は除く。
+ * 「担当未定」とは別に数える。時刻順。
+ */
+export function unfinishedTasks(state: State, date: string, now: number): TaskInstance[] {
+  return tasksForDate(state, date).filter((t) => t.kind !== "break" && !t.done && t.endMin <= now);
+}
+
+/** 見出しの文「終わっていない n 件」。0 件なら空 */
+export function unfinishedLabel(count: number): string {
+  return count > 0 ? `終わっていない ${count}件` : "";
+}
+
+/**
  * 見出し用のまとめ。ラベルごとの件数（例: [{label:"担当未定",count:2},{label:"担当あと1人",count:1}]）。
  * 担当未定を先に、担当あと n 人は n の小さい順。
  */

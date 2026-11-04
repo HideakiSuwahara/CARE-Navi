@@ -10,6 +10,7 @@ import { useStaffDrag } from "./dnd";
  * 出すもの: 業務名（個別は様名つき）・時刻・一括の人数・担当チップ・未充足のときだけバッジ・「＋」。
  * 出さないもの: 区分名・場所・必要人数・条件（詳細パネルで見る）。
  * 休憩はバッジなし。カード全体を button にせず、中の名前・チップ・＋をそれぞれ button にする（入れ子にしない）。
+ * 「終わった」の印がある枠は ✓ と薄い文字。時刻を過ぎて印が無い枠は通常の濃さのまま（data-unfinished。見出しの「終わっていない n 件」から飛ぶ）。決定記録 0010
  */
 export type CardVariant = "normal" | "compact" | "mini" | "rail";
 
@@ -19,9 +20,12 @@ export function TaskCard({
   variant = "normal",
   onOpen,
   onAdd,
+  now,
 }: {
   state: State;
   task: TaskInstance;
+  /** いまの時刻（分）。終わっていない枠の判定に使う。無ければ判定しない */
+  now?: number | null;
   /** compact: 短い業務（1段に詰める）。rail: 見守りなど左の細い帯 */
   variant?: CardVariant;
   onOpen?: (taskId: string) => void;
@@ -37,6 +41,8 @@ export function TaskCard({
     .map((a) => ({ id: a.id, staff: state.staff[a.staffId], firstTimer: Object.values(state.roster).some((r) => r.date === task.date && r.staffId === a.staffId && r.firstTimer) }))
     .filter((x) => x.staff);
   const short = !isBreak && (status.level === "unassigned" || status.level === "short");
+  const done = !isBreak && Boolean(task.done);
+  const unfinished = !isBreak && !done && task.status !== "cancelled" && now !== null && now !== undefined && task.endMin <= now;
   const compact = variant === "compact";
   const mini = variant === "mini";
   const rail = variant === "rail";
@@ -76,7 +82,14 @@ export function TaskCard({
       title={title}
       className={`block w-full min-w-[44px] max-w-full text-left hover:underline ${mini ? "flex min-h-[44px] items-center" : "min-h-[44px]"}`}
     >
-      <span className={`block truncate text-[15px] font-bold leading-6 ${isBreak ? "text-[var(--cn-break-ink)]" : ""}`}>{title}</span>
+      <span className={`block truncate text-[15px] font-bold leading-6 ${isBreak ? "text-[var(--cn-break-ink)]" : done ? "text-[var(--cn-muted)]" : ""}`}>
+        {done && (
+          <span className="text-[var(--cn-accent)]">
+            ✓<span className="sr-only">終わった</span>{" "}
+          </span>
+        )}
+        {title}
+      </span>
       {!mini && <span className="block truncate text-[14px] font-normal leading-5 text-[var(--cn-muted)]">{when}</span>}
     </button>
   );
@@ -93,13 +106,15 @@ export function TaskCard({
 
   return (
     <article
-      aria-label={`${title} ${fmtRange(task.startMin, task.endMin)}${short ? ` ${status.label}` : ""}`}
+      aria-label={`${title} ${fmtRange(task.startMin, task.endMin)}${short ? ` ${status.label}` : ""}${done ? " 終わった" : ""}`}
       className={`flex h-full gap-2 overflow-hidden rounded-[10px] px-2.5 py-1 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ${
         rail && !short ? "bg-[var(--cn-rail-bg)]" : ""
       } ${compact || mini ? "flex-row items-center" : "flex-col"} ${frame}`}
       data-task-id={task.id}
       data-level={isBreak ? "break" : status.level}
       data-badge={short ? status.label : undefined}
+      data-done={done ? "" : undefined}
+      data-unfinished={unfinished ? "" : undefined}
     >
       {mini ? (
         <>

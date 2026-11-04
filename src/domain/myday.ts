@@ -158,6 +158,8 @@ export interface MyItem {
   isBreak: boolean;
   /** 時刻が過ぎた（薄く出すだけ。完了ではない） */
   past: boolean;
+  /** 「終わった」の印（人が付けたもの。時刻が過ぎただけでは付かない） */
+  done: boolean;
   /** いまの時間の予定 */
   current: boolean;
 }
@@ -201,6 +203,7 @@ function itemOf(state: State, task: TaskInstance, staffId: ID, now: Minutes): My
           .map(person),
     isBreak,
     past: task.endMin <= now,
+    done: Boolean(task.done),
     current: task.startMin <= now && now < task.endMin,
   };
 }

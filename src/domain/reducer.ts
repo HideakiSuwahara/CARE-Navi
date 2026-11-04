@@ -106,6 +106,12 @@ export function reduce(state: State, ev: Event): State {
       const next = { ...state, targets: { ...state.targets, [ev.id]: [...ev.residentIds] } };
       return touchDay(next, prev.date, ev.ts);
     }
+    case "task.done": {
+      const prev = state.tasks[ev.id];
+      if (!prev) return state;
+      const next = { ...state, tasks: { ...state.tasks, [ev.id]: { ...prev, done: ev.done } } };
+      return touchDay(next, prev.date, ev.ts);
+    }
 
     case "assignment.add": {
       const task = state.tasks[ev.assignment.taskId];
@@ -235,6 +241,11 @@ export function invertEvent(ev: Event, before: State): Event[] {
         if (a.taskId === ev.id) out.push({ ...meta, type: "assignment.add", assignment: a });
       }
       return out;
+    }
+    case "task.done": {
+      const prev = before.tasks[ev.id];
+      if (!prev) return [];
+      return [{ ...meta, type: "task.done", id: ev.id, done: Boolean(prev.done) }];
     }
     case "task.update": {
       const prev = before.tasks[ev.id];

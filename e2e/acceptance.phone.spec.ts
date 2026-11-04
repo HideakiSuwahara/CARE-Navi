@@ -35,7 +35,7 @@ test.describe("受け入れ: スマホ", () => {
     expect(await next.evaluate((e) => getComputedStyle(e).fontSize)).toBe(sizeNow);
   });
 
-  test("L45 時刻が過ぎた予定は薄く出るだけで、完了扱いにしない（語もボタンもない）", async ({ page }) => {
+  test("L45 時刻が過ぎた予定を自動で終わった扱いにしない（濃さも語もボタンも変わらない）。薄くなるのは人が付けた印だけ", async ({ page }) => {
     await pick(page, "12:10", "高橋");
     const flow = page.getByRole("heading", { name: "きょうの流れ" }).locator("..");
     const past = flow.getByRole("link").filter({ hasText: "（時刻を過ぎた予定）" });
@@ -43,10 +43,15 @@ test.describe("受け入れ: スマホ", () => {
     const notPast = flow.getByRole("link").filter({ hasNotText: "（時刻を過ぎた予定）" }).last();
     const colorPast = await past.first().evaluate((e) => getComputedStyle(e).color);
     const colorNow = await notPast.evaluate((e) => getComputedStyle(e).color);
-    expect(colorPast).not.toBe(colorNow); // 薄い色
+    expect(colorPast).toBe(colorNow); // 時刻が過ぎただけでは薄くしない（決定記録 0010）
     const text = await page.locator("body").innerText();
     for (const ng of ["実施中", "完了", "済"]) expect(text).not.toContain(ng); // wording-ok: 無いことの確認
     await expect(page.getByRole("button", { name: /完了|実施|済/ })).toHaveCount(0); // wording-ok: 無いことの確認
+    // 人が「終わった」を付けた行だけが薄くなる（印を付けると「（時刻を過ぎた予定）」は消えるので、行は ID で追う）
+    const target = flow.locator(`[data-flow-task="${await past.first().getAttribute("data-flow-task")}"]`);
+    await target.locator("..").getByRole("button", { name: "終わった", exact: true }).click();
+    await expect(target).toContainText("✓ 終わった");
+    expect(await target.evaluate((e) => getComputedStyle(e).color)).not.toBe(colorNow);
   });
 
   test("L46 業務詳細にも、充足バッジ・仕組みの言葉・完了の語が出ない", async ({ page }) => {

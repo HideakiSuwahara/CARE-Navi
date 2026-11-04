@@ -97,6 +97,11 @@ export function cancelTaskEvents(taskId: ID, ctx: EventContext, note?: string): 
   return [{ ...metaOf(ctx), type: "task.update", id: taskId, patch: { status: "cancelled", ...(note ? { note } : {}) } }];
 }
 
+/** 「終わった」の印を付ける／外す（決定記録 0010）。1 タップ・1 バッチ・元に戻せる */
+export function setDoneEvents(taskId: ID, done: boolean, ctx: EventContext): Event[] {
+  return [{ ...metaOf(ctx), type: "task.done", id: taskId, done }];
+}
+
 export function restoreTaskEvents(taskId: ID, ctx: EventContext): Event[] {
   return [{ ...metaOf(ctx), type: "task.update", id: taskId, patch: { status: "planned" } }];
 }

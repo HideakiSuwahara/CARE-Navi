@@ -9,14 +9,16 @@ import { clockLabel, fmtMin, fmtRange } from "@/domain/time";
 import type { ID, State } from "@/domain/types";
 import { contactText, HelpBar } from "./HelpBar";
 import { LAST_TASK_KEY, meHref } from "./links";
+import { DoneButton, DoneToast } from "@/components/DoneButton";
 
 /** 対象の方がこの人数までなら、はじめから全員を出す */
 const SHOW_ALL_UP_TO = 10;
 
 /**
  * 業務詳細（スマホ）。docs/screens.md §5
- * 上から: 戻る・業務名・時刻・場所・一緒に → お願いすること／しないこと（太枠）→ 物品 → 手順 → 対象の方 → 困ったら。
- * 記録ボタンは置かない。
+ * 上から: 戻る・業務名・時刻・場所・一緒に・「終わった」の印 → お願いすること／しないこと（太枠）→ 対象の方（お一人ずつの注意）→ 物品 → 手順 → 困ったら。
+ * 対象の方は上の方に置く（決定記録 0010 決定 5: 「この時間に、誰に、どんな注意が要るか」を先に）。
+ * 内容の記録は置かない。「終わった」の印だけ（決定記録 0010 決定 2）。
  */
 export function PhoneTaskDetail({ state, date, taskId, me, now }: { state: State; date: string; taskId: ID; me: ID; now: number }) {
   // 呼ぶ側（MyPage）で、予定があることを確かめてから開く
@@ -96,6 +98,12 @@ export function PhoneTaskDetail({ state, date, taskId, me, now }: { state: State
               : "なし（ひとりで入ります）"}
           </p>
         )}
+        {!isBreak && task.status !== "cancelled" && (
+          <div className="mt-3 flex items-center justify-between gap-3 border-t border-[var(--cn-grid)] pt-3">
+            <span className="text-[14px] text-[var(--cn-ink-soft)]">{task.done ? "終わったの印が付いています" : "終わったら印を付けます（元に戻せます）"}</span>
+            <DoneButton task={task} />
+          </div>
+        )}
       </div>
 
       <div className="flex flex-col gap-4 px-4 pt-4">
@@ -112,30 +120,6 @@ export function PhoneTaskDetail({ state, date, taskId, me, now }: { state: State
                 <h2 className="mt-3 text-[16px] font-bold">お願いしないこと</h2>
                 <p className="mt-1">{task.outOfScopeNote}</p>
               </>
-            )}
-          </section>
-        )}
-
-        {task.supplies && (
-          <section className="rounded-xl bg-white p-4">
-            <h2 className="text-[16px] font-bold">物品の場所</h2>
-            <p className="mt-1">{task.supplies}</p>
-          </section>
-        )}
-
-        {!isBreak && (
-          <section className="rounded-xl bg-white p-4">
-            <h2 className="text-[16px] font-bold">この施設の手順</h2>
-            {task.procedure && task.procedure.length > 0 ? (
-              <ol className="mt-1 list-decimal pl-6">
-                {task.procedure.map((p, i) => (
-                  <li key={i} className="py-0.5">
-                    {p}
-                  </li>
-                ))}
-              </ol>
-            ) : (
-              <p className="mt-1">手順はまだ登録されていません。相談先に確認してください。</p>
             )}
           </section>
         )}
@@ -178,6 +162,30 @@ export function PhoneTaskDetail({ state, date, taskId, me, now }: { state: State
           </section>
         )}
 
+        {task.supplies && (
+          <section className="rounded-xl bg-white p-4">
+            <h2 className="text-[16px] font-bold">物品の場所</h2>
+            <p className="mt-1">{task.supplies}</p>
+          </section>
+        )}
+
+        {!isBreak && (
+          <section className="rounded-xl bg-white p-4">
+            <h2 className="text-[16px] font-bold">この施設の手順</h2>
+            {task.procedure && task.procedure.length > 0 ? (
+              <ol className="mt-1 list-decimal pl-6">
+                {task.procedure.map((p, i) => (
+                  <li key={i} className="py-0.5">
+                    {p}
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <p className="mt-1">手順はまだ登録されていません。相談先に確認してください。</p>
+            )}
+          </section>
+        )}
+
         <section className="rounded-xl bg-white p-4" aria-labelledby="pt-help">
           <h2 id="pt-help" className="text-[16px] font-bold">
             困ったら
@@ -195,6 +203,7 @@ export function PhoneTaskDetail({ state, date, taskId, me, now }: { state: State
           <span aria-hidden="true">‹</span> 自分の予定へ戻る
         </Link>
       </div>
+      <DoneToast />
     </main>
   );
 }

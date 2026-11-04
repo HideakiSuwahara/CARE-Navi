@@ -8,6 +8,7 @@ import { fmtMin, fmtRange } from "@/domain/time";
 import type { ID, State } from "@/domain/types";
 import { contactName, HelpBar } from "./HelpBar";
 import { SyncBadge } from "@/components/SyncBadge";
+import { DoneButton, DoneToast } from "@/components/DoneButton";
 import { LAST_TASK_KEY, meHref } from "./links";
 
 /**
@@ -179,6 +180,7 @@ export function MyDayView({
           </ol>
         </section>
       </div>
+      <DoneToast />
     </main>
   );
 }
@@ -204,12 +206,13 @@ function flowWithNow(items: MyItem[], now: number, start: number, end: number): 
 
 function FlowRow({ item }: { item: MyItem }) {
   const t = item.task;
+  // 「終わった」の印がある行は薄く。時刻が過ぎただけの行は通常の濃さのまま（決定記録 0010）
   return (
-    <li className="break-inside-avoid border-b border-[var(--cn-grid)] last:border-b-0 print:border-b-[#9a9fa5]">
+    <li className={`flex items-stretch break-inside-avoid border-b border-[var(--cn-grid)] last:border-b-0 print:border-b-[#9a9fa5] ${item.current ? "bg-[var(--cn-accent-soft)]" : ""}`}>
       <Link
         href={meHref(t.id)}
         data-flow-task={t.id}
-        className={`flex min-h-[52px] items-baseline gap-3 px-4 py-3 print:min-h-0 print:py-1 print:text-[var(--cn-ink)] ${item.past ? "text-[var(--cn-muted)]" : ""} ${item.current ? "bg-[var(--cn-accent-soft)]" : ""}`}
+        className={`flex min-h-[52px] min-w-0 flex-1 items-baseline gap-3 px-4 py-3 print:min-h-0 print:py-1 print:text-[var(--cn-ink)] ${item.done ? "text-[var(--cn-muted)]" : ""}`}
       >
         <span className="w-[96px] shrink-0 font-bold">
           {fmtMin(t.startMin)}
@@ -221,8 +224,9 @@ function FlowRow({ item }: { item: MyItem }) {
               いま<span className="sr-only">の時間の予定: </span>
             </span>
           )}
-          {item.past && <span className="sr-only">（時刻を過ぎた予定）</span>}
+          {item.past && !item.done && <span className="sr-only">（時刻を過ぎた予定）</span>}
           <span className={item.current ? "font-bold" : ""}>{item.title}</span>
+          {item.done && <span className="block text-[14px] font-bold text-[var(--cn-accent)]">✓ 終わった</span>}
           {item.target && <span className="text-[14px]"> {item.target}</span>}
           {t.place && <span className="block text-[14px]">{t.place}</span>}
           {item.together.length > 0 && <span className="block text-[14px]">一緒に: {item.together.map((p) => p.surname).join("・")}</span>}
@@ -231,6 +235,11 @@ function FlowRow({ item }: { item: MyItem }) {
           ›
         </span>
       </Link>
+      {!item.isBreak && (
+        <span className="cn-noprint flex items-center pr-3">
+          <DoneButton task={t} size="sm" />
+        </span>
+      )}
     </li>
   );
 }
@@ -240,10 +249,11 @@ function FocusCard({ item, open }: { item: MyItem; open: boolean }) {
   const id = `fc-${t.id}`;
   // 読み上げ名は見えている文字と同じ並び（時刻・業務名・中身・「くわしく見る」）。名前と見える文字がずれないように（2.5.3）
   return (
+    <div className={`rounded-xl border-2 bg-white ${item.done ? "border-[var(--cn-card-line)]" : "border-[var(--cn-accent)]"}`}>
     <Link
       href={meHref(t.id)}
       aria-labelledby={`${id}-time ${id}-title ${id}-body ${id}-more`}
-      className="block rounded-xl border-2 border-[var(--cn-accent)] bg-white p-4"
+      className="block p-4"
     >
       <p id={`${id}-time`} className="text-[16px] font-bold">
         {fmtRange(t.startMin, t.endMin)}
@@ -281,5 +291,12 @@ function FocusCard({ item, open }: { item: MyItem; open: boolean }) {
         <span id={`${id}-more`}>くわしく見る</span> <span aria-hidden="true">›</span>
       </p>
     </Link>
+    {!item.isBreak && (
+      <div className="flex items-center justify-between gap-2 border-t border-[var(--cn-grid)] px-4 py-2">
+        <span className="text-[14px] text-[var(--cn-ink-soft)]">{item.done ? "終わったの印が付いています" : "終わったら印を付けます（元に戻せます）"}</span>
+        <DoneButton task={t} />
+      </div>
+    )}
+    </div>
   );
 }

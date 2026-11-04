@@ -38,8 +38,12 @@ export interface AllRow {
   unfilled: boolean;
   cancelled: boolean;
   isBreak: boolean;
-  /** 時刻を過ぎた（終わりの時刻 ≤ いま）。完了とは言わない。並びはそのまま、薄く出すだけ */
+  /** 時刻を過ぎた（終わりの時刻 ≤ いま）。それだけでは「終わった」にしない */
   past: boolean;
+  /** 「終わった」の印（人が付けたもの） */
+  done: boolean;
+  /** 時刻を過ぎて、印が無い（見出しの「終わっていない n 件」に数える） */
+  unfinished: boolean;
 }
 
 /**
@@ -68,6 +72,8 @@ export function allRows(state: State, date: DateKey, now: Minutes): AllRow[] {
         cancelled,
         isBreak,
         past,
+        done: Boolean(task.done),
+        unfinished: !isBreak && !cancelled && past && !task.done,
       };
     });
 }
@@ -85,6 +91,11 @@ export function overnightRows(state: State, date: DateKey, now: Minutes): (AllRo
       const start = s >= 1440 ? fmtMin(s - 1440) : `前日 ${fmtMin(s)}`;
       return { ...r, timeText: `${start}–${fmtMin(r.task.endMin - 1440)}` };
     });
+}
+
+/** 「終わっていない n 件」の件数 */
+export function unfinishedCount(rows: AllRow[]): number {
+  return rows.filter((r) => r.unfinished).length;
 }
 
 /** 見出しの「担当未定 2件」「担当あと 1 人 1件」の件数（これからの分）。押すと最初の該当行へ */
@@ -141,7 +152,7 @@ export function touchedTaskIds(before: State, events: Event[]): ID[] {
   const ids = new Set<ID>();
   for (const ev of events) {
     if (ev.type === "task.add") ids.add(ev.task.id);
-    else if (ev.type === "task.update" || ev.type === "task.setTargets") ids.add(ev.id);
+    else if (ev.type === "task.update" || ev.type === "task.setTargets" || ev.type === "task.done") ids.add(ev.id);
     else if (ev.type === "assignment.add") ids.add(ev.assignment.taskId);
     else if (ev.type === "assignment.remove") {
       const a = before.assignments[ev.id];
