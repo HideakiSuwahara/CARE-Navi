@@ -561,7 +561,15 @@ function SyncSection({ facilityName }: { facilityName: string }) {
   const [qr, setQr] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirmLeave, setConfirmLeave] = useState(false);
-  useEffect(() => setCode(readSyncCode()), []);
+  const [lastCode, setLastCode] = useState<string | null>(null);
+  useEffect(() => {
+    setCode(readSyncCode());
+    try {
+      setLastCode(window.localStorage.getItem("care-navi.last-sync-code"));
+    } catch {
+      // 読めなければ出さない
+    }
+  }, []);
   useEffect(() => {
     if (!code) {
       setQr(null);
@@ -611,6 +619,11 @@ function SyncSection({ facilityName }: { facilityName: string }) {
       // 消せなくても動く
     }
     writeSyncCode(null);
+    try {
+      window.localStorage.setItem("care-navi.last-sync-code", code);
+    } catch {
+      // 覚えられなくてもよい
+    }
     writeSetupNote("ほかの端末と同じ内容にするのをやめました。いまの内容はこの端末に残っています。ほかの端末の内容はそのままです。");
     window.location.assign("/setup");
   };
@@ -679,6 +692,11 @@ function SyncSection({ facilityName }: { facilityName: string }) {
   return (
     <div className="flex flex-col gap-3">
       <p className="text-[15px]">このブラウザだけに保存しています。ほかの端末（スマホなど）からも同じ時間割を見るには、同期を始めてコードを渡します。</p>
+      {lastCode && (
+        <p className="text-[14px] text-[var(--cn-ink-soft)]">
+          前に使っていた施設コード {lastCode} の端末とは別の、新しいコードを発行します（前のコードの端末どうしは、そのコードで続きます）。前の内容に合流したいときは、下の「参加」で前のコードを入れてください。
+        </p>
+      )}
       <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
