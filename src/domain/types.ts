@@ -362,6 +362,8 @@ export interface SeedData {
   dayPatterns: { date: DateKey; patternId: ID }[];
   /** 利用者の24時間シート（省略可。省略した方は全員が標準どおり） */
   sheets?: ResidentSheet[];
+  /** サンプル用: その日の、この時刻までに終わる枠に「終わった」の印を付けておく（決定記録 0010。休憩・見守りには付けない） */
+  doneMarks?: { date: DateKey; endMinUpTo: Minutes }[];
 }
 
 // ---------------------------------------------------------------------------

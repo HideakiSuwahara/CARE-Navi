@@ -48,11 +48,27 @@ test("終わっていない n 件: 休憩・中止は数えない。担当未定
   assert.equal(unfinishedLabel(3), "終わっていない 3件");
 });
 
-test("自分の予定の行にも印が出る", () => {
+test("自分の予定の行にも印が出る。サンプルは 8:00 までの枠に印あり。見守りは印の対象外", () => {
   const s = state();
   const d = myDay(s, DATE, "stf-sato", toMin(10, 12))!;
-  const first = d.items[0];
-  assert.equal(first.done, false);
-  const s2 = applyEvents(s, setDoneEvents(first.task.id, true, deterministicContext("f", "2026-11-03T10:12:00+09:00", "b-f")));
-  assert.equal(myDay(s2, DATE, "stf-sato", toMin(10, 12))!.items[0].done, true);
+  // サンプルの印: 申し送り 7:00–7:30 は付いている（seed の doneMarks）。朝食介助 8:00–9:00 は付いていない
+  assert.equal(d.items[0].done, true);
+  const target = d.items.find((i) => !i.done && i.canDone)!;
+  assert.ok(target, "印の無い枠がある");
+  const idx = d.items.indexOf(target);
+  const s2 = applyEvents(s, setDoneEvents(target.task.id, true, deterministicContext("f", "2026-11-03T10:12:00+09:00", "b-f")));
+  assert.equal(myDay(s2, DATE, "stf-sato", toMin(10, 12))!.items[idx].done, true);
+  // 見守り・休憩は印の対象外
+  for (const i of d.items.filter((x) => x.isBreak || x.task.name.startsWith("見守り"))) assert.equal(i.canDone, false);
+});
+
+test("終わりの時刻から 15 分は「終わっていない」に数えない。見守りは数えない", () => {
+  const s = state();
+  // 朝食介助 8:00–9:00: 9:10 ではまだ数えず、9:15 から数える
+  const name = (t: { name: string }) => t.name;
+  assert.ok(!unfinishedTasks(s, DATE, toMin(9, 10)).map(name).includes("朝食介助"));
+  assert.ok(unfinishedTasks(s, DATE, toMin(9, 15)).map(name).includes("朝食介助"));
+  for (const t of unfinishedTasks(s, DATE, toMin(23))) assert.ok(!t.name.startsWith("見守り"), t.name);
+  // サンプルは 10:12 に「終わっていない 2件」（朝食介助・バイタル測定）。8:00 までの枠は印あり
+  assert.deepEqual(unfinishedTasks(s, DATE, toMin(10, 12)).map(name).sort(), ["バイタル測定", "朝食介助"]);
 });

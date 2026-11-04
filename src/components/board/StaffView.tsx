@@ -245,6 +245,7 @@ function StaffRowView({
           const body = (
             <span className="line-clamp-2 break-words">
               {bar.overlap && <span className="mr-1 font-bold text-[var(--cn-unassigned-ink)]">重なり</span>}
+              {task.done && <span className="mr-1 font-bold text-[var(--cn-accent)]">✓</span>}
               {bar.label}
             </span>
           );
@@ -256,7 +257,7 @@ function StaffRowView({
             <button
               key={task.id}
               type="button"
-              aria-label={`${bar.overlap ? "重なり " : ""}${bar.fullLabel}、${row.surname}さん、${spoken(task.startMin, task.endMin)}`}
+              aria-label={`${bar.overlap ? "重なり " : ""}${task.done ? "終わった " : ""}${bar.fullLabel}、${row.surname}さん、${spoken(task.startMin, task.endMin)}`}
               title={`${fmtRange(task.startMin, task.endMin)} ${bar.fullLabel}`}
               onClick={() => onOpen(task.id)}
               className={cls}

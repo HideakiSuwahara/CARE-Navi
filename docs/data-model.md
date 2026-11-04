@@ -56,7 +56,7 @@ EventMeta = { id, ts, batchId, actorId? }
 | `task.remove { id }` | 削除（Undo 用。通常の「中止」は `task.update {status:'cancelled'}`） |
 | `task.update { id, patch }` | 名称・時刻・場所・必要人数・条件・メモ・状態・グループ・区分・案内項目 |
 | `task.setTargets { id, residentIds }` | 対象者の差し替え |
-| `task.done { id, done }` | 「終わった」の印の付け外し（決定記録 0010）。誰が付けたかは `actorId` に残し、画面には出さない |
+| `task.done { id, done }` | 「終わった」の印の付け外し（決定記録 0010）。誰が付けたかは `actorId` に残し、画面には出さない。「終わっていない」は `unfinishedTasks`（終わりの時刻から 15 分過ぎて印なし。休憩・中止・見守りを除く） |
 | `assignment.add { assignment }` / `assignment.remove { id }` | 担当 |
 | `day.setPattern { date, patternId? }` | その日に当てた型 |
 
@@ -109,7 +109,7 @@ UI の「元に戻す」は直近 10 の batchId を対象にする。一覧（b
 ## 6C. 自分の予定の計算（`src/domain/myday.ts`）
 
 - `viewerMinutes`: 見ている人の業務日の時刻。夜勤の人は勤務前の朝の時刻を「翌」として読む（夜勤明けの予定が出る）。
-- `myDay`: いまの時間の予定（なければ最初の予定・つぎ）、きょうの流れ。過ぎた予定は `past` だけ（完了ではない）。
+- `myDay`: いまの時間の予定（なければ最初の予定・つぎ）、きょうの流れ。過ぎた予定は `past`、人が付けた印は `done`、印を付けられる枠かは `canDone`（休憩・中止・見守りは付けない）。`past` だけでは終わった扱いにしない（決定記録 0010）。
 - `leaderContact` / `leaderSchedule`: 「困ったら」の相談先と、その一日の移り変わり（決定記録 0006）。
 - `targetLines`: 業務詳細の対象の方。時刻が違う方 → サポートのある方 → 部屋番号の順。サポートは担当の人に勤務時間中だけ（0004 §4）。
 

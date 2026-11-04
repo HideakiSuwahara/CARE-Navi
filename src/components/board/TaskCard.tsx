@@ -1,6 +1,6 @@
 "use client";
 
-import { headcountStatus } from "@/domain/checks";
+import { canMarkDone, headcountStatus, UNFINISHED_GRACE_MIN } from "@/domain/checks";
 import { fmtRange } from "@/domain/time";
 import type { ID, State, TaskInstance } from "@/domain/types";
 import { useStaffDrag } from "./dnd";
@@ -42,7 +42,7 @@ export function TaskCard({
     .filter((x) => x.staff);
   const short = !isBreak && (status.level === "unassigned" || status.level === "short");
   const done = !isBreak && Boolean(task.done);
-  const unfinished = !isBreak && !done && task.status !== "cancelled" && now !== null && now !== undefined && task.endMin <= now;
+  const unfinished = canMarkDone(task) && !done && now !== null && now !== undefined && task.endMin + UNFINISHED_GRACE_MIN <= now;
   const compact = variant === "compact";
   const mini = variant === "mini";
   const rail = variant === "rail";
@@ -83,14 +83,20 @@ export function TaskCard({
       className={`block w-full min-w-[44px] max-w-full text-left hover:underline ${mini ? "flex min-h-[44px] items-center" : "min-h-[44px]"}`}
     >
       <span className={`block truncate text-[15px] font-bold leading-6 ${isBreak ? "text-[var(--cn-break-ink)]" : done ? "text-[var(--cn-muted)]" : ""}`}>
-        {done && (
+        {/* 2 行のカードは 2 行目に「✓ 終わった」と文字で。1 行のカードは ✓ と読み上げ用の文字 */}
+        {done && mini && (
           <span className="text-[var(--cn-accent)]">
             ✓<span className="sr-only">終わった</span>{" "}
           </span>
         )}
         {title}
       </span>
-      {!mini && <span className="block truncate text-[14px] font-normal leading-5 text-[var(--cn-muted)]">{when}</span>}
+      {!mini && (
+        <span className="block truncate text-[14px] font-normal leading-5 text-[var(--cn-muted)]">
+          {done && <span className="font-bold text-[var(--cn-accent)]">✓ 終わった ・ </span>}
+          {when}
+        </span>
+      )}
     </button>
   );
   const plus = (

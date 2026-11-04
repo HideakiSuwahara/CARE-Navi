@@ -8,14 +8,14 @@ import { fmtMin, fmtRange } from "@/domain/time";
 import type { ID, State } from "@/domain/types";
 import { contactName, HelpBar } from "./HelpBar";
 import { SyncBadge } from "@/components/SyncBadge";
-import { DoneButton, DoneToast } from "@/components/DoneButton";
+import { DoneButton, DoneToast, doneHint } from "@/components/DoneButton";
 import { LAST_TASK_KEY, meHref } from "./links";
 
 /**
  * 自分の予定の本文。docs/screens.md §4
  * - 「いまの時間の予定」。なければ「最初の予定」（勤務前）または「つぎ」を同じ大きさで。
- * - 「きょうの流れ」: 時刻順。過ぎた予定は薄く、いまの位置に「● いまの時間」。最後に「退勤」。
- * - 充足バッジ・仕組みの言葉は出さない。終わったかどうかは記録しない。
+ * - 「きょうの流れ」: 時刻順。印の付いた行は「✓ 終わった」と薄く。時刻が過ぎただけの行は通常の濃さ、いまの位置に「● いまの時間」。最後に「退勤」。
+ * - 充足バッジ・仕組みの言葉は出さない。持つのは「終わった」の印だけ。内容の記録はしない（決定記録 0010）。
  * - 初回の人には、お願いすること・お願いしないこと・物品を開いて出す（勤務中も）。
  */
 export function MyDayView({
@@ -25,6 +25,7 @@ export function MyDayView({
   now,
   onSwitch,
   missingTask = false,
+  tabsBelow = false,
 }: {
   state: State;
   date: string;
@@ -33,6 +34,8 @@ export function MyDayView({
   onSwitch: () => void;
   /** ?task= の予定が見つからなかった（変更・中止された） */
   missingTask?: boolean;
+  /** 画面下に［自分｜全体］があるか（トーストをその上に出す） */
+  tabsBelow?: boolean;
 }) {
   const day = useMemo(() => myDay(state, date, me, now), [state, date, me, now]);
   const hasDay = useMemo(() => tasksForDate(state, date).length > 0, [state, date]);
@@ -75,7 +78,7 @@ export function MyDayView({
   const schedule = leaderSchedule(state, date, day.entry.startMin, day.entry.endMin);
 
   return (
-    <main className="mx-auto min-h-screen max-w-[480px] bg-[var(--cn-ground)] pb-10 text-[16px] print:max-w-none print:bg-white">
+    <main className="mx-auto min-h-screen max-w-[480px] bg-[var(--cn-ground)] pb-[88px] text-[16px] print:max-w-none print:bg-white print:pb-0">
       <style>{"@media print { @page { size: A4 portrait; margin: 10mm; } } html { scroll-padding-top: 76px; }"}</style>
       <header className="flex items-start gap-2 bg-white px-4 pb-3 pt-4">
         <div className="min-w-0 flex-1">
@@ -142,13 +145,13 @@ export function MyDayView({
             </h2>
             <div className="flex flex-col gap-2">
               {day.focus.map((i) => (
-                <FocusCard key={i.task.id} item={i} open={firstTimer} />
+                <FocusCard key={i.task.id} item={i} open={firstTimer} now={now} />
               ))}
             </div>
             {day.upcoming && (
               <>
                 <h2 className="mb-2 mt-4 text-[18px] font-bold">つぎ</h2>
-                <FocusCard item={day.upcoming} open={firstTimer} />
+                <FocusCard item={day.upcoming} open={firstTimer} now={now} />
               </>
             )}
           </section>
@@ -174,13 +177,13 @@ export function MyDayView({
                   <span>退勤</span>
                 </li>
               ) : (
-                <FlowRow key={row.item.task.id} item={row.item} />
+                <FlowRow key={row.item.task.id} item={row.item} now={now} />
               ),
             )}
           </ol>
         </section>
       </div>
-      <DoneToast />
+      <DoneToast raised={tabsBelow} />
     </main>
   );
 }
@@ -204,7 +207,7 @@ function flowWithNow(items: MyItem[], now: number, start: number, end: number): 
   return rows;
 }
 
-function FlowRow({ item }: { item: MyItem }) {
+function FlowRow({ item, now }: { item: MyItem; now: number }) {
   const t = item.task;
   // 「終わった」の印がある行は薄く。時刻が過ぎただけの行は通常の濃さのまま（決定記録 0010）
   return (
@@ -235,7 +238,8 @@ function FlowRow({ item }: { item: MyItem }) {
           ›
         </span>
       </Link>
-      {!item.isBreak && (
+      {/* 印は始まった業務だけ（先の行で押し間違えないように。先に終えた人も、始まった後なら押せる） */}
+      {item.canDone && t.startMin <= now && (
         <span className="cn-noprint flex items-center pr-3">
           <DoneButton task={t} size="sm" />
         </span>
@@ -244,17 +248,13 @@ function FlowRow({ item }: { item: MyItem }) {
   );
 }
 
-function FocusCard({ item, open }: { item: MyItem; open: boolean }) {
+function FocusCard({ item, open, now }: { item: MyItem; open: boolean; now: number }) {
   const t = item.task;
   const id = `fc-${t.id}`;
-  // 読み上げ名は見えている文字と同じ並び（時刻・業務名・中身・「くわしく見る」）。名前と見える文字がずれないように（2.5.3）
+  // 読み上げ名は Link の中の文字そのまま（時刻・業務名・中身・「くわしく見る」）。名前と見える文字がずれないように（2.5.3）
   return (
     <div className={`rounded-xl border-2 bg-white ${item.done ? "border-[var(--cn-card-line)]" : "border-[var(--cn-accent)]"}`}>
-    <Link
-      href={meHref(t.id)}
-      aria-labelledby={`${id}-time ${id}-title ${id}-body ${id}-more`}
-      className="block p-4"
-    >
+    <Link href={meHref(t.id)} className="block p-4">
       <p id={`${id}-time`} className="text-[16px] font-bold">
         {fmtRange(t.startMin, t.endMin)}
       </p>
@@ -291,9 +291,9 @@ function FocusCard({ item, open }: { item: MyItem; open: boolean }) {
         <span id={`${id}-more`}>くわしく見る</span> <span aria-hidden="true">›</span>
       </p>
     </Link>
-    {!item.isBreak && (
+    {item.canDone && t.startMin <= now && (
       <div className="flex items-center justify-between gap-2 border-t border-[var(--cn-grid)] px-4 py-2">
-        <span className="text-[14px] text-[var(--cn-ink-soft)]">{item.done ? "終わったの印が付いています" : "終わったら印を付けます（元に戻せます）"}</span>
+        <span className="text-[14px] text-[var(--cn-ink-soft)]">{doneHint(t, item.together.length)}</span>
         <DoneButton task={t} />
       </div>
     )}

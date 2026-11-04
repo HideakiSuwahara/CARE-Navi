@@ -2,22 +2,22 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { assigneesOf } from "@/domain/checks";
+import { assigneesOf, canMarkDone } from "@/domain/checks";
 import { residentLabel } from "@/domain/display";
 import { leaderContact, staffTaskName, targetLines } from "@/domain/myday";
 import { clockLabel, fmtMin, fmtRange } from "@/domain/time";
 import type { ID, State } from "@/domain/types";
 import { contactText, HelpBar } from "./HelpBar";
 import { LAST_TASK_KEY, meHref } from "./links";
-import { DoneButton, DoneToast } from "@/components/DoneButton";
+import { DoneButton, DoneToast, doneHint } from "@/components/DoneButton";
 
 /** 対象の方がこの人数までなら、はじめから全員を出す */
 const SHOW_ALL_UP_TO = 10;
 
 /**
  * 業務詳細（スマホ）。docs/screens.md §5
- * 上から: 戻る・業務名・時刻・場所・一緒に・「終わった」の印 → お願いすること／しないこと（太枠）→ 対象の方（お一人ずつの注意）→ 物品 → 手順 → 困ったら。
- * 対象の方は上の方に置く（決定記録 0010 決定 5: 「この時間に、誰に、どんな注意が要るか」を先に）。
+ * 上から: 戻る・業務名・時刻・場所・一緒に・「終わった」の印 → お願いすること／しないこと（太枠）→ 物品（1 行）→ 対象の方（お一人ずつの注意）→ 手順 → 困ったら。
+ * 対象の方は手順より上に置く（決定記録 0010 決定 5: 「この時間に、誰に、どんな注意が要るか」を先に。物品は 1 行なので先に）。
  * 内容の記録は置かない。「終わった」の印だけ（決定記録 0010 決定 2）。
  */
 export function PhoneTaskDetail({ state, date, taskId, me, now }: { state: State; date: string; taskId: ID; me: ID; now: number }) {
@@ -70,7 +70,7 @@ export function PhoneTaskDetail({ state, date, taskId, me, now }: { state: State
   }, [title, task.startMin, task.endMin]);
 
   return (
-    <main className="mx-auto min-h-screen max-w-[480px] bg-[var(--cn-ground)] pb-10 text-[16px]">
+    <main className="mx-auto min-h-screen max-w-[480px] bg-[var(--cn-ground)] pb-[88px] text-[16px]">
       <HelpBar state={state} date={date} me={me} now={now} />
       <div className="bg-white px-4 pb-4 pt-2">
         <Link href={meHref()} className="-ml-2 inline-flex h-[44px] items-center px-2 text-[16px] text-[var(--cn-accent)]">
@@ -98,9 +98,9 @@ export function PhoneTaskDetail({ state, date, taskId, me, now }: { state: State
               : "なし（ひとりで入ります）"}
           </p>
         )}
-        {!isBreak && task.status !== "cancelled" && (
+        {canMarkDone(task) && (
           <div className="mt-3 flex items-center justify-between gap-3 border-t border-[var(--cn-grid)] pt-3">
-            <span className="text-[14px] text-[var(--cn-ink-soft)]">{task.done ? "終わったの印が付いています" : "終わったら印を付けます（元に戻せます）"}</span>
+            <span className="text-[14px] text-[var(--cn-ink-soft)]">{doneHint(task, together.length)}</span>
             <DoneButton task={task} />
           </div>
         )}
@@ -124,6 +124,13 @@ export function PhoneTaskDetail({ state, date, taskId, me, now }: { state: State
           </section>
         )}
 
+        {task.supplies && (
+          <section className="rounded-xl bg-white p-4">
+            <h2 className="text-[16px] font-bold">物品の場所</h2>
+            <p className="mt-1">{task.supplies}</p>
+          </section>
+        )}
+
         {lines.length > 0 && (
           <section className="rounded-xl bg-white p-4" aria-labelledby="pt-targets">
             <h2 id="pt-targets" className="text-[16px] font-bold">
@@ -138,7 +145,7 @@ export function PhoneTaskDetail({ state, date, taskId, me, now }: { state: State
                   </div>
                   {l.support && (
                     <p className="ml-3 border-l-2 border-[var(--cn-control-line)] pl-2 text-[14px] text-[var(--cn-ink-soft)]">
-                      {l.label}様: {l.support}
+                      {l.support}
                     </p>
                   )}
                 </li>
@@ -159,13 +166,6 @@ export function PhoneTaskDetail({ state, date, taskId, me, now }: { state: State
                 ? `お一人ずつの注意点がある方は、勤務が始まる ${fmtMin(entry.startMin)} からここに出ます。お一人ずつの介助のしかたは、一緒に入る人か相談先に聞いてください。`
                 : "ほかに気になることは、相談先に確認してください。"}
             </p>
-          </section>
-        )}
-
-        {task.supplies && (
-          <section className="rounded-xl bg-white p-4">
-            <h2 className="text-[16px] font-bold">物品の場所</h2>
-            <p className="mt-1">{task.supplies}</p>
           </section>
         )}
 

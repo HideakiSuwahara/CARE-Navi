@@ -267,11 +267,27 @@ export function splitCandidates(cands: Candidate[]): { open: Candidate[]; folded
 }
 
 /**
- * 終わっていない枠（決定記録 0010）: 終わりの時刻を過ぎて、「終わった」の印が無い業務。休憩・中止は除く。
+ * 見守りの業務か。見守りは「終わる」業務ではなく次の人に「交代する」業務なので、「終わった」の印の対象にしない。
+ * 職員表示の最下段のつながりも同じ判定（当面は業務の名前「見守り」で見る。個別の業務は除く。docs/data-model.md）
+ */
+export function isWatchTask(task: TaskInstance): boolean {
+  return task.kind !== "break" && task.targetMode !== "individual" && task.name.startsWith("見守り");
+}
+
+/** 「終わった」の印を付けられる枠か（決定記録 0010）。休憩・中止・見守りには付けない */
+export function canMarkDone(task: TaskInstance): boolean {
+  return task.kind !== "break" && task.status !== "cancelled" && !isWatchTask(task);
+}
+
+/** 終わりの時刻からこの分だけ過ぎたら「終わっていない」に数える（片付け・手洗いの分。時刻の境目で件数が跳ねないように） */
+export const UNFINISHED_GRACE_MIN = 15;
+
+/**
+ * 終わっていない枠（決定記録 0010）: 終わりの時刻から 15 分過ぎて、「終わった」の印が無い業務。休憩・中止・見守りは除く。
  * 「担当未定」とは別に数える。時刻順。
  */
 export function unfinishedTasks(state: State, date: string, now: number): TaskInstance[] {
-  return tasksForDate(state, date).filter((t) => t.kind !== "break" && !t.done && t.endMin <= now);
+  return tasksForDate(state, date).filter((t) => canMarkDone(t) && !t.done && t.endMin + UNFINISHED_GRACE_MIN <= now);
 }
 
 /** 見出しの文「終わっていない n 件」。0 件なら空 */

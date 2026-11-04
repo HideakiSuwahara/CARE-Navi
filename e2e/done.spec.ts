@@ -18,9 +18,11 @@ test.describe("「終わった」の印（ボード）", () => {
     await expect(chip).toBeVisible();
     const n = Number((await chip.innerText()).match(/(\d+)件/)![1]);
     expect(n).toBeGreaterThan(0);
-    // 時刻が過ぎただけでは、印は無い
-    await expect(page.locator("[data-done]")).toHaveCount(0);
+    // サンプルは 8:00 までの枠に印あり（✓ 終わった）。時刻が過ぎただけの枠には印が無い
+    expect(await page.locator("[data-done]").count()).toBeGreaterThan(0);
+    await expect(page.locator("[data-done]").first()).toContainText("✓ 終わった");
     expect(await page.locator("[data-unfinished]").count()).toBe(n);
+    expect(await page.locator("[data-done][data-unfinished]").count()).toBe(0);
 
     await chip.click();
     const focused = page.locator("[data-task-id]:has(button:focus)");
@@ -43,6 +45,6 @@ test.describe("「終わった」の印（ボード）", () => {
 
   test("禁止の語を出さない（完了・済・実施中・率）", async ({ page }) => {
     const text = await page.locator("main, body").first().innerText();
-    for (const ng of ["完了", "未実施", "実施中", "完了率"]) expect(text).not.toContain(ng); // wording-ok: 禁止語の列挙
+    for (const ng of ["完了", "済", "未実施", "実施中", "完了率"]) expect(text).not.toContain(ng); // wording-ok: 禁止語の列挙
   });
 });

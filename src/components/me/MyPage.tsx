@@ -84,7 +84,7 @@ export function MyPage({ taskId, date = SAMPLE_DATE, view: viewKey }: { taskId?:
   }
   return (
     <>
-      <MyDayView state={state} date={date_} me={me} now={now} onSwitch={() => choose(null)} missingTask={Boolean(taskId)} />
+      <MyDayView state={state} date={date_} me={me} now={now} onSwitch={() => choose(null)} missingTask={Boolean(taskId)} tabsBelow={leader} />
       {leader && (
         <>
           <div aria-hidden="true" className="h-[72px] print:hidden" />

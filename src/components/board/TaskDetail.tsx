@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { assigneesOf, headcountStatus } from "@/domain/checks";
+import { assigneesOf, canMarkDone, headcountStatus } from "@/domain/checks";
 import { cancelTaskEvents, shiftTaskEvents, unassignEvents } from "@/domain/commands";
 import { sheetRowFor } from "@/domain/routine";
 import { clockLabel, fmtRange } from "@/domain/time";
@@ -138,7 +138,7 @@ export function TaskDetail({
             <h3 id="d-ops" className="sr-only">
               終わった・時刻・中止
             </h3>
-            {!isBreak && <DoneButton task={task} />}
+            {canMarkDone(task) && <DoneButton task={task} />}
             <button type="button" onClick={() => shift(-30)} className="h-[44px] rounded-lg border border-[var(--cn-control-line)] px-3 text-[15px]">
               30分前へ
             </button>

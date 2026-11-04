@@ -119,6 +119,10 @@ export function Board({ date = SAMPLE_DATE }: { date?: string }) {
 
   // 見出しの「担当未定 n件」を押すと、該当するカードへ順に移動する（押すたびに次へ）
   const jumpIndex = useRef<Record<string, number>>({});
+  // 印や担当が変わったら、巡回を先頭（いちばん早い時刻）からやり直す（1 件終わった直後に次を飛ばさない）
+  useEffect(() => {
+    jumpIndex.current = {};
+  }, [state]);
   // 職員表示から押したら、グループ表示に戻してから（描き終わったあとの effect で）カードへ寄せる
   const pendingJump = useRef<string | null>(null);
   const jumpTo = (label: string) => {
@@ -312,7 +316,7 @@ export function Board({ date = SAMPLE_DATE }: { date?: string }) {
             >
               ⓘ
             </button>
-            {noteOpen && <span className="text-[14px] text-[var(--cn-ink-soft)]">決めた人数にあと何人足りないか、です。ケアができていない数ではありません。</span>}
+            {noteOpen && <span className="text-[14px] text-[var(--cn-ink-soft)]">担当未定・担当あと n 人: 決めた人数にあと何人足りないか、です。終わっていない: 終わりの時刻を過ぎて「終わった」の印が無い枠の数です。どちらもケアができていない数ではありません。</span>}
           </div>
         )}
         <div className="ml-auto flex items-center gap-2">
@@ -321,7 +325,7 @@ export function Board({ date = SAMPLE_DATE }: { date?: string }) {
             type="button"
             onClick={async () => {
               const done = await engine?.undo();
-              setToast(done ? `戻しました（${done.label}）` : null);
+              setToast(done ? `元に戻しました（取り消した操作: ${done.label}）` : null);
             }}
             className="inline-flex h-[44px] items-center gap-2 rounded-lg border border-[var(--cn-card-line)] bg-white px-4 text-[14px]"
           >

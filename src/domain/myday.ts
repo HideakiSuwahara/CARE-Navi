@@ -2,12 +2,12 @@
  * 自分の予定（スマホ）と業務詳細の計算。純関数。docs/screens.md §4・§5
  *
  * 文言の規則:
- * - 見出しは「いまの時間の予定」。時刻が過ぎても「実施中」「完了」にしない（過ぎた予定は薄く出すだけ）。
+ * - 見出しは「いまの時間の予定」。時刻が過ぎても「実施中」「完了」にしない。示すのは人が付けた「終わった」の印だけ（決定記録 0010）。
  * - 職員の画面に仕組みの言葉（一括・共通・コア・ノンコア・役割枠・型）と充足バッジを出さない。
  * - 利用者名は施設の設定（既定: 部屋番号＋姓）。
  */
 
-import { assigneesOf, rosterOf, tasksOfStaff } from "./checks.ts";
+import { assigneesOf, canMarkDone, rosterOf, tasksOfStaff } from "./checks.ts";
 import { residentLabel } from "./display.ts";
 import { addDays } from "./pattern.ts";
 import { sheetRowFor } from "./routine.ts";
@@ -156,10 +156,12 @@ export interface MyItem {
   /** 一緒に入る人（自分を除く） */
   together: ContactPerson[];
   isBreak: boolean;
-  /** 時刻が過ぎた（薄く出すだけ。完了ではない） */
+  /** 時刻が過ぎた（それだけでは「終わった」にしない。濃さも変えない） */
   past: boolean;
   /** 「終わった」の印（人が付けたもの。時刻が過ぎただけでは付かない） */
   done: boolean;
+  /** 印を付けられる枠か（休憩・中止・見守りは付けない） */
+  canDone: boolean;
   /** いまの時間の予定 */
   current: boolean;
 }
@@ -204,6 +206,7 @@ function itemOf(state: State, task: TaskInstance, staffId: ID, now: Minutes): My
     isBreak,
     past: task.endMin <= now,
     done: Boolean(task.done),
+    canDone: canMarkDone(task),
     current: task.startMin <= now && now < task.endMin,
   };
 }
