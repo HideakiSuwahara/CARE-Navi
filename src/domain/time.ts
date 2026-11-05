@@ -127,3 +127,14 @@ export function parseClockInput(text: string): Minutes | null {
   if (h > 23 || mm > 59) return null;
   return (next ? MINUTES_PER_DAY : 0) + h * 60 + mm;
 }
+
+/** 端末の時計の日付（"2026-11-05"）。端末のタイムゾーン（施設の時刻）で読む */
+export function calendarDateOf(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/** ボードの一日（6:00〜翌6:00）としての今日。6:00 より前は前の日の業務日（夜勤帯はその夜勤が始まった日に属する） */
+export function businessDateOf(d: Date): string {
+  if (d.getHours() >= 6) return calendarDateOf(d);
+  return calendarDateOf(new Date(d.getFullYear(), d.getMonth(), d.getDate() - 1, 12));
+}

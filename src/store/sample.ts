@@ -10,6 +10,8 @@ import { deterministicContext, seedToEvents } from "../domain/loadSeed.ts";
 import type { Event } from "../domain/events.ts";
 
 export const SAMPLE_DATE = "2026-11-03";
+/** サンプル施設の ID（シードの施設） */
+export const SAMPLE_FACILITY_ID = "fac-himawari";
 
 export function sampleEvents(): Event[] {
   return seedToEvents(himawariSeed, deterministicContext("seed", "2026-11-03T06:00:00+09:00", "seed"));

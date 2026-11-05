@@ -74,7 +74,12 @@ export function MorningBand({ state, date }: { state: State; date: DateKey }) {
         </h2>
         {draft.source === "lastWeek" && (
           <p className="mt-1 text-[15px] text-[var(--cn-ink-soft)]">
-            先週の同じ曜日（{shortDate(draft.entries[0]?.carriedFrom ?? date)}）と同じ番で並べました。違うところだけ直してください。
+            先週の同じ曜日（{shortDate(draft.fromDate ?? date)}）と同じ番で並べました。違うところだけ直してください。
+          </p>
+        )}
+        {draft.source === "recent" && (
+          <p className="mt-1 text-[15px] text-[var(--cn-ink-soft)]">
+            {shortDate(draft.fromDate ?? date)}と同じ番で並べました（前の日に夜勤だった人は明けなので休み）。勤務表と違うところだけ直してください。
           </p>
         )}
         {draft.source === "none" && (
@@ -140,7 +145,7 @@ export function MorningBand({ state, date }: { state: State; date: DateKey }) {
                   e.absent ? "border-[var(--cn-ink)] bg-white font-bold text-[var(--cn-ink)]" : "border-[var(--cn-control-line)] bg-white text-[var(--cn-ink-soft)]"
                 }`}
               >
-                {e.absent ? (draft.source === "none" ? "出勤にする" : "出勤に戻す") : "休み"}
+                {e.absent ? (draft.source === "lastWeek" ? "出勤に戻す" : "出勤にする") : "休み"}
               </button>
             </li>
           );

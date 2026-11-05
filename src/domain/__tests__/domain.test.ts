@@ -493,3 +493,24 @@ test("24時間シートの時計: 朝5時から並べ、翌を付けず、入力
   assert.equal(alignToSheetDay(toMin(2)), 1440 + toMin(2));
   assert.equal(alignToSheetDay(toMin(10)), toMin(10));
 });
+
+test("朝（使い始めの週）: 先週の同じ曜日がなければ、いちばん近い前の日の番を写す。夜勤明け・休みは休み", () => {
+  const base = miniState();
+  // 11/3 の佐藤を夜勤（翌9:00まで）にする。鈴木は日勤A、渡辺は休み、加藤はスポット
+  const s: State = { ...base, roster: { ...base.roster, "ro-sato": { ...base.roster["ro-sato"], startMin: toMin(17), endMin: toMin(33) } } };
+  let n = 0;
+  const draft = morningDraft(s, "2026-11-04", () => `d-${++n}`);
+  assert.equal(draft.source, "recent");
+  assert.equal(draft.fromDate, DATE);
+  const by = (id: string) => draft.entries.find((e) => e.staffId === id);
+  assert.equal(by("s-suzuki")?.absent, false);
+  assert.equal(by("s-suzuki")?.slotId, "slot-b", "前の日と同じ番");
+  assert.equal(by("s-sato")?.absent, true, "前の日に夜勤なら明けで休み");
+  assert.equal(by("s-watanabe")?.absent, true, "前の日に休みなら休みのまま");
+  assert.equal(by("s-kato"), undefined, "スポットは写さない");
+  assert.ok(draft.entries.every((e) => e.date === "2026-11-04"));
+
+  // 2日あいても（11/3 → 11/6）写す。7日以上前しかなければ、はじめての日と同じ
+  assert.equal(morningDraft(s, "2026-11-06", () => `e-${++n}`).source, "recent");
+  assert.equal(morningDraft(s, "2026-11-11", () => `f-${++n}`).source, "none");
+});

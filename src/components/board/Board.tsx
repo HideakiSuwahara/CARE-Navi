@@ -4,13 +4,13 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { TopBar } from "@/components/TopBar";
 import { SETUP_NOTE_KEY } from "@/components/setup/setupNote";
-import { useAppState, useEngine, useIncoming, useNowMinutes, useSyncStatus } from "@/store/react";
+import { useAppState, useDefaultDate, useEngine, useIncoming, useNowMinutes, useSyncStatus } from "@/store/react";
 import { SyncEmpty } from "@/components/setup/Setup";
 import { SyncBadge } from "@/components/SyncBadge";
 import { SAMPLE_DATE } from "@/store/sample";
 import { boardColumns, paletteRows } from "@/domain/layout";
 import { shortageGroups } from "@/domain/checks";
-import { fmtMin, fmtRange } from "@/domain/time";
+import { calendarDateOf, fmtMin, fmtRange } from "@/domain/time";
 import { updatedAtLabel } from "@/domain/display";
 import { addDays } from "@/domain/pattern";
 import { TaskCard } from "./TaskCard";
@@ -44,8 +44,11 @@ function weekdayLabel(date: string): string {
   return `${m}月${d}日（${"日月火水木金土"[wd]}）`;
 }
 
-export function Board({ date = SAMPLE_DATE }: { date?: string }) {
+export function Board({ date: dateParam }: { date?: string }) {
   const { state, ready, loaded } = useAppState();
+  // ?date= がなければ今日（サンプル施設は基準日）。6:00 より前は前の日の業務日
+  const defaultDate = useDefaultDate(state, "business");
+  const date = dateParam ?? defaultDate ?? SAMPLE_DATE;
   const syncInfo = useSyncStatus();
   const incoming = useIncoming();
   // ほかの端末から届いたら一言（自分の操作のトーストと同じ場所。8秒で消える）
@@ -64,7 +67,10 @@ export function Board({ date = SAMPLE_DATE }: { date?: string }) {
     () => engine?.lastUndo ?? null,
     () => null,
   );
-  const now = useNowMinutes();
+  const clockNow = useNowMinutes();
+  // 前の日の業務日を 6:00 より前に見ているとき（夜勤帯）は、現在時刻を「翌」の分にする
+  const now =
+    clockNow !== null && clockNow < 6 * 60 && date === addDays(calendarDateOf(new Date()), -1) ? clockNow + 24 * 60 : clockNow;
   const [noteOpen, setNoteOpen] = useState(false);
   // 横軸［グループ｜職員］。職員表示を印刷すると分担表
   const [view, setView] = useState<"group" | "staff">("group");
@@ -244,7 +250,7 @@ export function Board({ date = SAMPLE_DATE }: { date?: string }) {
       </a>
       {/* 上部バー（1段） */}
       <TopBar current="board">
-        <span className="text-[16px] font-bold">{weekdayLabel(date)}</span>
+        <DateNav date={date} today={defaultDate} />
         {updated && <span className="text-[14px] text-[var(--cn-muted)]">{updated}</span>}
         <SyncBadge />
       </TopBar>
@@ -365,7 +371,7 @@ export function Board({ date = SAMPLE_DATE }: { date?: string }) {
           {!ready ? (
             <div className="p-6 text-[var(--cn-muted)]">{loaded && syncInfo.kind === "sync" ? <SyncEmpty /> : "読み込んでいます…"}</div>
           ) : !hasTasks ? (
-            <MorningBand state={state} date={date} />
+            <MorningBand key={date} state={state} date={date} />
           ) : view === "staff" ? (
             <StaffView state={state} date={date} now={now} onOpen={openDetail} />
           ) : (
@@ -531,5 +537,31 @@ function PaletteStaff({ staffId, later, children }: { staffId: string; later: bo
     >
       {children}
     </button>
+  );
+}
+
+/** 日付と、前の日／次の日／今日への移動（ボードの上部バー） */
+function DateNav({ date, today }: { date: string; today: string | null }) {
+  const link = "inline-flex h-[44px] items-center rounded-lg px-2.5 text-[14px] text-[var(--cn-ink-soft)] hover:bg-[var(--cn-ground)]";
+  const href = (d: string) => (d === today ? "/board" : `/board?date=${d}`);
+  const prev = addDays(date, -1);
+  const next = addDays(date, 1);
+  return (
+    <nav aria-label="日付" className="flex items-center gap-1">
+      <Link href={href(prev)} className={link} aria-label={`前の日（${shortDateOf(prev)}）`}>
+        ‹ 前の日
+      </Link>
+      <span className="px-1 text-[16px] font-bold" aria-current="date">
+        {weekdayLabel(date)}
+      </span>
+      <Link href={href(next)} className={link} aria-label={`次の日（${shortDateOf(next)}）`}>
+        次の日 ›
+      </Link>
+      {today && today !== date && (
+        <Link href="/board" className={`${link} border border-[var(--cn-control-line)] bg-white font-bold text-[var(--cn-accent)]`}>
+          今日へ
+        </Link>
+      )}
+    </nav>
   );
 }

@@ -7,7 +7,7 @@ import { viewerDay } from "@/domain/myday";
 import { addDays } from "@/domain/pattern";
 import { fmtRange } from "@/domain/time";
 import type { ID } from "@/domain/types";
-import { useAppState, useNowMinutes } from "@/store/react";
+import { useAppState, useDefaultDate, useNowMinutes } from "@/store/react";
 import { SAMPLE_DATE } from "@/store/sample";
 import { AllView } from "./AllView";
 import { LeaderTabs } from "./LeaderTabs";
@@ -37,8 +37,11 @@ function writeMe(id: ID | null) {
   }
 }
 
-export function MyPage({ taskId, date = SAMPLE_DATE, view: viewKey }: { taskId?: string; date?: string; view?: "all" }) {
+export function MyPage({ taskId, date: dateParam, view: viewKey }: { taskId?: string; date?: string; view?: "all" }) {
   const { state, ready, loaded: engineLoaded } = useAppState();
+  // ?date= がなければ今日（サンプル施設は基準日）。夜勤明けは viewerDay が前の日を開く
+  const defaultDate = useDefaultDate(state, "calendar");
+  const date = dateParam ?? defaultDate ?? SAMPLE_DATE;
   const clock = useNowMinutes();
   const [me, setMe] = useState<ID | null>(null);
   const [loaded, setLoaded] = useState(false);

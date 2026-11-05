@@ -180,3 +180,53 @@ test("時間帯（朝 5:00–11:00・昼 11:00–17:00・夜 17:00–翌5:00）�
   assert.equal(isWithinRoutine(wake, toMin(8)), false);
   assert.equal(isWithinRoutine(wake, toMin(6, 45)), false);
 });
+
+test("日課を足す・標準の時刻を変える・やめる（決定記録 0012）。すべて業務表に入り、時間割を作ると一括の枠になる", async () => {
+  const { addRoutineEvents, retimeRoutineEvents, removeRoutineEvents } = await import("../routine.ts");
+  const { invertBatch } = await import("../reducer.ts");
+  const s0 = stateOf(routineSeed([{ residentId: "r-101", rows: [{ id: "a", routineId: "rt-wake-east", startMin: toMin(8, 30) }] }]));
+  const before = routinesOf(s0, "g-east").length;
+
+  // 13:30–14:00 のおむつ交換（ここでは起床介助の種類で代用）を足す
+  const add = addRoutineEvents(s0, { templateId: "t-wake", groupId: "g-east", startMin: toMin(13, 30), endMin: toMin(14) }, deterministicContext("add", "t", "b-add"));
+  assert.ok(add.length > 0 && add.every((e) => e.type === "pattern.upsert" && e.batchId === "b-add"), "業務表の書き換えだけ、1バッチ");
+  const s1 = applyEvents(s0, add);
+  const routines = routinesOf(s1, "g-east");
+  assert.equal(routines.length, before + 1);
+  const added = routines.find((r) => r.startMin === toMin(13, 30))!;
+  assert.equal(added.name, "起床介助");
+  const item = Object.values(s1.patterns)[0].items.find((it) => it.routineId === added.routineId)!;
+  assert.equal(item.headcount, 1, "同じグループの同じ業務の日課（いちばん近い開始）の人数");
+  const two = addRoutineEvents(s0, { templateId: "t-wake", groupId: "g-east", startMin: toMin(13, 30), endMin: toMin(14), headcount: 2 }, deterministicContext("h"));
+  assert.equal(two[0].type === "pattern.upsert" ? two[0].pattern.items.at(-1)?.headcount : 0, 2, "人数を決めて足せる");
+  assert.deepEqual(item.slotIds, ["slot-a"], "近い日課（7:00 の起床介助）の番で、13:30 に勤務している番（早番A 7:00–16:00）");
+  const night = addRoutineEvents(s0, { templateId: "t-wake", groupId: "g-east", startMin: toMin(17), endMin: toMin(17, 30) }, deterministicContext("n"));
+  const nightItem = night[0].type === "pattern.upsert" ? night[0].pattern.items.at(-1)! : null;
+  assert.deepEqual(nightItem?.slotIds, ["slot-b"], "近い日課の番が勤務外なら、その時刻に勤務している番（日勤A 9:00–18:00）");
+
+  // 時間割を作ると、東の全員の一括の枠が 1 枚
+  const s2 = applyEvents(s1, applyPatternEvents(s1, DATE, "p-day", deterministicContext("ap")));
+  const made = tasksForDate(s2, DATE).filter((t) => t.routineId === added.routineId);
+  assert.equal(made.length, 1);
+  assert.equal(fmtRange(made[0].startMin, made[0].endMin), "13:30–14:00");
+
+  // 標準を 14:00–14:30 に変える
+  const s3 = applyEvents(s1, retimeRoutineEvents(s1, added.routineId, toMin(14), toMin(14, 30), deterministicContext("rt"), 2));
+  assert.equal(routinesOf(s3, "g-east").find((r) => r.routineId === added.routineId)?.startMin, toMin(14));
+  const { routineHeadcount } = await import("../routine.ts");
+  assert.equal(routineHeadcount(s3, added.routineId), 2);
+
+  // 起床介助をやめると、業務表からも方ごとの調整からも消える。元に戻すと戻る
+  const rm = removeRoutineEvents(s3, "rt-wake-east", deterministicContext("rm", "t", "b-rm"));
+  let s4 = s3;
+  const history = rm.map((event) => {
+    const h = { event, before: s4 };
+    s4 = applyEvents(s4, [event]);
+    return h;
+  });
+  assert.equal(routinesOf(s4, "g-east").some((r) => r.routineId === "rt-wake-east"), false);
+  assert.equal(s4.sheets["r-101"]?.rows.some((r) => r.routineId === "rt-wake-east") ?? false, false);
+  const back = applyEvents(s4, invertBatch(history, "b-rm"));
+  assert.equal(routinesOf(back, "g-east").some((r) => r.routineId === "rt-wake-east"), true);
+  assert.equal(back.sheets["r-101"]?.rows[0]?.startMin, toMin(8, 30));
+});

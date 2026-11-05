@@ -278,8 +278,10 @@ export interface MorningDraft {
   patternId?: ID;
   /** 今日の出勤者の下書き。すでに今日の出勤者があればそれ、なければ先週の同じ曜日から */
   entries: RosterEntry[];
-  /** entries の出どころ */
-  source: "today" | "lastWeek" | "none";
+  /** entries の出どころ（recent = 先週の同じ曜日がなく、いちばん近い前の日から） */
+  source: "today" | "lastWeek" | "recent" | "none";
+  /** lastWeek / recent のとき、写した日 */
+  fromDate?: DateKey;
 }
 
 /**
@@ -295,6 +297,8 @@ export function morningDraft(state: State, date: DateKey, newId: () => ID): Morn
   const lastWeek = addDays(date, -7);
   const prev = rosterForDate(state, lastWeek);
   if (prev.length === 0) {
+    const recent = recentDraft(state, date, newId);
+    if (recent) return { date, patternId, ...recent };
     // はじめての日: 職員を全員「休み」で並べる。番は職種の言葉がある番（看護・介護助手・スポット）だけ仮に入れ、ほかは人が選ぶ
     const entries = Object.values(state.staff)
       .sort((a, b) => a.displayName.localeCompare(b.displayName, "ja"))
@@ -332,7 +336,60 @@ export function morningDraft(state: State, date: DateKey, newId: () => ID): Morn
         carriedFrom: lastWeek,
       };
     });
-  return { date, patternId, entries, source: "lastWeek" };
+  return { date, patternId, entries, source: "lastWeek", fromDate: lastWeek };
+}
+
+/**
+ * 先週の同じ曜日がないとき（使い始めの1週間）: 6日前までのいちばん近い日の番を写す（決定記録 0012）。
+ * - その日に出勤した人は同じ番で出勤（番の既定の勤務時間）。その日に休みだった人は休みのまま並べる。
+ * - 前の日に夜勤（翌日にかかる勤務）だった人は、今日は明けなので休みで並べる。
+ * - スポット・初回の人は写さない。その日の名簿にいない職員は休みで足す（貼り付けで足した人も並ぶ）。
+ */
+function recentDraft(state: State, date: DateKey, newId: () => ID): Pick<MorningDraft, "entries" | "source" | "fromDate"> | null {
+  for (let back = 1; back <= 6; back++) {
+    const from = addDays(date, -back);
+    const prev = rosterForDate(state, from);
+    if (prev.length === 0) continue;
+    const entries: RosterEntry[] = [];
+    const listed = new Set<ID>();
+    for (const e of prev) {
+      const staff = state.staff[e.staffId];
+      if (!staff || staff.role === "スポット" || e.firstTimer || listed.has(e.staffId)) continue;
+      listed.add(e.staffId);
+      const slot = e.slotId ? state.roleSlots[e.slotId] : undefined;
+      const afterNight = back === 1 && !e.absent && e.endMin > 24 * 60;
+      entries.push({
+        id: newId(),
+        date,
+        staffId: e.staffId,
+        slotId: e.slotId,
+        startMin: slot?.defaultStartMin ?? e.startMin,
+        endMin: slot?.defaultEndMin ?? e.endMin,
+        firstTimer: false,
+        absent: e.absent || afterNight,
+        carriedFrom: from,
+      });
+    }
+    for (const staff of Object.values(state.staff)) {
+      if (listed.has(staff.id) || staff.role === "スポット") continue;
+      const slot = suggestSlot(state, staff.role);
+      entries.push({
+        id: newId(),
+        date,
+        staffId: staff.id,
+        slotId: slot?.id,
+        startMin: slot?.defaultStartMin ?? 9 * 60,
+        endMin: slot?.defaultEndMin ?? 18 * 60,
+        firstTimer: false,
+        absent: true,
+      });
+    }
+    // 出勤の人を先に、番の並び順で
+    const order = (e: RosterEntry) => (e.absent ? 1000 : 0) + (e.slotId ? (state.roleSlots[e.slotId]?.sortOrder ?? 999) : 999);
+    entries.sort((a, b) => order(a) - order(b));
+    return { entries, source: "recent", fromDate: from };
+  }
+  return null;
 }
 
 /**
