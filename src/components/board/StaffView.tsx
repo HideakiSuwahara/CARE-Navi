@@ -223,12 +223,31 @@ function StaffRowView({
           {row.slotName} {fmtRange(row.startMin, row.endMin)}
         </div>
       </div>
-      <div className="relative" style={{ ...timelineStyle, height }}>
+      <div
+        className="relative"
+        style={{ ...timelineStyle, height }}
+        role={print ? undefined : "group"}
+        aria-label={print ? undefined : `${row.surname}さんの担当（← → で移動）`}
+        onKeyDown={
+          print
+            ? undefined
+            : (e) => {
+                // 帯が多いので Tab は行ごとに 1 回。行の中は ← → / Home / End で移る
+                if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) return;
+                const buttons = Array.from(e.currentTarget.querySelectorAll<HTMLButtonElement>("button"));
+                const i = buttons.indexOf(document.activeElement as HTMLButtonElement);
+                if (i < 0 || buttons.length === 0) return;
+                e.preventDefault();
+                const next = e.key === "Home" ? 0 : e.key === "End" ? buttons.length - 1 : (i + (e.key === "ArrowRight" ? 1 : buttons.length - 1)) % buttons.length;
+                buttons[next]?.focus();
+              }
+        }
+      >
         {gridLines}
         {/* 勤務外は斜線 */}
         {row.startMin > range.start && <div aria-hidden="true" className="absolute inset-y-0 left-0" style={{ ...HATCH, width: sc.widthPct(range.start, row.startMin) }} />}
         {row.endMin < range.end && <div aria-hidden="true" className="absolute inset-y-0" style={{ ...HATCH, left: sc.pct(row.endMin), right: 0 }} />}
-        {laid.map(({ task, lane, lanes: n }) => {
+        {laid.map(({ task, lane, lanes: n }, idx) => {
           const bar = barOf.get(task.id)!;
           const top = 3 + (lane * (height - 6)) / n;
           const h = (height - 6) / n - 2;
@@ -260,6 +279,7 @@ function StaffRowView({
               aria-label={`${bar.overlap ? "重なり " : ""}${task.done ? "終わった " : ""}${bar.fullLabel}、${row.surname}さん、${spoken(task.startMin, task.endMin)}`}
               title={`${fmtRange(task.startMin, task.endMin)} ${bar.fullLabel}`}
               onClick={() => onOpen(task.id)}
+              tabIndex={idx === 0 ? 0 : -1}
               className={cls}
               style={style}
             >

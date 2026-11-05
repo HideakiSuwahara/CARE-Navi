@@ -82,6 +82,7 @@ export function TaskDetail({
             {group && group.kind !== "common" && ` ・ ${group.name}`}
             {task.place && ` ・ ${task.place}`}
           </p>
+          {task.requiredTags.length > 0 && <p className="text-[14px] text-[var(--cn-ink-soft)]">条件: {task.requiredTags.join("・")}（施設の設定。職員ごとの付け外しは設定）</p>}
         </div>
         <button
           ref={closeRef}

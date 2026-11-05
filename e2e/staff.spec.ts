@@ -31,6 +31,34 @@ test.describe("ボードの職員表示と分担表", () => {
     await expect(page.getByRole("dialog")).toBeVisible();
   });
 
+  test("キーボード: Tab は行ごとに 1 回、行の中は → で次の帯へ。Enter で詳細が開き、条件が出る", async ({ page }) => {
+    const view = page.getByTestId("staff-view");
+    const sato = view.getByRole("group", { name: /^佐藤さんの担当/ });
+    const bars = sato.getByRole("button");
+    expect(await bars.count()).toBeGreaterThan(1);
+    // 行の最初の帯だけ Tab で止まる
+    const tabs = await bars.evaluateAll((els) => els.map((e) => e.getAttribute("tabindex")));
+    expect(tabs[0]).toBe("0");
+    expect(tabs.slice(1).every((t) => t === "-1")).toBe(true);
+    await bars.first().focus();
+    await page.keyboard.press("ArrowRight");
+    await expect(bars.nth(1)).toBeFocused();
+    await page.keyboard.press("End");
+    await expect(bars.last()).toBeFocused();
+    await page.keyboard.press("Home");
+    await expect(bars.first()).toBeFocused();
+    // 隣の行へは Tab 1 回（この行の残りの帯は飛ばす）
+    await page.keyboard.press("Tab");
+    expect(await sato.evaluate((el) => el.contains(document.activeElement))).toBe(false);
+    // 入浴介助の帯を Enter で開くと、詳細に「条件: 入浴担当可」
+    const bath = view.getByRole("button", { name: /入浴介助.*、鈴木さん、/ }).first();
+    await bath.focus();
+    await page.keyboard.press("Enter");
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toBeVisible();
+    await expect(dialog).toContainText("条件: 入浴担当可");
+  });
+
   test("同じ人の時間が重なると「重なり」と出る", async ({ page }) => {
     // 高橋さんを、すでに担当している時間の別の業務へ足す（注意として許可される）
     await page.getByRole("button", { name: "グループ" }).click();
