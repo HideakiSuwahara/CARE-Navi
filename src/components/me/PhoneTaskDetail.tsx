@@ -82,6 +82,8 @@ export function PhoneTaskDetail({ state, date, taskId, me, now }: { state: State
           {group && group.kind !== "common" && ` ・ ${group.name}`}
         </p>
         {task.place && <p>場所: {task.place}</p>}
+        {/* 場所・物品の場所が施設でまだ入っていないとき（自分の施設の始めなど）は、だれに聞くかを 1 文で */}
+        {!task.place && !task.supplies && !isBreak && <p className="text-[var(--cn-ink-soft)]">場所・物品の場所は、リーダーに確認してください。</p>}
         {!isBreak && (
           <p>
             一緒に:{" "}
@@ -93,7 +95,9 @@ export function PhoneTaskDetail({ state, date, taskId, me, now }: { state: State
                     {s.phone && ` PHS ${s.phone}`}
                   </span>
                 ))
-              : "なし（ひとりで入ります）"}
+              : task.headcount > 1
+                ? "まだ決まっていません"
+                : "なし（ひとりで入ります）"}
           </p>
         )}
       </div>

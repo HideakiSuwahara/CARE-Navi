@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { TopBar } from "@/components/TopBar";
 import { residentLabel } from "@/domain/display";
 import { himawariSeed } from "@/domain/seed";
@@ -334,7 +334,7 @@ function OwnFacilityForm({ onCancel, onDone, isSample }: { onCancel: () => void;
       <p className="text-[15px]">
         グループ {result.counts.groups}・利用者 {result.counts.residents}人・職員 {result.counts.staff}人を登録します。登録したら、ボードで今日来る人と番を選びます。
         <span className="font-bold">
-          {isSample ? "いまのサンプル施設の内容は、このブラウザから消えます（設定の「はじめから」→「サンプル施設で試す」でいつでも戻せます）。" : "いまの施設の内容は、このブラウザから消えます。"}
+          {isSample ? "いまのサンプル施設の内容は、このブラウザから消えます（設定の「はじめから」→「サンプル施設で試す」でいつでも戻せます）。" : "いまの施設の内容は、このブラウザから消えます。元に戻すでは戻りません。残したいときは、先に設定の「データの備え」で書き出してください。"}
         </span>
       </p>
       <div className="flex flex-wrap items-center gap-3">
@@ -377,7 +377,14 @@ function Everyday({ onOwn, onSample }: { onOwn: () => void; onSample: () => void
   const { state } = useAppState();
   const engine = useEngine();
   const ownFacility = Boolean(state.facility && state.facility.id !== himawariSeed.facility.id);
-  const [confirmSample, setConfirmSample] = useState(false);
+  const [confirmSample, setConfirmSampleState] = useState(false);
+  const sampleBtn = useRef<HTMLButtonElement>(null);
+  const sampleCancel = useRef<HTMLButtonElement>(null);
+  // 開いたら「やめる」へ（消すほうを選ばれにくく）、閉じたら「サンプル施設で試す」へフォーカスを移す
+  const setConfirmSample = (v: boolean) => {
+    setConfirmSampleState(v);
+    window.setTimeout(() => (v ? sampleCancel.current : sampleBtn.current)?.focus(), 0);
+  };
   const lastUndo = useSyncExternalStore(
     (cb) => (engine ? engine.subscribe(cb) : () => {}),
     () => engine?.lastUndo ?? null,
@@ -529,9 +536,11 @@ function Everyday({ onOwn, onSample }: { onOwn: () => void; onSample: () => void
         </h3>
         <div className="flex flex-wrap gap-2">
           <button
+            ref={sampleBtn}
             type="button"
             onClick={() => (ownFacility ? setConfirmSample(true) : onSample())}
             aria-expanded={ownFacility ? confirmSample : undefined}
+            aria-controls={ownFacility ? "sample-confirm" : undefined}
             className="h-[44px] rounded-lg border border-[var(--cn-control-line)] bg-white px-4"
           >
             サンプル施設で試す
@@ -542,7 +551,7 @@ function Everyday({ onOwn, onSample }: { onOwn: () => void; onSample: () => void
         </div>
         {/* 自分の施設の内容があるときは、消えることを確かめてから（元に戻すでは戻らない） */}
         {confirmSample && (
-          <div role="alert" className="mt-3 flex flex-col gap-2 rounded-lg border-2 border-[var(--cn-alert-line)] bg-white p-3">
+          <div id="sample-confirm" role="alert" className="mt-3 flex flex-col gap-2 rounded-lg border-2 border-[var(--cn-alert-line)] bg-white p-3">
             <p>
               いまの施設（{state.facility?.name}）の内容は、このブラウザから消えます。元に戻すでは戻りません。先に上の「データの備え」で書き出しておけば、あとで読み込めます。
             </p>
@@ -550,7 +559,7 @@ function Everyday({ onOwn, onSample }: { onOwn: () => void; onSample: () => void
               <button type="button" onClick={onSample} className="h-[44px] rounded-lg border border-[var(--cn-ink)] bg-white px-4 font-bold">
                 消してサンプル施設にする
               </button>
-              <button type="button" onClick={() => setConfirmSample(false)} className="h-[44px] rounded-lg border border-[var(--cn-control-line)] bg-white px-4">
+              <button ref={sampleCancel} type="button" onClick={() => setConfirmSample(false)} className="h-[44px] rounded-lg border border-[var(--cn-control-line)] bg-white px-4">
                 やめる
               </button>
             </div>

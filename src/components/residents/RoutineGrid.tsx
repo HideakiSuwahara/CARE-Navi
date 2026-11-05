@@ -86,7 +86,9 @@ export function RoutineGrid({ state, groupId, flash = [] }: { state: State; grou
     if (r.kind === "add") {
       const ctx = engine.context();
       events = addRoutineEvents(engine.state, { templateId: r.templateId, groupId, startMin: r.startMin, endMin: r.endMin, headcount: r.headcount }, ctx);
-      const added = events.flatMap((e) => (e.type === "pattern.upsert" ? e.pattern.items : [])).find((it) => it.startMin === r.startMin && it.templateId === r.templateId)?.routineId;
+      // 足した日課の印（足す前のどの業務表にもない印）。同じ種類・同じ開始の日課がすでにあっても取り違えない
+      const known = new Set(Object.values(engine.state.patterns).flatMap((p) => p.items.map((it) => it.routineId)));
+      const added = events.flatMap((e) => (e.type === "pattern.upsert" ? e.pattern.items : [])).find((it) => it.routineId && !known.has(it.routineId))?.routineId;
       const todayEvents = r.today && added ? addRoutineToDayEvents(applyEvents(engine.state, events), today, added, groupId, ctx) : [];
       events = [...events, ...todayEvents];
       label = `${groupName}に「${state.templates[r.templateId]?.name ?? ""} ${clockLabel(r.startMin)}」を足しました${

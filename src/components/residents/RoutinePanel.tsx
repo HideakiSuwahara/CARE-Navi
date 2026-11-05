@@ -113,6 +113,7 @@ export function RoutinePanel({
   const onStart = (text: string) => {
     setStartText(text);
     setError(null);
+    setErrorField(null);
     if (!editing) suggestHeadcount(templateId, readStart(text));
     if (endTouched) return;
     const s = readStart(text);
@@ -122,6 +123,7 @@ export function RoutinePanel({
   const onTemplate = (id: ID) => {
     setTemplateId(id);
     setError(null);
+    setErrorField(null);
     const s = readStart(startText);
     suggestHeadcount(id, s);
     const t = state.templates[id];
@@ -214,6 +216,7 @@ export function RoutinePanel({
                   setEndText(e.target.value);
                   setEndTouched(true);
                   setError(null);
+    setErrorField(null);
                 }}
                 aria-invalid={errorField === "end" || undefined}
                 aria-describedby={errorField === "end" ? "routine-panel-error" : undefined}
