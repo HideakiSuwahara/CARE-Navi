@@ -34,6 +34,14 @@ test.describe("「終わった」の印（スマホ）", () => {
     await status.getByRole("button", { name: "元に戻す" }).click();
     expect(await flow.getByText("✓ 終わった").count()).toBe(before);
     await expect(page.getByRole("status").filter({ hasText: "元に戻しました" })).toBeVisible();
+    // トーストが消えたあとも、見出しの横の「元に戻す（操作名）」で戻せる（CLAUDE §5）
+    await first.click();
+    await expect(first).toHaveAttribute("aria-pressed", "true");
+    const headerUndo = page.getByRole("button", { name: /^元に戻す（/ });
+    await expect(headerUndo).toHaveAccessibleName(/を終わったにしました/);
+    await headerUndo.click();
+    await expect(first).toHaveAttribute("aria-pressed", "false");
+    await expect(page.getByRole("status").filter({ hasText: "元に戻しました" })).toBeVisible();
   });
 
   test("業務詳細: 対象の方が物品の直後・手順より上に出る。終わったら押す → 印が付く", async ({ page }) => {

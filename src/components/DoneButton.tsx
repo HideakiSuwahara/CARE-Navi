@@ -96,7 +96,7 @@ export function DoneToast({ raised = false }: { raised?: boolean }) {
                 await engine?.undo(toast.batchId!);
                 // 戻したことを一言。フォーカスは押したボタンへ返す
                 setToast({ label: `元に戻しました（取り消した操作: ${toast.label}）`, batchId: null, taskId: toast.taskId });
-                document.querySelector<HTMLElement>(`[data-done-task="${CSS.escape(toast.taskId)}"]`)?.focus();
+                if (toast.taskId) document.querySelector<HTMLElement>(`[data-done-task="${CSS.escape(toast.taskId)}"]`)?.focus();
               }}
             >
               元に戻す

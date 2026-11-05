@@ -1,14 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { tasksForDate } from "@/domain/checks";
 import { leaderSchedule, myDay, type MyItem } from "@/domain/myday";
 import { fmtMin, fmtRange } from "@/domain/time";
 import type { ID, State } from "@/domain/types";
 import { contactName, HelpBar } from "./HelpBar";
 import { SyncBadge } from "@/components/SyncBadge";
-import { DoneButton, DoneToast, doneHint } from "@/components/DoneButton";
+import { DONE_EVENT, DoneButton, DoneToast, doneHint, type DoneNotice } from "@/components/DoneButton";
+import { useEngine } from "@/store/react";
 import { LAST_TASK_KEY, meHref } from "./links";
 
 /**
@@ -40,6 +41,20 @@ export function MyDayView({
   const day = useMemo(() => myDay(state, date, me, now), [state, date, me, now]);
   const hasDay = useMemo(() => tasksForDate(state, date).length > 0, [state, date]);
   const titleRef = useRef<HTMLHeadingElement>(null);
+  // 直前の操作（この画面では「終わった」の付け外し）を、トーストが消えたあとも戻せるように見出しの横に出す
+  const engine = useEngine();
+  const lastUndo = useSyncExternalStore(
+    (cb) => (engine ? engine.subscribe(cb) : () => {}),
+    () => engine?.lastUndo ?? null,
+    () => null,
+  );
+  const undoLast = async () => {
+    if (!engine) return;
+    const done = await engine.undo();
+    if (!done) return;
+    window.dispatchEvent(new CustomEvent<DoneNotice>(DONE_EVENT, { detail: { label: `元に戻しました（取り消した操作: ${done.label}）`, batchId: null, taskId: "" } }));
+    titleRef.current?.focus({ preventScroll: true });
+  };
 
   // 開いたとき: 業務詳細から戻ったなら、押した行へフォーカスを返す。そうでなければ見出しへ（名前を選んだあとに画面が変わったと伝わる）
   useEffect(() => {
@@ -97,13 +112,20 @@ export function MyDayView({
             自分ではない（名前を選び直す）
           </button>
         </div>
-        <button
-          type="button"
-          onClick={() => window.print()}
-          className="cn-noprint inline-flex h-[44px] shrink-0 items-center rounded-lg border border-[var(--cn-control-line)] bg-white px-3 text-[16px]"
-        >
-          印刷
-        </button>
+        <div className="cn-noprint flex shrink-0 flex-col items-end gap-2">
+          <button
+            type="button"
+            onClick={() => window.print()}
+            className="inline-flex h-[44px] items-center rounded-lg border border-[var(--cn-control-line)] bg-white px-3 text-[16px]"
+          >
+            印刷
+          </button>
+          {lastUndo && (
+            <button type="button" onClick={undoLast} aria-label={`元に戻す（${lastUndo.label}）`} className="inline-flex h-[44px] items-center rounded-lg border border-[var(--cn-control-line)] bg-white px-3 text-[16px] font-bold text-[var(--cn-accent)]">
+              元に戻す
+            </button>
+          )}
+        </div>
       </header>
 
       <div className="cn-noprint flex justify-end bg-white px-4 pb-1 empty:hidden">
