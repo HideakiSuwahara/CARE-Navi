@@ -183,7 +183,13 @@ export function invertEvent(ev: Event, before: State): Event[] {
     }
     case "resident.remove": {
       const prev = before.residents[ev.id];
-      return prev ? [{ ...meta, type: "resident.upsert", resident: prev }] : [];
+      if (!prev) return [];
+      // 対象者からも外れているので、戻すときは対象の一覧も戻す
+      const out: Event[] = [{ ...meta, type: "resident.upsert", resident: prev }];
+      for (const [taskId, ids] of Object.entries(before.targets)) {
+        if (ids.includes(ev.id)) out.push({ ...meta, type: "task.setTargets", id: taskId, residentIds: [...ids] });
+      }
+      return out;
     }
     case "staff.upsert": {
       const prev = before.staff[ev.staff.id];

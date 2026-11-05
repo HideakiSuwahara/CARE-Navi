@@ -91,4 +91,58 @@ test.describe("設定", () => {
     await page.getByRole("button", { name: "元に戻す" }).first().click();
     await expect(page.getByRole("list", { name: "職員ごとの担当条件" }).getByRole("button", { name: "中村さんの入浴担当可", exact: true })).toHaveAttribute("aria-pressed", "false");
   });
+
+  test("職員を 1 人ずつ足す・直す・退職。元に戻せる", async ({ page }) => {
+    await page.getByRole("button", { name: "サンプル施設で試す" }).click();
+    await page.goto("/setup");
+    // 足す
+    await page.getByRole("button", { name: "＋ 1 人ずつ足す" }).click();
+    const form = page.getByRole("form", { name: "職員を 1 人足す" });
+    await form.getByLabel("名前（姓 名）").fill("野村 ミホ");
+    await form.getByLabel("職種").fill("介護福祉士");
+    await form.getByLabel("PHS（任意）").fill("811");
+    await form.getByRole("button", { name: "入浴担当可", exact: true }).click();
+    await form.getByRole("button", { name: "この内容で足す" }).click();
+    await expect(page.getByRole("status").filter({ hasText: "野村さんを足しました" })).toBeVisible();
+    const list = page.getByRole("list", { name: "職員ごとの担当条件" });
+    await expect(list.getByRole("button", { name: "野村さんの入浴担当可", exact: true })).toHaveAttribute("aria-pressed", "true");
+    // 同じ名前は足せない
+    await page.getByRole("button", { name: "＋ 1 人ずつ足す" }).click();
+    await form.getByLabel("名前（姓 名）").fill("野村 ミホ");
+    await form.getByLabel("職種").fill("介護職員");
+    await form.getByRole("button", { name: "この内容で足す" }).click();
+    await expect(form.getByRole("alert")).toContainText("すでに登録されています");
+    await form.getByRole("button", { name: "閉じる" }).click();
+    // 直す: PHS
+    await list.getByRole("button", { name: /^野村さんを直す/ }).click();
+    const edit = page.getByRole("form", { name: "野村さんを直す" });
+    await edit.getByLabel("PHS（任意）").fill("812");
+    await edit.getByRole("button", { name: "この内容で直す" }).click();
+    await expect(page.getByRole("status").filter({ hasText: "野村さんを直しました" })).toBeVisible();
+    // 退職 → 一覧から消える → 元に戻す
+    await list.getByRole("button", { name: /^野村さんを直す/ }).click();
+    await edit.getByRole("button", { name: "退職にする" }).click();
+    await expect(edit).toContainText("今日以降の担当はありません");
+    await edit.getByRole("button", { name: "退職にする" }).last().click();
+    await expect(page.getByRole("status").filter({ hasText: "野村さんを退職にしました" })).toBeVisible();
+    await expect(list.getByRole("button", { name: /^野村さんを直す/ })).toHaveCount(0);
+    await page.getByRole("button", { name: "元に戻す" }).first().click();
+    await expect(list.getByRole("button", { name: /^野村さんを直す/ })).toBeVisible();
+  });
+
+  test("退職: 今日の担当がある人は、件数を知らせてから外し、担当未定になる。元に戻すで担当も戻る", async ({ page }) => {
+    await page.getByRole("button", { name: "サンプル施設で試す" }).click();
+    await page.goto("/setup");
+    const list = page.getByRole("list", { name: "職員ごとの担当条件" });
+    await list.getByRole("button", { name: /^高橋さんを直す/ }).click();
+    const edit = page.getByRole("form", { name: "高橋さんを直す" });
+    await edit.getByRole("button", { name: "退職にする" }).click();
+    await expect(edit).toContainText(/今日以降の担当 \d+件からも外れます/);
+    await edit.getByRole("button", { name: "退職にする" }).last().click();
+    await expect(page.getByRole("status").filter({ hasText: /高橋さんを退職にしました（今日以降の担当 \d+件から外れました）/ })).toBeVisible();
+    await page.goto("/board?now=10:12");
+    await expect(page.getByLabel("きょうの出勤者")).not.toContainText("高橋");
+    await page.getByRole("button", { name: /^元に戻す/ }).first().click();
+    await expect(page.getByLabel("きょうの出勤者")).toContainText("高橋");
+  });
 });

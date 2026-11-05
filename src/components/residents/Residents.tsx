@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { useAppState, useEngine } from "@/store/react";
+import { useAppState, useDefaultDate, useEngine } from "@/store/react";
 import { TopBar } from "@/components/TopBar";
 import type { ID } from "@/domain/types";
 import { RoutineGrid } from "./RoutineGrid";
 import { SheetView } from "./SheetView";
 import { PastePanel } from "./PastePanel";
+import { ResidentForm } from "./ResidentForm";
 
 type Tab = "grid" | "sheet";
 
@@ -25,6 +26,9 @@ export function Residents() {
   const [tab, setTab] = useState<Tab>("grid");
   const [pickedGroup, setPickedGroup] = useState<ID | null>(null);
   const [pasteOpen, setPasteOpen] = useState(false);
+  // 1 人ずつ足す・直す・退所（決定記録 0015）
+  const [formOpen, setFormOpen] = useState(false);
+  const today = useDefaultDate(state, "business") ?? "";
   // 貼り付けで足した方（一覧でその行までスクロールし、2秒ほど目立たせる）
   const [flash, setFlash] = useState<ID[]>([]);
   useEffect(() => {
@@ -62,6 +66,12 @@ export function Residents() {
     setPickedGroup(g);
     setTab("grid");
     setFlash(ids);
+  };
+  const afterForm = (_label: string, g: ID, id?: ID) => {
+    setFormOpen(false);
+    setPickedGroup(g);
+    setTab("grid");
+    setFlash(id ? [id] : []);
   };
 
   const seg = (on: boolean) =>
@@ -119,8 +129,22 @@ export function Residents() {
             )}
             <button
               type="button"
+              aria-expanded={formOpen}
+              onClick={() => {
+                setFormOpen((v) => !v);
+                setPasteOpen(false);
+              }}
+              className="inline-flex h-[44px] items-center rounded-lg border border-[var(--cn-control-line)] bg-white px-4 text-[15px]"
+            >
+              1 人ずつ足す・直す
+            </button>
+            <button
+              type="button"
               aria-expanded={pasteOpen}
-              onClick={() => setPasteOpen((v) => !v)}
+              onClick={() => {
+                setPasteOpen((v) => !v);
+                setFormOpen(false);
+              }}
               className="inline-flex h-[44px] items-center rounded-lg border border-[var(--cn-control-line)] bg-white px-4 text-[15px]"
             >
               名簿を貼り付ける
@@ -140,19 +164,33 @@ export function Residents() {
               <div className="w-full max-w-[720px]">
                 <PastePanel state={state} groupId={groupId} onClose={() => setPasteOpen(false)} onAdded={afterPaste} />
               </div>
+            ) : formOpen ? (
+              <div className="w-full max-w-[720px]">
+                <ResidentForm state={state} groupId={groupId} today={today} onClose={() => setFormOpen(false)} onDone={afterForm} />
+              </div>
             ) : (
-              <button
-                type="button"
-                onClick={() => setPasteOpen(true)}
-                className="inline-flex h-[44px] items-center rounded-lg bg-[var(--cn-accent)] px-5 font-bold text-white"
-              >
-                名簿を貼り付ける
-              </button>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPasteOpen(true)}
+                  className="inline-flex h-[44px] items-center rounded-lg bg-[var(--cn-accent)] px-5 font-bold text-white"
+                >
+                  名簿を貼り付ける
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFormOpen(true)}
+                  className="inline-flex h-[44px] items-center rounded-lg border border-[var(--cn-control-line)] bg-white px-5 text-[15px]"
+                >
+                  1 人ずつ足す
+                </button>
+              </div>
             )}
           </div>
         ) : (
           <>
             {pasteOpen && <PastePanel state={state} groupId={groupId} onClose={() => setPasteOpen(false)} onAdded={afterPaste} />}
+            {formOpen && <ResidentForm state={state} groupId={groupId} today={today} onClose={() => setFormOpen(false)} onDone={afterForm} />}
             {groupId && (tab === "grid" ? <RoutineGrid key={groupId} state={state} groupId={groupId} flash={flash} /> : <SheetView key={groupId} state={state} groupId={groupId} />)}
           </>
         )}

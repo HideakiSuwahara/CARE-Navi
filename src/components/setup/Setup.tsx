@@ -8,7 +8,8 @@ import { residentLabel } from "@/domain/display";
 import { himawariSeed } from "@/domain/seed";
 import { buildOwnFacility, conditionTags, parseStaffPaste, setStaffTagEvents, settingsEvent, staffEvents, staffTagLabel, usedByTemplates } from "@/domain/setup";
 import type { ResidentDisplayMode } from "@/domain/types";
-import { useAppState, useEngine, useSyncStatus } from "@/store/react";
+import { useAppState, useDefaultDate, useEngine, useSyncStatus } from "@/store/react";
+import { StaffEditor } from "./StaffEditor";
 import { SETUP_NOTE_KEY } from "./setupNote";
 import { sampleEvents } from "@/store/sample";
 import { LocalStore } from "@/store/datastore";
@@ -396,6 +397,9 @@ function Everyday({ onOwn, onSample }: { onOwn: () => void; onSample: () => void
   const [newTag, setNewTag] = useState("");
   const [extraTags, setExtraTags] = useState<string[]>([]);
   const [tagStatus, setTagStatus] = useState("");
+  // 職員を 1 人ずつ足す・直す（開いている欄: "new" か職員の ID）
+  const [editing, setEditing] = useState<string | null>(null);
+  const today = useDefaultDate(state, "business") ?? "";
   useEffect(() => {
     const note = readSetupNote();
     if (note) setToast(note);
@@ -552,14 +556,37 @@ function Everyday({ onOwn, onSample }: { onOwn: () => void; onSample: () => void
 
       <section aria-labelledby="s-tags" className="rounded-xl border border-[var(--cn-border)] bg-white p-4">
         <h3 id="s-tags" className="mb-1 text-[16px] font-bold">
-          職員の担当条件
+          職員
         </h3>
         <p className="mb-1 text-[14px] text-[var(--cn-ink-soft)]">
-          入浴介助など、業務の種類ごとに決めた条件（{usedTags.join("・") || "なし"}）を、その職員が満たしているかを付けます。押すと付き、もう一度押すと外れます（元に戻せます）。
-          満たさない人も担当にできます（ボードの ＋ で「注意: 条件「…」を満たしていません」と出ます）。等級や評価ではありません。
+          名前を押すと、その人の名前・職種・PHS を直せます（退職もここから）。右の □／✓ は担当条件: 入浴介助など、業務の種類ごとに決めた条件（{usedTags.join("・") || "なし"}）を、その職員が満たしているかを付けます。押すと付き、もう一度押すと外れます（元に戻せます）。
+          満たさない人も担当にできます（ボードの ＋ で「注意: 条件「…」を満たしていません」と出ます）。等級や評価ではありません。早番・遅番などの番は、その日ごとにボードの朝の帯で付けます。
         </p>
+        <div className="mb-2 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            aria-expanded={editing === "new"}
+            onClick={() => setEditing(editing === "new" ? null : "new")}
+            className="h-[44px] rounded-lg border border-[var(--cn-control-line)] bg-white px-4 text-[15px] font-bold"
+          >
+            ＋ 1 人ずつ足す
+          </button>
+          <span className="text-[14px] text-[var(--cn-ink-soft)]">まとめて入れるときは、下の「名簿の貼り付け」。</span>
+        </div>
+        {editing === "new" && (
+          <StaffEditor
+            state={state}
+            tags={allTags}
+            today={today}
+            onDone={(label) => {
+              setEditing(null);
+              setToast(label);
+            }}
+            onClose={() => setEditing(null)}
+          />
+        )}
         {staffRows.length === 0 ? (
-          <p className="text-[15px]">職員がまだいません。下の「名簿の貼り付け」から足せます。</p>
+          <p className="text-[15px]">職員がまだいません。「＋ 1 人ずつ足す」か、下の「名簿の貼り付け」から足せます。</p>
         ) : (
           <>
             {/* 列の見出し: 条件ごとの人数 */}
@@ -596,14 +623,36 @@ function Everyday({ onOwn, onSample }: { onOwn: () => void; onSample: () => void
                 };
                 return (
                   <li key={st.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2">
-                    <span className="w-[140px] shrink-0">
-                      <span className="font-bold">{st.surname}</span> <span className="text-[14px] text-[var(--cn-ink-soft)]">{st.role}</span>
-                    </span>
+                    <button
+                      type="button"
+                      aria-expanded={editing === st.id}
+                      aria-label={`${st.surname}さんを直す（${st.role}）`}
+                      onClick={() => setEditing(editing === st.id ? null : st.id)}
+                      className="inline-flex h-[44px] w-[140px] shrink-0 items-center gap-1 rounded-lg px-2 text-left hover:bg-[var(--cn-ground)]"
+                    >
+                      <span className="font-bold underline decoration-[var(--cn-control-line)] underline-offset-4">{st.surname}</span>{" "}
+                      <span className="text-[14px] text-[var(--cn-ink-soft)]">{st.role}</span>
+                    </button>
                     <span role="group" aria-label={`${st.surname}さんの担当条件（← → で移動）`} onKeyDown={rowKeys} className="flex flex-wrap items-center gap-1.5">
                       {usedTags.map((t, idx) => btn(t, idx, false))}
                       {otherTags.length > 0 && usedTags.length > 0 && <span aria-hidden="true" className="mx-1 h-[28px] w-px bg-[var(--cn-control-line)]" />}
                       {otherTags.map((t, idx) => btn(t, usedTags.length + idx, true))}
                     </span>
+                    {editing === st.id && (
+                      <div className="basis-full">
+                        <StaffEditor
+                          state={state}
+                          staffId={st.id}
+                          tags={allTags}
+                          today={today}
+                          onDone={(label) => {
+                            setEditing(null);
+                            setToast(label);
+                          }}
+                          onClose={() => setEditing(null)}
+                        />
+                      </div>
+                    )}
                   </li>
                 );
               })}
