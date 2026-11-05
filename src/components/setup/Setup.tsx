@@ -10,6 +10,7 @@ import { buildOwnFacility, conditionTags, parseStaffPaste, setStaffTagEvents, se
 import type { ResidentDisplayMode } from "@/domain/types";
 import { useAppState, useDefaultDate, useEngine, useSyncStatus } from "@/store/react";
 import { StaffEditor } from "./StaffEditor";
+import { RosterPaste } from "./RosterPaste";
 import { SETUP_NOTE_KEY } from "./setupNote";
 import { sampleEvents } from "@/store/sample";
 import { LocalStore } from "@/store/datastore";
@@ -704,6 +705,8 @@ function Everyday({ onOwn, onSample }: { onOwn: () => void; onSample: () => void
           職員を足す
         </button>
       </section>
+
+      <RosterPaste state={state} onDone={setToast} />
 
       <section aria-labelledby="s-start" className="rounded-xl border border-dashed border-[var(--cn-control-line)] p-4">
         <h3 id="s-start" className="mb-2 text-[16px] font-bold">

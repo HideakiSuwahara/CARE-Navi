@@ -83,6 +83,11 @@ export function MorningBand({ state, date }: { state: State; date: DateKey }) {
             {draft.afterNight && draft.afterNight.length > 0 && "前の日に夜勤だった人は明けなので休みにしています。今日の夜勤の番は、来る人を選び直してください。"}
           </p>
         )}
+        {draft.source === "today" && (
+          <p className="mt-1 text-[15px] text-[var(--cn-ink-soft)]">
+            入れてある勤務表の番で並べました（設定の「勤務表の貼り付け」か、前に直した分）。違うところだけ直してください。
+          </p>
+        )}
         {draft.source === "none" && (
           <p className="mt-1 text-[15px] text-[var(--cn-ink-soft)]">
             はじめての日です。職員を全員「休み」で並べました。今日来る人の「出勤にする」を押し、番（早番A など、その日の役割）を選んでください。看護・介護助手・スポットの番は仮に入れています。業務表（その曜日の仕事の並び）は下で選べます。

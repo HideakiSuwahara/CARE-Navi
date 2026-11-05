@@ -145,4 +145,32 @@ test.describe("設定", () => {
     await page.getByRole("button", { name: /^元に戻す/ }).first().click();
     await expect(page.getByLabel("きょうの出勤者")).toContainText("高橋");
   });
+
+  test("勤務表の貼り付け（月）: 表を貼ると日付ごとの番が入り、朝の帯がその番で並ぶ。照らせない略称は選ぶ。名簿にない名前は知らせる", async ({ page }) => {
+    await page.getByRole("button", { name: "サンプル施設で試す" }).click();
+    await page.goto("/setup");
+    await page.getByLabel(/^月（/).fill("2026-12");
+    const text = ["氏名\t1\t2", "佐藤\t早A\t休", "高橋\t日B\tナイト", "山田 太郎\t早A\t早A"].join("\n");
+    await page.getByRole("textbox", { name: "勤務表" }).fill(text);
+    await expect(page.getByText("12/1〜12/2 の 2 日・2 人を入れられます")).toBeVisible();
+    await expect(page.getByText(/名簿にない名前.*山田 太郎/)).toBeVisible();
+    const apply = page.getByRole("button", { name: "この内容で入れる" });
+    await expect(apply).toBeDisabled();
+    await page.getByLabel("「ナイト」の番").selectOption({ label: "夜勤東" });
+    await expect(apply).toBeEnabled();
+    await apply.click();
+    await expect(page.getByRole("status").filter({ hasText: "勤務表を入れました（12/1〜12/2・2人）" })).toBeVisible();
+    // ボード 12/2: 朝の帯が入れてある番で並ぶ（佐藤は休み、高橋は夜勤東）
+    await page.goto("/board?date=2026-12-02&now=7:00");
+    await expect(page.getByText("入れてある勤務表の番で並べました")).toBeVisible();
+    const band = page.getByRole("region", { name: /今日の時間割を作る/ }).or(page.locator("section").filter({ has: page.getByRole("heading", { name: "今日の時間割を作る" }) })).first();
+    await expect(band.getByLabel("高橋 の番")).toHaveValue(/.+/);
+    const takahashiSlot = await band.getByLabel("高橋 の番").evaluate((el) => (el as HTMLSelectElement).selectedOptions[0]?.textContent ?? "");
+    expect(takahashiSlot).toContain("夜勤東");
+    // 元に戻す
+    await page.goto("/setup");
+    await page.getByRole("button", { name: "元に戻す" }).first().click();
+    await page.goto("/board?date=2026-12-02&now=7:00");
+    await expect(page.getByText("入れてある勤務表の番で並べました")).toHaveCount(0);
+  });
 });
