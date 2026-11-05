@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { TopBar } from "@/components/TopBar";
 import { hoursLabel, rangeLabel, weekLabel, weekReview, type HourBucket } from "@/domain/review";
 import { fmtMin } from "@/domain/time";
-import { useAppState } from "@/store/react";
+import { useAppState, useDefaultDate } from "@/store/react";
 import { SAMPLE_DATE } from "@/store/sample";
 
 /**
@@ -14,8 +14,10 @@ import { SAMPLE_DATE } from "@/store/sample";
  * - 左: 区分 × 時間帯の図（コア＝塗り、ノンコア＝斜線。休憩は含めない）と同じ数値の表。背後に介護助手等の勤務帯
  * - 右: ノンコアの枠（番別・枠別。個人別なし）。判断の言葉は書かない。「見直す ▾」の操作は作らない（0004 §8）
  */
-export function Review({ date = SAMPLE_DATE }: { date?: string }) {
+export function Review({ date: dateParam }: { date?: string }) {
   const { state, ready } = useAppState();
+  const defaultDate = useDefaultDate(state, "business");
+  const date = dateParam ?? defaultDate ?? SAMPLE_DATE;
   const w = useMemo(() => weekReview(state, date), [state, date]);
   const kinds = state.facility?.settings.categories ?? [];
   const coreName = kinds.find((c) => c.kind === "core")?.name ?? "コア業務";

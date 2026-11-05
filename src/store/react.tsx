@@ -11,7 +11,8 @@
 import { createContext, useContext, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Engine, localUndoLog } from "./engine.ts";
 import { LocalStore, type DataStore, type SyncStatus } from "./datastore.ts";
-import { sampleEvents } from "./sample.ts";
+import { SAMPLE_DATE, SAMPLE_FACILITY_ID, sampleEvents } from "./sample.ts";
+import { businessDateOf, calendarDateOf } from "../domain/time.ts";
 import { supabaseEnv, supabaseSyncClient } from "./supabaseClient.ts";
 import { readSyncCode } from "./syncJoin.ts";
 import { SyncStore } from "./syncstore.ts";
@@ -113,4 +114,27 @@ export function useNowMinutes(): number | null {
     return () => window.clearInterval(id);
   }, []);
   return now;
+}
+
+/** サンプル施設（ひまわり苑）か。サンプルは基準日（11/3）の一日を見せる */
+export function isSampleFacility(state: State): boolean {
+  return state.facility?.id === SAMPLE_FACILITY_ID;
+}
+
+/**
+ * URL に ?date= がないときに開く日。サンプル施設は基準日、自分の施設は端末の今日。
+ * kind = "business" はボード（6:00 より前は前の日）、"calendar" は自分の予定（夜勤明けは viewerDay が前の日を開く）。
+ * 描き始め（端末の時計を読む前）は null。
+ */
+export function useDefaultDate(state: State, kind: "business" | "calendar"): string | null {
+  const [today, setToday] = useState<string | null>(null);
+  useEffect(() => {
+    const read = () => setToday(kind === "business" ? businessDateOf(new Date()) : calendarDateOf(new Date()));
+    read();
+    // 日付が変わったら追いかける（開きっぱなしのボード）
+    const id = window.setInterval(read, 60_000);
+    return () => window.clearInterval(id);
+  }, [kind]);
+  if (isSampleFacility(state)) return SAMPLE_DATE;
+  return today;
 }

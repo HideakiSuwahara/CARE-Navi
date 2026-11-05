@@ -429,6 +429,7 @@ test("朝: 先週の同じ曜日の番を写し、曜日の業務表を選び、
   assert.equal(draft.patternId, "p-day", "火曜の業務表");
   assert.equal(draft.entries.length, 3, "スポット（先週が初回の加藤）は写さない");
   assert.ok(draft.entries.every((e) => e.date === DATE && !e.firstTimer && !e.absent), "初回・休みの印は引き継がない");
+  assert.ok(draft.entries.filter((e) => !e.absent).every((e) => e.slotId), "出勤の人には番がある");
   assert.ok(draft.entries.every((e) => e.carriedFrom === lastWeek), "先週から写したことを示す");
 
   const ctx = deterministicContext("m", "2026-11-03T07:00:00+09:00", "batch-morning");
@@ -437,6 +438,11 @@ test("朝: 先週の同じ曜日の番を写し、曜日の業務表を選び、
   const s2 = applyEvents(s, evs);
   assert.equal(tasksForDate(s2, DATE).length, 5);
   assert.equal(headcountStatus(s2, findTask(s2, "リネン回収").id).label, "OK", "渡辺も出勤なので介護助手の枠が埋まる");
+
+  // 先週、番なしで休みだった人（はじめての日に「出勤にする」を押さなかった人）は休みのまま。番なしの出勤にしない（グリル U1）
+  const noSlot: State = { ...s, roster: { ...s.roster, "lw-ro-watanabe": { ...s.roster["lw-ro-watanabe"], slotId: undefined } } };
+  const d2 = morningDraft(noSlot, DATE, () => `x-${++n}`);
+  assert.equal(d2.entries.find((e) => e.staffId === "s-watanabe")?.absent, true);
   assert.equal(headcountStatus(s2, findTask(s2, "口腔ケア").id).label, "担当未定", "スポットの枠は、その日に入る人を足すまで担当未定");
 });
 
@@ -492,4 +498,47 @@ test("24時間シートの時計: 朝5時から並べ、翌を付けず、入力
   assert.equal(alignToReference(toMin(21, 30), toMin(20)), toMin(21, 30));
   assert.equal(alignToSheetDay(toMin(2)), 1440 + toMin(2));
   assert.equal(alignToSheetDay(toMin(10)), toMin(10));
+});
+
+test("朝（使い始めの週）: 先週の同じ曜日がなければ、いちばん近い前の日の番を写す。夜勤明け・休みは休み", () => {
+  const base = miniState();
+  // 11/3 の佐藤を夜勤（翌9:00まで）にする。鈴木は日勤A、渡辺は休み、加藤はスポット
+  const s: State = { ...base, roster: { ...base.roster, "ro-sato": { ...base.roster["ro-sato"], startMin: toMin(17), endMin: toMin(33) } } };
+  let n = 0;
+  const draft = morningDraft(s, "2026-11-04", () => `d-${++n}`);
+  assert.equal(draft.source, "recent");
+  assert.equal(draft.fromDate, DATE);
+  const by = (id: string) => draft.entries.find((e) => e.staffId === id);
+  assert.equal(by("s-suzuki")?.absent, false);
+  assert.equal(by("s-suzuki")?.slotId, "slot-b", "前の日と同じ番");
+  assert.equal(by("s-sato")?.absent, true, "前の日に夜勤なら明けで休み");
+  assert.equal(by("s-watanabe")?.absent, true, "前の日に休みなら休みのまま");
+  assert.equal(by("s-kato"), undefined, "スポットは写さない");
+  assert.ok(draft.entries.every((e) => e.date === "2026-11-04"));
+
+  // 2日あいても（11/3 → 11/6）写す。7日以上前しかなければ、はじめての日と同じ
+  assert.equal(morningDraft(s, "2026-11-06", () => `e-${++n}`).source, "recent");
+  assert.equal(morningDraft(s, "2026-11-11", () => `f-${++n}`).source, "none");
+});
+
+test("時間割を作ったあとで今日来る人を足すと、その番の担当が足りない枠に入る（グリル U2）", async () => {
+  const { addTodayPersonEvents } = await import("../pattern.ts");
+  const base = miniState();
+  // 渡辺（介護助手）は休み → リネン回収（介護助手の番）は担当未定
+  assert.equal(headcountStatus(base, findTask(base, "リネン回収").id).label, "担当未定");
+  const evs = addTodayPersonEvents(base, DATE, "s-watanabe", "slot-helper", deterministicContext("tp", "t", "b-tp"));
+  assert.ok(evs.every((e) => e.batchId === "b-tp"), "1回で元に戻せる");
+  const s2 = applyEvents(base, evs);
+  assert.equal(s2.roster["ro-watanabe"].absent, false);
+  assert.equal(headcountStatus(s2, findTask(s2, "リネン回収").id).label, "OK");
+});
+
+test("今日来る人を足す: いまより前に終わった枠には入れず、初回の印を付けられる（ループ1）", async () => {
+  const { addTodayPersonEvents } = await import("../pattern.ts");
+  const base = miniState();
+  // リネン回収は 10:30–11:00。11:30 に足すと入らない
+  const late = addTodayPersonEvents(base, DATE, "s-watanabe", "slot-helper", deterministicContext("late"), { nowMin: toMin(11, 30), firstTimer: true });
+  const s2 = applyEvents(base, late);
+  assert.equal(headcountStatus(s2, findTask(s2, "リネン回収").id).label, "担当未定");
+  assert.equal(s2.roster["ro-watanabe"].firstTimer, true);
 });

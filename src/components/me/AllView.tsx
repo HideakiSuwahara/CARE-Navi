@@ -2,7 +2,7 @@
 
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import type { Event } from "@/domain/events";
-import { canMarkDone, splitCandidates, type Candidate } from "@/domain/checks";
+import { canMarkDone, shortageGroups, splitCandidates, type Candidate } from "@/domain/checks";
 import {
   absencePreview,
   assignEvents,
@@ -36,6 +36,7 @@ import {
 } from "@/domain/leader";
 import { businessMinutes } from "@/domain/myday";
 import { addDays, type EventContext } from "@/domain/pattern";
+import { applyEvents } from "@/domain/reducer";
 import { fmtMin, fmtRange } from "@/domain/time";
 import { MAX_MINUTES, type ID, type State } from "@/domain/types";
 import type { Engine } from "@/store/engine";
@@ -155,9 +156,10 @@ export function AllView({ state, date, me, now, clock, tabs }: { state: State; d
     async (events: Event[], label: string, keepOpen = false) => {
       if (!engine || events.length === 0) return;
       const touched = touchedTaskIds(engine.state, events);
-      await engine.dispatch(events, label);
+      const full = withShortageNote(engine.state, events, label);
+      await engine.dispatch(events, full);
       setFlash(new Set(touched));
-      setToast(label);
+      setToast(full);
       if (keepOpen) {
         // 押したボタンが並び替えで消えることがあるので、シートの見出しへ
         window.setTimeout(() => document.getElementById("sheet-title")?.focus(), 0);
@@ -437,7 +439,7 @@ const UNFINISHED = "終わっていない";
 // ⋯（終わった・中止・ずらす・担当を外す）。どれも1タップで決まり、元に戻せる
 // ---------------------------------------------------------------------------
 
-type Apply = (events: Event[], label: string, keepOpen?: boolean) => Promise<void>;
+export type Apply = (events: Event[], label: string, keepOpen?: boolean) => Promise<void>;
 
 function MenuSheet({ state, engine, taskId, now, onClose, onApply }: { state: State; engine: Engine; taskId: ID; now: number; onClose: () => void; onApply: Apply }) {
   const task = state.tasks[taskId];
@@ -666,7 +668,7 @@ function AssignSheet({ state, engine, taskId, onClose, onApply }: { state: State
 // 既定: 受診の付き添い・今から90分・担当は空き。重なる休憩は後ろへずらす
 // ---------------------------------------------------------------------------
 
-function EscortFlow({ state, engine, date, now, onClose, onApply }: { state: State; engine: Engine; date: string; now: number; onClose: () => void; onApply: Apply }) {
+export function EscortFlow({ state, engine, date, now, onClose, onApply }: { state: State; engine: Engine; date: string; now: number; onClose: () => void; onApply: Apply }) {
   const [batchId] = useState(newBatchId);
   const [residentId, setResidentId] = useState<ID | null>(null);
   const [name, setName] = useState<string>(ESCORT_NAMES[0]);
@@ -857,7 +859,7 @@ function EscortFlow({ state, engine, date, now, onClose, onApply }: { state: Sta
 // 出勤前は欠勤、勤務中は今の時刻で早退
 // ---------------------------------------------------------------------------
 
-function AbsenceFlow({ state, engine, date, clock, onClose, onApply }: { state: State; engine: Engine; date: string; clock: number; onClose: () => void; onApply: Apply }) {
+export function AbsenceFlow({ state, engine, date, clock, onClose, onApply }: { state: State; engine: Engine; date: string; clock: number; onClose: () => void; onApply: Apply }) {
   const [batchId] = useState(newBatchId);
   const [staffId, setStaffId] = useState<ID | null>(null);
   const [force, setForce] = useState<"absent" | "leave" | undefined>(undefined);
@@ -940,4 +942,26 @@ function AbsenceFlow({ state, engine, date, clock, onClose, onApply }: { state: 
       )}
     </PreviewSheet>
   );
+}
+
+/**
+ * 欠勤・早退・付き添いのあと、担当が足りない枠が増えたら、トーストに次の 1 手を添える（グリル U6）。
+ * 数字は業務に付ける（「担当未定 n件」）。人には付けない。
+ */
+export function withShortageNote(state: State, events: Event[], label: string): string {
+  const after = applyEvents(state, events);
+  const date = events.map((e) => (e.type === "roster.upsert" ? e.entry.date : e.type === "task.add" ? e.task.date : undefined)).find(Boolean);
+  const day =
+    date ??
+    events
+      .map((e) => (e.type === "assignment.remove" && e.taskId ? state.tasks[e.taskId]?.date : e.type === "task.update" ? state.tasks[e.id]?.date : undefined))
+      .find(Boolean);
+  if (!day) return label;
+  const count = (s: State) => shortageGroups(s, day).reduce((n, g) => n + g.count, 0);
+  const before = count(state);
+  const now = count(after);
+  if (now <= before || now === 0) return label;
+  // ボードの見出しのバッジと同じ言い方で（「担当未定 3件・担当あと1人 5件」）
+  const parts = shortageGroups(after, day).map((g) => `${g.label} ${g.count}件`);
+  return `${label}。いま ${parts.join("・")}（＋ から埋められます）`;
 }

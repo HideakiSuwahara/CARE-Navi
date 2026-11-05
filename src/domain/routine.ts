@@ -9,7 +9,10 @@
  * どの方も、一つの日課につき一つの枠にだけ入る。
  */
 
-import type { DateKey, DayPatternItem, ID, Minutes, ResidentSheet, SheetRow, State } from "./types.ts";
+import type { DateKey, DayPattern, DayPatternItem, ID, Minutes, ResidentSheet, SheetRow, State } from "./types.ts";
+import type { Event } from "./events.ts";
+import { metaOf, staffForSlots, taskFromPatternItem, type EventContext } from "./pattern.ts";
+import { rosterForDate, tasksForDate } from "./checks.ts";
 import { clockSortKey } from "./time.ts";
 
 export interface Routine {
@@ -232,4 +235,163 @@ export function dateLabel(date: DateKey): string {
   const [y, m, d] = date.split("-").map(Number);
   const wd = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
   return `${m}/${d}（${"日月火水木金土"[wd]}）`;
+}
+
+// ---------------------------------------------------------------------------
+// 施設の日課を足す・標準の時刻を変える・やめる（決定記録 0013）
+// 日課は業務表の項目なので、そのグループが載っている業務表（平日・入浴日・日曜など）すべてを同じに直す。
+// どれも pattern.upsert の 1 バッチ（1 回で元に戻せる）。次に時間割を作るときから入る。
+// ---------------------------------------------------------------------------
+
+/** そのグループの項目がある業務表。なければ全部（はじめての日課） */
+function patternsOfGroup(state: State, groupId: ID): DayPattern[] {
+  const all = Object.values(state.patterns);
+  const mine = all.filter((p) => p.items.some((it) => it.groupId === groupId));
+  return mine.length > 0 ? mine : all;
+}
+
+/**
+ * 足した日課を束ねる番: 同じ業務表・同じグループの日課のうち、開始がいちばん近い項目の番。
+ * （その時間にその階の日課を受け持っている番。職種で決めつけない）。なければ、その時刻を勤務時間に含む番。
+ */
+function slotsNear(state: State, pattern: DayPattern, groupId: ID, startMin: Minutes, endMin: Minutes): ID[] {
+  const onDuty = (slotId: ID) => {
+    const s = state.roleSlots[slotId];
+    return Boolean(s && s.defaultStartMin <= startMin && endMin <= s.defaultEndMin);
+  };
+  const near = pattern.items
+    .filter((it) => it.groupId === groupId && it.routineId && it.slotIds.length > 0)
+    .sort((a, b) => Math.abs(a.startMin - startMin) - Math.abs(b.startMin - startMin));
+  // 近い日課の番のうち、その時刻に勤務している番
+  for (const it of near) {
+    const slots = it.slotIds.filter(onDuty);
+    if (slots.length > 0) return slots;
+  }
+  // 近い日課がないときは、そのグループの番（グループを持たない番も）から。ほかの階の番には束ねない
+  const covering = Object.values(state.roleSlots)
+    .filter((s) => !s.groupId || s.groupId === groupId)
+    .map((s) => s.id)
+    .filter(onDuty);
+  if (covering.length > 0) return covering;
+  return near[0] ? [...near[0].slotIds] : [];
+}
+
+export interface NewRoutine {
+  templateId: ID;
+  groupId: ID;
+  startMin: Minutes;
+  endMin: Minutes;
+  /** 必要人数（施設が決める予定値）。省くと defaultRoutineHeadcount */
+  headcount?: number;
+}
+
+/** 日課の必要人数の既定: 同じグループの同じ業務の日課のうち、開始がいちばん近いものの人数。なければ業務の種類の標準 */
+export function defaultRoutineHeadcount(state: State, groupId: ID, templateId: ID, startMin: Minutes): number {
+  const near = Object.values(state.patterns)
+    .flatMap((p) => p.items)
+    .filter((it) => it.groupId === groupId && it.templateId === templateId && it.routineId)
+    .sort((a, b) => Math.abs(a.startMin - startMin) - Math.abs(b.startMin - startMin))[0];
+  return near?.headcount ?? Math.max(1, state.templates[templateId]?.defaultHeadcount ?? 1);
+}
+
+/** 日課の今の必要人数（最初の業務表の値） */
+export function routineHeadcount(state: State, routineId: string): number | undefined {
+  for (const p of Object.values(state.patterns)) {
+    const it = p.items.find((x) => x.routineId === routineId);
+    if (it) return it.headcount;
+  }
+  return undefined;
+}
+
+/** 日課を足す */
+export function addRoutineEvents(state: State, input: NewRoutine, ctx: EventContext): Event[] {
+  const tpl = state.templates[input.templateId];
+  if (!tpl || input.endMin <= input.startMin) return [];
+  const routineId = `rt-${ctx.newId()}`;
+  const events: Event[] = [];
+  const headcount = Math.max(1, input.headcount ?? defaultRoutineHeadcount(state, input.groupId, input.templateId, input.startMin));
+  for (const p of patternsOfGroup(state, input.groupId)) {
+    const item: DayPatternItem = {
+      id: ctx.newId(),
+      templateId: input.templateId,
+      startMin: input.startMin,
+      endMin: input.endMin,
+      groupId: input.groupId,
+      targetRule: "allInGroup",
+      headcount,
+      slotIds: slotsNear(state, p, input.groupId, input.startMin, input.endMin),
+      routineId,
+    };
+    events.push({ ...metaOf(ctx), type: "pattern.upsert", pattern: { ...p, items: [...p.items, item] } });
+  }
+  return events;
+}
+
+/** 日課の標準の時刻（と必要人数）を変える（すべての業務表で） */
+export function retimeRoutineEvents(
+  state: State,
+  routine: Pick<Routine, "routineId" | "groupId">,
+  startMin: Minutes,
+  endMin: Minutes,
+  ctx: EventContext,
+  headcount?: number,
+): Event[] {
+  if (endMin <= startMin) return [];
+  const events: Event[] = [];
+  const mine = (it: DayPatternItem) => it.routineId === routine.routineId && it.groupId === routine.groupId;
+  for (const p of Object.values(state.patterns)) {
+    if (!p.items.some(mine)) continue;
+    const items = p.items.map((it) =>
+      mine(it) ? { ...it, startMin, endMin, ...(headcount ? { headcount: Math.max(1, headcount) } : {}) } : it,
+    );
+    events.push({ ...metaOf(ctx), type: "pattern.upsert", pattern: { ...p, items } });
+  }
+  return events;
+}
+
+/** 日課をやめる（すべての業務表から外す）。方ごとの時刻・なしの調整も外す（元に戻すと戻る） */
+export function removeRoutineEvents(state: State, routine: Pick<Routine, "routineId" | "groupId">, ctx: EventContext): Event[] {
+  const events: Event[] = [];
+  const { routineId, groupId } = routine;
+  const mine = (it: DayPatternItem) => it.routineId === routineId && it.groupId === groupId;
+  for (const p of Object.values(state.patterns)) {
+    if (!p.items.some(mine)) continue;
+    events.push({ ...metaOf(ctx), type: "pattern.upsert", pattern: { ...p, items: p.items.filter((it) => !mine(it)) } });
+  }
+  // 方ごとの調整は、そのグループの方の分だけ外す
+  for (const sheet of Object.values(state.sheets)) {
+    if (groupId && state.residents[sheet.residentId]?.groupId !== groupId) continue;
+    if (!sheet.rows.some((r) => r.routineId === routineId)) continue;
+    events.push({ ...metaOf(ctx), type: "sheet.upsert", sheet: { ...sheet, rows: sheet.rows.filter((r) => r.routineId !== routineId) } });
+  }
+  return events;
+}
+
+/**
+ * 足した日課を、もうできている日の時間割にも入れる（グリル U5）。
+ * その日の業務表の項目から、グループの全員（なしの方を除く）を対象にした一括の枠を 1 枚作り、
+ * 業務表から作るときと同じく、番のその日の出勤者（勤務時間の中）を担当にする。すでにその日課の枠があれば何もしない。
+ */
+export function addRoutineToDayEvents(state: State, date: DateKey, routineId: string, groupId: ID, ctx: EventContext): Event[] {
+  if (tasksForDate(state, date).length === 0) return [];
+  if (tasksForDate(state, date, true).some((t) => t.routineId === routineId && t.groupId === groupId)) return [];
+  const applied = state.days[date]?.appliedPatternId;
+  const patterns = [state.patterns[applied ?? ""], ...Object.values(state.patterns)].filter(Boolean) as DayPattern[];
+  const item = patterns.map((p) => p.items.find((it) => it.routineId === routineId && it.groupId === groupId)).find(Boolean);
+  if (!item) return [];
+  const task = taskFromPatternItem(state, date, item, ctx.newId());
+  if (!task) return [];
+  const residents = Object.values(state.residents)
+    .filter((r) => r.groupId === groupId)
+    .sort((a, b) => a.room.localeCompare(b.room, "ja"))
+    .map((r) => r.id)
+    .filter((rid) => !sheetRowFor(state, rid, routineId)?.skip);
+  const events: Event[] = [{ ...metaOf(ctx), type: "task.add", task: { ...task, routineId }, residentIds: residents }];
+  const roster = rosterForDate(state, date);
+  for (const staffId of staffForSlots(state, date, item.slotIds)) {
+    const e = roster.find((r) => r.staffId === staffId);
+    if (!e || e.startMin > task.startMin || e.endMin < task.endMin) continue;
+    events.push({ ...metaOf(ctx), type: "assignment.add", assignment: { id: ctx.newId(), taskId: task.id, staffId } });
+  }
+  return events;
 }

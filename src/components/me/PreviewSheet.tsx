@@ -81,7 +81,9 @@ export function PreviewSheet({
         <h3 id="pv-lines" className="mb-1.5 text-[14px] font-bold text-[var(--cn-muted)]">
           変わること
         </h3>
-        <p className="mb-1.5 text-[14px] text-[var(--cn-ink-soft)]">チェックのある行を行います。外すとその行はしません。「候補」の行は、チェックを入れると行います。</p>
+        {lines.some((l) => l.optional && l.eventIds.length > 0) && (
+          <p className="mb-1.5 text-[14px] text-[var(--cn-ink-soft)]">チェックのある行を行います。外すとその行はしません。「候補」の行は、チェックを入れると行います。</p>
+        )}
         <ul className="flex flex-col divide-y divide-[var(--cn-grid)] rounded-xl border border-[var(--cn-border)] bg-white">
           {lines.map((l, i) => {
             const on = l.eventIds.every((id) => !unchecked.has(id));
@@ -91,7 +93,7 @@ export function PreviewSheet({
                   <label className="flex min-h-[44px] cursor-pointer items-start gap-3">
                     <input type="checkbox" checked={on} onChange={(e) => toggle(l.eventIds, e.target.checked)} className="mt-1 h-[22px] w-[22px] shrink-0 accent-[var(--cn-accent)]" />
                     <span className={on ? "" : l.defaultOn === false ? "text-[var(--cn-ink-soft)]" : "text-[var(--cn-muted)] line-through"}>
-                      {!on && l.defaultOn === false && <span className="mr-1 rounded border border-[var(--cn-control-line)] px-1 text-[13px]">候補</span>}
+                      {!on && l.defaultOn === false && <span className="mr-1.5 rounded border border-[var(--cn-control-line)] px-1 text-[14px]">候補<span className="sr-only">:</span></span>}
                       {l.text}
                     </span>
                   </label>

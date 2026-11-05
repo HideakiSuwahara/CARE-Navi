@@ -4,17 +4,21 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { TopBar } from "@/components/TopBar";
 import { SETUP_NOTE_KEY } from "@/components/setup/setupNote";
-import { useAppState, useEngine, useIncoming, useNowMinutes, useSyncStatus } from "@/store/react";
+import { useAppState, useDefaultDate, useEngine, useIncoming, useNowMinutes, useSyncStatus } from "@/store/react";
 import { SyncEmpty } from "@/components/setup/Setup";
 import { SyncBadge } from "@/components/SyncBadge";
 import { SAMPLE_DATE } from "@/store/sample";
 import { boardColumns, paletteRows } from "@/domain/layout";
 import { shortageGroups, unfinishedTasks } from "@/domain/checks";
-import { fmtMin, fmtRange } from "@/domain/time";
+import { calendarDateOf, fmtMin, fmtRange } from "@/domain/time";
 import { updatedAtLabel } from "@/domain/display";
-import { addDays } from "@/domain/pattern";
+import { addDays, addTodayPersonEvents, isFirstTimeDefault } from "@/domain/pattern";
 import { TaskCard } from "./TaskCard";
 import { MorningBand } from "./MorningBand";
+import { AbsenceFlow, EscortFlow, withShortageNote } from "@/components/me/AllView";
+import { businessMinutes } from "@/domain/myday";
+import type { Event } from "@/domain/events";
+import type { State } from "@/domain/types";
 import { TaskDetail } from "./TaskDetail";
 import { AssignPanel } from "./AssignPanel";
 import { BoardDnd, DropZone, useStaffDrag } from "./dnd";
@@ -47,8 +51,11 @@ function weekdayLabel(date: string): string {
 /** 見出しの「終わっていない n件」。押すと該当の枠へ順に移動する */
 const UNFINISHED = "終わっていない";
 
-export function Board({ date = SAMPLE_DATE }: { date?: string }) {
+export function Board({ date: dateParam }: { date?: string }) {
   const { state, ready, loaded } = useAppState();
+  // ?date= がなければ今日（サンプル施設は基準日）。6:00 より前は前の日の業務日
+  const defaultDate = useDefaultDate(state, "business");
+  const date = dateParam ?? defaultDate ?? SAMPLE_DATE;
   const syncInfo = useSyncStatus();
   const incoming = useIncoming();
   // ほかの端末から届いたら一言（自分の操作のトーストと同じ場所。8秒で消える）
@@ -67,7 +74,10 @@ export function Board({ date = SAMPLE_DATE }: { date?: string }) {
     () => engine?.lastUndo ?? null,
     () => null,
   );
-  const now = useNowMinutes();
+  const clockNow = useNowMinutes();
+  // 前の日の業務日を 6:00 より前に見ているとき（夜勤帯）は、現在時刻を「翌」の分にする
+  const now =
+    clockNow !== null && clockNow < 6 * 60 && date === addDays(calendarDateOf(new Date()), -1) ? clockNow + 24 * 60 : clockNow;
   const [noteOpen, setNoteOpen] = useState(false);
   // 横軸［グループ｜職員］。職員表示を印刷すると分担表
   const [view, setView] = useState<"group" | "staff">("group");
@@ -164,6 +174,31 @@ export function Board({ date = SAMPLE_DATE }: { date?: string }) {
 
   // 操作のあとのお知らせ（トースト）。8秒で消えるが「元に戻す」はツールバーに残る
   const [toast, setToast] = useState<string | null>(null);
+  // 欠勤・早退／付き添い・外出（スマホの全体と同じ流れを PC でも開く。グリル U3）
+  const [flow, setFlowState] = useState<"absence" | "escort" | null>(null);
+  // 閉じたら、開いたボタンへフォーカスを戻す（Sheet は戻さない）
+  const flowOpener = useRef<HTMLElement | null>(null);
+  const setFlow = useCallback((f: "absence" | "escort" | null) => {
+    if (f) {
+      flowOpener.current = document.activeElement as HTMLElement | null;
+      setFlowState(f);
+      return;
+    }
+    setFlowState(null);
+    const el = flowOpener.current;
+    window.setTimeout(() => {
+      if (el && document.contains(el)) el.focus();
+      else document.getElementById("board-title")?.focus();
+    }, 0);
+  }, []);
+  const applyFlow = useCallback(
+    async (events: Event[], label: string) => {
+      if (!engine || events.length === 0) return;
+      await engine.dispatch(events, withShortageNote(engine.state, events, label));
+      setFlow(null);
+    },
+    [engine, setFlow],
+  );
   // 業務の詳細（カードの名前を押すと開く）
   // ドラッグで止めたときのお知らせ（元に戻すものはないので、ボタンなし）
   const [notice, setNotice] = useState<string | null>(null);
@@ -219,10 +254,13 @@ export function Board({ date = SAMPLE_DATE }: { date?: string }) {
   }, [panel]);
   // 新しい操作のときだけトーストを出す（元に戻して前の操作が先頭に戻ってきたときは出さない）
   const seenBatches = useRef(new Set<string>());
+  // 開く前の操作（ほかの画面・前の日）のトーストは出さない。元に戻すはツールバーに残る
+  const openedAt = useRef(new Date().toISOString());
   const lastLabel = lastUndo ? `${lastUndo.batchId}` : "";
   useEffect(() => {
     if (!lastUndo || seenBatches.current.has(lastUndo.batchId)) return;
     seenBatches.current.add(lastUndo.batchId);
+    if (lastUndo.at < openedAt.current) return;
     setToast(lastUndo.label);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastLabel]);
@@ -254,7 +292,7 @@ export function Board({ date = SAMPLE_DATE }: { date?: string }) {
       </a>
       {/* 上部バー（1段） */}
       <TopBar current="board">
-        <span className="text-[16px] font-bold">{weekdayLabel(date)}</span>
+        <DateNav date={date} today={defaultDate} />
         {updated && <span className="text-[14px] text-[var(--cn-muted)]">{updated}</span>}
         <SyncBadge />
       </TopBar>
@@ -317,6 +355,16 @@ export function Board({ date = SAMPLE_DATE }: { date?: string }) {
               ⓘ
             </button>
             {noteOpen && <span className="text-[14px] text-[var(--cn-ink-soft)]">担当未定・担当あと n 人: 決めた人数にあと何人足りないか、です。終わっていない: 終わりの時刻を過ぎて「終わった」の印が無い枠の数です。どちらもケアができていない数ではありません。</span>}
+          </div>
+        )}
+        {hasTasks && (
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={() => setFlow("absence")} className="inline-flex h-[44px] items-center rounded-lg border border-[var(--cn-control-line)] bg-white px-3.5 text-[15px] font-bold">
+              欠勤・早退
+            </button>
+            <button type="button" onClick={() => setFlow("escort")} className="inline-flex h-[44px] items-center rounded-lg border border-[var(--cn-control-line)] bg-white px-3.5 text-[15px] font-bold">
+              付き添い・外出
+            </button>
           </div>
         )}
         <div className="ml-auto flex items-center gap-2">
@@ -385,7 +433,7 @@ export function Board({ date = SAMPLE_DATE }: { date?: string }) {
           {!ready ? (
             <div className="p-6 text-[var(--cn-muted)]">{loaded && syncInfo.kind === "sync" ? <SyncEmpty /> : "読み込んでいます…"}</div>
           ) : !hasTasks ? (
-            <MorningBand state={state} date={date} />
+            <MorningBand key={date} state={state} date={date} />
           ) : view === "staff" ? (
             <StaffView state={state} date={date} now={now} onOpen={openDetail} />
           ) : (
@@ -484,6 +532,7 @@ export function Board({ date = SAMPLE_DATE }: { date?: string }) {
             <p className="mt-2 text-[13px] text-[var(--cn-muted)]">名前をカードへ動かすと担当になります。カードの名前をここへ戻すと外れます。</p>
           </div>
           </DropZone>
+          <AddTodayPerson state={state} date={date} now={now} />
           {palette.off.length > 0 && (
             <section aria-labelledby="off-title" className="rounded-xl border border-[var(--cn-border)] bg-white p-3.5">
               <h2 id="off-title" className="font-bold">休み</h2>
@@ -507,6 +556,12 @@ export function Board({ date = SAMPLE_DATE }: { date?: string }) {
         )}
       </main>
       </BoardDnd>
+      {flow === "absence" && engine && (
+        <AbsenceFlow state={state} engine={engine} date={date} clock={clockNow ?? 9 * 60} onClose={() => setFlow(null)} onApply={applyFlow} />
+      )}
+      {flow === "escort" && engine && (
+        <EscortFlow state={state} engine={engine} date={date} now={businessMinutes(clockNow ?? 9 * 60)} onClose={() => setFlow(null)} onApply={applyFlow} />
+      )}
       {panel?.mode === "detail" && <TaskDetail key={panel.taskId} state={state} engine={engine} taskId={panel.taskId} onClose={closePanel} onAdd={openAssign} />}
       {panel?.mode === "assign" && <AssignPanel key={panel.taskId} state={state} engine={engine} taskId={panel.taskId} onClose={closePanel} onDetail={openDetail} />}
       <div id="board-toast" role="status" aria-live="polite" className="pointer-events-none fixed bottom-5 left-1/2 z-40 -translate-x-1/2">
@@ -551,5 +606,113 @@ function PaletteStaff({ staffId, later, children }: { staffId: string; later: bo
     >
       {children}
     </button>
+  );
+}
+
+/** 日付と、前の日／次の日／今日への移動（ボードの上部バー） */
+function DateNav({ date, today }: { date: string; today: string | null }) {
+  const link = "inline-flex h-[44px] items-center rounded-lg px-2.5 text-[15px] text-[var(--cn-ink-soft)] hover:bg-[var(--cn-ground)]";
+  const href = (d: string) => (d === today ? "/board" : `/board?date=${d}`);
+  const prev = addDays(date, -1);
+  const next = addDays(date, 1);
+  return (
+    <nav aria-label="日付" className="flex items-center gap-1">
+      <Link href={href(prev)} className={link} aria-label={`前の日（${shortDateOf(prev)}）`}>
+        ‹ 前の日
+      </Link>
+      <span className="px-1 text-[16px] font-bold" aria-current="date">
+        {weekdayLabel(date)}
+      </span>
+      <Link href={href(next)} className={link} aria-label={`次の日（${shortDateOf(next)}）`}>
+        次の日 ›
+      </Link>
+      {today && today !== date && (
+        <Link href="/board" className={`${link} border border-[var(--cn-control-line)] bg-white font-bold text-[var(--cn-accent)]`}>
+          今日へ
+        </Link>
+      )}
+    </nav>
+  );
+}
+
+/**
+ * 時間割を作ったあとで「今日来る人を足す」（グリル U2）。名前と番を選ぶ →「この内容で決定」。
+ * その番の業務のうち、勤務時間の中で担当が足りない枠に入る。1 回で元に戻せる。
+ */
+function AddTodayPerson({ state, date, now }: { state: State; date: string; now: number | null }) {
+  const engine = useEngine();
+  const [open, setOpenState] = useState(false);
+  const opener = useRef<HTMLButtonElement>(null);
+  // 閉じたら「＋ 今日来る人を足す」へフォーカスを戻す
+  const setOpen = (v: boolean) => {
+    setOpenState(v);
+    if (!v) window.setTimeout(() => opener.current?.focus(), 0);
+  };
+  const [staffId, setStaffId] = useState("");
+  const [slotId, setSlotId] = useState("");
+  // 初回の印（応援・スポットで初めて来た人。既定は職種がスポットで初めての人）
+  const [first, setFirst] = useState<boolean | null>(null);
+  const firstTimer = first ?? (staffId ? isFirstTimeDefault(state, staffId, date) : false);
+  const working = new Set(Object.values(state.roster).filter((e) => e.date === date && !e.absent).map((e) => e.staffId));
+  const candidates = Object.values(state.staff).filter((s) => !working.has(s.id));
+  const slots = Object.values(state.roleSlots).sort((a, b) => a.sortOrder - b.sortOrder);
+  if (candidates.length === 0) return null;
+  const decide = async () => {
+    if (!engine || !staffId || !slotId) return;
+    const events = addTodayPersonEvents(engine.state, date, staffId, slotId, engine.context(), { nowMin: now ?? undefined, firstTimer });
+    const name = state.staff[staffId]?.surname ?? "";
+    // 人の名前の横に件数を出さない（原則 5）
+    const any = events.some((e) => e.type === "assignment.add");
+    await engine.dispatch(events, `${name}さんを${state.roleSlots[slotId]?.name ?? ""}で足しました${any ? "。その番の、決めた人数に届いていない枠に入れました" : ""}`);
+    setOpen(false);
+    setStaffId("");
+    setSlotId("");
+    setFirst(null);
+  };
+  const select = "h-[44px] w-full rounded-lg border border-[var(--cn-control-line)] bg-white px-2 text-[15px]";
+  return (
+    <section aria-label="今日来る人を足す" className="rounded-xl border border-dashed border-[var(--cn-muted)] bg-white p-3">
+      {!open ? (
+        <button ref={opener} type="button" onClick={() => setOpen(true)} className="h-[44px] w-full text-left text-[15px]">
+          ＋ 今日来る人を足す
+        </button>
+      ) : (
+        <div className="flex flex-col gap-2">
+          <select aria-label="今日来る人" value={staffId} onChange={(e) => setStaffId(e.target.value)} className={select} autoFocus>
+            <option value="" disabled>
+              名前を選ぶ
+            </option>
+            {candidates.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.surname}（{s.role}）
+              </option>
+            ))}
+          </select>
+          <select aria-label="番" value={slotId} onChange={(e) => setSlotId(e.target.value)} className={select}>
+            <option value="" disabled>
+              番を選ぶ
+            </option>
+            {slots.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name} {fmtRange(s.defaultStartMin, s.defaultEndMin)}
+              </option>
+            ))}
+          </select>
+          <label className="flex min-h-[44px] items-center gap-2 text-[15px]">
+            <input type="checkbox" className="h-5 w-5" checked={firstTimer} onChange={(e) => setFirst(e.target.checked)} />
+            初回（はじめて来た人）
+          </label>
+          <p className="text-[14px] text-[var(--cn-muted)]">その番の業務のうち、決めた人数に届いていない枠と休憩に入ります（いまより前に終わった枠には入りません）。</p>
+          <div className="flex gap-2">
+            <button type="button" onClick={decide} disabled={!staffId || !slotId} className="h-[44px] flex-1 rounded-lg bg-[var(--cn-accent)] font-bold text-white disabled:opacity-50">
+              この内容で決定
+            </button>
+            <button type="button" onClick={() => setOpen(false)} className="h-[44px] rounded-lg border border-[var(--cn-control-line)] bg-white px-3">
+              やめる
+            </button>
+          </div>
+        </div>
+      )}
+    </section>
   );
 }

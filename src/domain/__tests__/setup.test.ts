@@ -103,6 +103,66 @@ test("職員の貼り付け: 見出し行は飛ばす。区切りがない行・
   assert.match(r.errors.find((e) => e.line === 3)!.reason, /区切り/);
 });
 
+test("自分の施設で始める: フロアが2つなら日課はフロアごとに別。1階の時刻を変えても2階は変わらない", async () => {
+  const { routinesOf, retimeRoutineEvents } = await import("../routine.ts");
+  const res = buildOwnFacility({ name: "みどり荘", groupsText: "1階\n2階", residentsText: "", staffText: "" }, himawariSeed, deterministicContext("two"));
+  const s = applyEvents(emptyState(), res.events);
+  const [g1, g2] = Object.values(s.groups).filter((g) => g.kind === "floor").sort((a, b) => a.sortOrder - b.sortOrder);
+  const r1 = routinesOf(s, g1.id);
+  const r2 = routinesOf(s, g2.id);
+  assert.ok(r1.length > 0 && r1.length === r2.length);
+  assert.ok(r1.every((r) => !r2.some((x) => x.routineId === r.routineId)), "日課の印はフロアごとに違う");
+  const first = r1[0];
+  const s2 = applyEvents(s, retimeRoutineEvents(s, first, first.startMin + 30, first.endMin + 30, deterministicContext("rt")));
+  assert.equal(routinesOf(s2, g1.id)[0].startMin, first.startMin + 30);
+  assert.equal(routinesOf(s2, g2.id)[0].startMin, first.startMin, "2階はそのまま");
+});
+
+test("自分の施設とサンプルの差をなくす: 入浴日に入浴の枠、2つ目のフロアにも休憩、ユニットだけでもリーダーの番、番が空の項目なし", async () => {
+  const { routinesOf } = await import("../routine.ts");
+  const res = buildOwnFacility({ name: "みどり荘", groupsText: "1階\n2階\nあおばユニット", residentsText: "", staffText: "" }, himawariSeed, deterministicContext("par"));
+  const s = applyEvents(emptyState(), res.events);
+  const floors = Object.values(s.groups).filter((g) => g.kind === "floor").sort((a, b) => a.sortOrder - b.sortOrder);
+  const bathDay = Object.values(s.patterns).find((p) => p.name.includes("入浴"))!;
+  for (const g of floors) {
+    assert.ok(bathDay.items.some((it) => it.groupId === g.id && s.templates[it.templateId]?.name === "入浴介助" && it.routineId), `${g.name}に入浴の日課`);
+    assert.ok(routinesOf(s, g.id).some((r) => r.name === "入浴介助"), "一覧の列にも出る");
+  }
+  const second = new Set(Object.values(s.roleSlots).filter((r) => r.groupId === floors[1].id).map((r) => r.id));
+  const breaks = Object.values(s.patterns).flatMap((p) => p.items).filter((it) => s.templates[it.templateId]?.kind === "break");
+  assert.ok(breaks.some((it) => it.slotIds.some((id) => second.has(id))), "2つ目のフロアの番にも休憩");
+  for (const p of Object.values(s.patterns)) for (const it of p.items) assert.ok(it.slotIds.length > 0, `${p.name} ${s.templates[it.templateId]?.name} に番がある`);
+
+  const unit = buildOwnFacility({ name: "ユニット荘", groupsText: "あおばユニット", residentsText: "", staffText: "" }, himawariSeed, deterministicContext("unit"));
+  const su = applyEvents(emptyState(), unit.events);
+  assert.ok(Object.values(su.roleSlots).some((r) => r.leaderRank !== undefined), "ユニットだけでもリーダーの番がある");
+});
+
+test("フロアが2つでも、同じ人を同じ時刻に2つの階の枠へ入れない（グループを持たない番・休憩でない共通の枠）", () => {
+  const res = buildOwnFacility({ name: "みどり荘", groupsText: "1階\n2階", residentsText: "", staffText: "" }, himawariSeed, deterministicContext("dup"));
+  const s = applyEvents(emptyState(), res.events);
+  const groupless = new Set(Object.values(s.roleSlots).filter((r) => !r.groupId).map((r) => r.id));
+  for (const p of Object.values(s.patterns)) {
+    // グループを持たない番が、同じ時刻に重なる 2 つの階の項目に付いていない
+    const items = p.items.filter((it) => it.slotIds.some((id) => groupless.has(id)) && s.groups[it.groupId ?? ""]?.kind === "floor");
+    for (const a of items)
+      for (const b of items) {
+        if (a === b || a.groupId === b.groupId) continue;
+        const shared = a.slotIds.filter((id) => groupless.has(id) && b.slotIds.includes(id));
+        assert.ok(shared.length === 0 || a.endMin <= b.startMin || b.endMin <= a.startMin, `${p.name}: ${s.templates[a.templateId]?.name} と ${s.templates[b.templateId]?.name}`);
+      }
+  }
+  // 休憩でない共通の枠は、1つのフロアの番だけ
+  const floors = Object.values(s.groups).filter((g) => g.kind === "floor");
+  const slotGroupOf = (id: string) => s.roleSlots[id]?.groupId;
+  for (const p of Object.values(s.patterns))
+    for (const it of p.items) {
+      if (s.groups[it.groupId ?? ""]?.kind !== "common" || s.templates[it.templateId]?.kind === "break") continue;
+      const gs = new Set(it.slotIds.map(slotGroupOf).filter((g) => g && floors.some((f) => f.id === g)));
+      assert.ok(gs.size <= 1, `${p.name}: ${s.templates[it.templateId]?.name}`);
+    }
+});
+
 test("職員の担当条件: 業務の種類が使う条件が先に並び、付ける／外すは 1 イベントで元に戻せる。等級は持たない", async () => {
   const { conditionTags, setStaffTagEvents, staffTagLabel, usedByTemplates } = await import("../setup.ts");
   const { applyEvents, invertBatch } = await import("../reducer.ts");

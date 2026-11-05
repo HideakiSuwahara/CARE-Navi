@@ -201,6 +201,11 @@ export class Engine {
     return this.undoStack[this.undoStack.length - 1] ?? null;
   }
 
+  /** 書き出し（グリル U9）: 保存しているイベント列をそのまま返す */
+  async exportEvents(): Promise<Event[]> {
+    return this.store.load();
+  }
+
   /** 「サンプルに戻す」: 保存を消して、渡されたイベントで作り直す */
   async reset(events: Event[]): Promise<void> {
     await this.store.clear();

@@ -582,7 +582,7 @@ const templates: TaskTemplate[] = [
     place: "各居室・リネン室",
     scopeNote: "使用済みのシーツ・タオルを回収し、リネン室のカゴへ。",
     outOfScopeNote: "汚染の強いものは別袋。迷ったら常勤に確認。",
-    procedure: ["回収カートで東→さくらの順に回る", "色分けの袋に分ける", "リネン室の回収表に数を記入"],
+    procedure: ["回収カートでフロア・ユニットの順に回る", "色分けの袋に分ける", "リネン室の回収表に数を記入"],
     supplies: "回収袋はリネン室入口",
     contact: CONTACT_CARE,
   },

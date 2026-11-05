@@ -287,7 +287,7 @@ function FocusCard({ item, open, now }: { item: MyItem; open: boolean; now: numb
       {item.target && <p>{item.target}</p>}
       {t.place && <p className="text-[var(--cn-ink-soft)]">場所: {t.place}</p>}
       {!item.isBreak && (
-        <p className="text-[var(--cn-ink-soft)]">一緒に: {item.together.length > 0 ? item.together.map((p) => p.surname).join("・") : "なし（ひとりで入ります）"}</p>
+        <p className="text-[var(--cn-ink-soft)]">一緒に: {item.together.length > 0 ? item.together.map((p) => p.surname).join("・") : t.headcount > 1 ? "まだ決まっていません" : "なし（ひとりで入ります）"}</p>
       )}
       {/* 初回の人には、お願いすること・しないこと・物品を開いて出す */}
       {open && t.scopeNote && (

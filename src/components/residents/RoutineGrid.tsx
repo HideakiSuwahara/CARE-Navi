@@ -1,13 +1,18 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useEngine } from "@/store/react";
-import { ROUTINE_BANDS, routinesInBand, routinesOf, sheetRowFor, type Routine, type RoutineBand } from "@/domain/routine";
+import { useDefaultDate, useEngine } from "@/store/react";
+import { SAMPLE_DATE } from "@/store/sample";
+import { applyEvents } from "@/domain/reducer";
+import { tasksForDate } from "@/domain/checks";
+import { addRoutineEvents, addRoutineToDayEvents, removeRoutineEvents, retimeRoutineEvents, ROUTINE_BANDS, routinesInBand, routinesOf, sheetRowFor, type Routine, type RoutineBand } from "@/domain/routine";
 import { residentsOfGroup, routineChangeEvents, routineGridCsvRows, type RoutineChange } from "@/domain/residentsIO";
 import { clockLabel } from "@/domain/time";
 import type { ID, State } from "@/domain/types";
+import type { Event } from "@/domain/events";
 import { CellPanel, changeLabel, type CellTarget } from "./CellPanel";
 import { downloadCsv } from "./download";
+import { RoutinePanel, type RoutinePanelResult, type RoutinePanelTarget } from "./RoutinePanel";
 
 /**
  * 一覧: 縦に利用者、横にそのグループの日課。標準と違うマスだけ直す（決定記録 0004 §3）。
@@ -22,6 +27,23 @@ export function RoutineGrid({ state, groupId, flash = [] }: { state: State; grou
   const residents = useMemo(() => residentsOfGroup(state, groupId), [state, groupId]);
   const [selected, setSelected] = useState<Set<ID>>(new Set());
   const [panel, setPanel] = useState<CellTarget | null>(null);
+  const [routinePanel, setRoutinePanelState] = useState<RoutinePanelTarget | null>(null);
+  // 閉じたら、開いたボタン（＋ 日課を足す／標準）へフォーカスを戻す
+  const routineOpener = useRef<HTMLElement | null>(null);
+  const setRoutinePanel = (t: RoutinePanelTarget | null) => {
+    if (t) routineOpener.current = document.activeElement as HTMLElement | null;
+    setRoutinePanelState(t);
+    if (!t) {
+      const el = routineOpener.current;
+      window.setTimeout(() => {
+        if (el && document.contains(el)) el.focus();
+      }, 0);
+    }
+  };
+  // 今日（ボードと同じ業務日）。時間割がもうできていれば、足した日課を今日にも入れられる
+  const today = useDefaultDate(state, "business") ?? SAMPLE_DATE;
+  const todayMade = tasksForDate(state, today).length > 0;
+  const todayLabel = todayMade ? `${Number(today.slice(5, 7))}/${Number(today.slice(8, 10))}` : undefined;
   const groupName = state.groups[groupId]?.name ?? "";
   const chosen = residents.filter((r) => selected.has(r.id));
   const allChecked = residents.length > 0 && chosen.length === residents.length;
@@ -52,6 +74,40 @@ export function RoutineGrid({ state, groupId, flash = [] }: { state: State; grou
     const events = routineChangeEvents(engine.state, engine.context(), panel.residentIds, panel.routine, c);
     const label = changeLabel(panel.who, panel.routine, c);
     setPanel(null);
+    if (events.length > 0) void engine.dispatch(events, label);
+  };
+
+  // 日課を足す・標準の時刻を変える・外す（決定記録 0013）。業務表を直すので、次に時間割を作るときから入る
+  const decideRoutine = (r: RoutinePanelResult) => {
+    if (!engine || !routinePanel) return;
+    const later = "（次に時間割を作るときから入ります）";
+    let events: Event[] = [];
+    let label = "";
+    if (r.kind === "add") {
+      const ctx = engine.context();
+      events = addRoutineEvents(engine.state, { templateId: r.templateId, groupId, startMin: r.startMin, endMin: r.endMin, headcount: r.headcount }, ctx);
+      // 足した日課の印（足す前のどの業務表にもない印）。同じ種類・同じ開始の日課がすでにあっても取り違えない
+      const known = new Set(Object.values(engine.state.patterns).flatMap((p) => p.items.map((it) => it.routineId)));
+      const added = events.flatMap((e) => (e.type === "pattern.upsert" ? e.pattern.items : [])).find((it) => it.routineId && !known.has(it.routineId))?.routineId;
+      const todayEvents = r.today && added ? addRoutineToDayEvents(applyEvents(engine.state, events), today, added, groupId, ctx) : [];
+      events = [...events, ...todayEvents];
+      label = `${groupName}に「${state.templates[r.templateId]?.name ?? ""} ${clockLabel(r.startMin)}」を足しました${
+        todayEvents.length > 0 ? `（今日 ${todayLabel} の時間割にも入れました）` : later
+      }`;
+      // 足した時間帯が見えるように「すべて」に戻す
+      setBand("all");
+    } else if (routinePanel.mode === "edit") {
+      const rt = routinePanel.routine;
+      events =
+        r.kind === "retime"
+          ? retimeRoutineEvents(engine.state, rt, r.startMin, r.endMin, engine.context(), r.headcount)
+          : removeRoutineEvents(engine.state, rt, engine.context());
+      label =
+        r.kind === "retime"
+          ? `${rt.name}を ${clockLabel(r.startMin)}–${clockLabel(r.endMin)}・${r.headcount}人にしました${later}`
+          : `${rt.name}（${clockLabel(rt.startMin)}）を日課から外しました${later}`;
+    }
+    setRoutinePanel(null);
     if (events.length > 0) void engine.dispatch(events, label);
   };
 
@@ -86,7 +142,7 @@ export function RoutineGrid({ state, groupId, flash = [] }: { state: State; grou
     <section aria-label={`${groupName}の日課の一覧`} className="flex min-h-0 flex-1 flex-col">
       <div className="flex flex-wrap items-center gap-3 px-1 pb-2.5">
         <p className="text-[14px] text-[var(--cn-ink-soft)]">
-          「—」は標準どおり。マスを押すとその方だけ直せます。行を選ぶと、列の「まとめて変える」で同じ時刻を一度に入れられます。
+          「—」は標準どおり。マスを押すとその方だけ直せます。行を選ぶと、列の「まとめて変える」で同じ時刻を一度に入れられます。列の「標準」を押すと、全員の時刻を変えられます。
         </p>
         <span className="text-[14px] font-bold" aria-live="polite">
           {chosen.length > 0 ? `${chosen.length}人を選んでいます` : ""}
@@ -119,6 +175,13 @@ export function RoutineGrid({ state, groupId, flash = [] }: { state: State; grou
         <span className="text-[14px] text-[var(--cn-ink-soft)]">
           {bandRange ? `${bandRange} の日課 ${routines.length}件` : `日課 ${routines.length}件`}
         </span>
+        <button
+          type="button"
+          onClick={(e) => setRoutinePanel({ mode: "add", anchor: e.currentTarget.getBoundingClientRect() })}
+          className="inline-flex h-[44px] items-center rounded-lg border border-[var(--cn-accent)] bg-white px-4 text-[15px] font-bold text-[var(--cn-accent)]"
+        >
+          ＋ 日課を足す
+        </button>
       </div>
       <div className="min-h-0 flex-1 overflow-auto rounded-xl border border-[var(--cn-border)] bg-white">
         <table className="border-collapse text-[15px]">
@@ -141,9 +204,14 @@ export function RoutineGrid({ state, groupId, flash = [] }: { state: State; grou
               {routines.map((rt) => (
                 <th key={rt.routineId} scope="col" className="min-w-[148px] border-l border-[var(--cn-grid)] px-2 py-2 text-left align-top">
                   <span className="block font-bold">{rt.name}</span>
-                  <span className="block whitespace-nowrap text-[14px] font-normal text-[var(--cn-muted)]">
+                  <button
+                    type="button"
+                    onClick={(e) => setRoutinePanel({ mode: "edit", routine: rt, anchor: e.currentTarget.getBoundingClientRect() })}
+                    aria-label={`${rt.name} 標準 ${clockLabel(rt.startMin)}–${clockLabel(rt.endMin)}。押すと標準の時刻を変える・外す`}
+                    className="-mx-1 flex min-h-[44px] items-center whitespace-nowrap rounded px-1 text-[14px] font-normal text-[var(--cn-ink-soft)] underline decoration-dotted underline-offset-4 hover:bg-[var(--cn-ground)]"
+                  >
                     標準 {clockLabel(rt.startMin)}–{clockLabel(rt.endMin)}
-                  </span>
+                  </button>
                   <button
                     type="button"
                     onClick={(e) => openBulk(e, rt)}
@@ -219,6 +287,9 @@ export function RoutineGrid({ state, groupId, flash = [] }: { state: State; grou
           </tbody>
         </table>
       </div>
+      {routinePanel && (
+        <RoutinePanel state={state} groupId={groupId} groupName={groupName} todayLabel={todayLabel} target={routinePanel} onDecide={decideRoutine} onClose={() => setRoutinePanel(null)} />
+      )}
       {panel && <CellPanel key={`${panel.routine.routineId}-${panel.residentIds.join(",")}`} target={panel} onDecide={decide} onClose={() => setPanel(null)} />}
     </section>
   );
