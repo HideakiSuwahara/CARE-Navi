@@ -4,6 +4,7 @@
  */
 
 import type { Event } from "./events.ts";
+import { canMarkDone } from "./checks.ts";
 import { applyPatternEvents, metaOf, type EventContext } from "./pattern.ts";
 import { applyEvents } from "./reducer.ts";
 import { emptyState, type SeedData, type State } from "./types.ts";
@@ -28,6 +29,15 @@ export function seedToEvents(seed: SeedData, ctx: EventContext): Event[] {
   let state: State = applyEvents(emptyState(), events);
   for (const dp of seed.dayPatterns) {
     const evs = applyPatternEvents(state, dp.date, dp.patternId, ctx);
+    events.push(...evs);
+    state = applyEvents(state, evs);
+  }
+  // サンプルの「終わった」の印（その日の、指定の時刻までに終わる枠）
+  for (const mark of seed.doneMarks ?? []) {
+    const evs: Event[] = Object.values(state.tasks)
+      .filter((t) => t.date === mark.date && canMarkDone(t) && t.endMin <= mark.endMinUpTo)
+      .sort((a, b) => a.startMin - b.startMin || a.id.localeCompare(b.id))
+      .map((t) => ({ ...metaOf(ctx), type: "task.done", id: t.id, done: true }));
     events.push(...evs);
     state = applyEvents(state, evs);
   }

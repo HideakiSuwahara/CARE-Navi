@@ -35,7 +35,7 @@ test.describe("受け入れ: スマホ", () => {
     expect(await next.evaluate((e) => getComputedStyle(e).fontSize)).toBe(sizeNow);
   });
 
-  test("L45 時刻が過ぎた予定は薄く出るだけで、完了扱いにしない（語もボタンもない）", async ({ page }) => {
+  test("L45 時刻が過ぎた予定を自動で終わった扱いにしない（濃さも語もボタンも変わらない）。薄くなるのは人が付けた印だけ", async ({ page }) => {
     await pick(page, "12:10", "高橋");
     const flow = page.getByRole("heading", { name: "きょうの流れ" }).locator("..");
     const past = flow.getByRole("link").filter({ hasText: "（時刻を過ぎた予定）" });
@@ -43,10 +43,15 @@ test.describe("受け入れ: スマホ", () => {
     const notPast = flow.getByRole("link").filter({ hasNotText: "（時刻を過ぎた予定）" }).last();
     const colorPast = await past.first().evaluate((e) => getComputedStyle(e).color);
     const colorNow = await notPast.evaluate((e) => getComputedStyle(e).color);
-    expect(colorPast).not.toBe(colorNow); // 薄い色
+    expect(colorPast).toBe(colorNow); // 時刻が過ぎただけでは薄くしない（決定記録 0010）
     const text = await page.locator("body").innerText();
     for (const ng of ["実施中", "完了", "済"]) expect(text).not.toContain(ng); // wording-ok: 無いことの確認
     await expect(page.getByRole("button", { name: /完了|実施|済/ })).toHaveCount(0); // wording-ok: 無いことの確認
+    // 人が「終わった」を付けた行だけが薄くなる（印を付けると「（時刻を過ぎた予定）」は消えるので、行は ID で追う）
+    const target = flow.locator(`[data-flow-task="${await past.first().getAttribute("data-flow-task")}"]`);
+    await target.locator("..").getByRole("button", { name: "終わったら押す" }).click();
+    await expect(target).toContainText("✓ 終わった");
+    expect(await target.evaluate((e) => getComputedStyle(e).color)).not.toBe(colorNow);
   });
 
   test("L46 業務詳細にも、充足バッジ・仕組みの言葉・完了の語が出ない", async ({ page }) => {
@@ -98,7 +103,10 @@ test.describe("受け入れ: スマホ", () => {
     await pick(page, "12:10", "高橋");
     await page.getByRole("link", { name: /昼食介助/ }).first().click();
     const targets = page.getByRole("region", { name: /対象の方/ });
-    await expect(targets.getByText(/^103 井上様: .+/)).toBeVisible();
+    // 名前の行の下に、サポートの 1 行（名前は繰り返さない）
+    const inoue = targets.getByRole("listitem").filter({ hasText: /^103 井上様/ });
+    await expect(inoue).toBeVisible();
+    expect((await inoue.innerText()).split("\n").filter((l) => l.trim()).length).toBeGreaterThanOrEqual(2);
     const url = new URL(page.url());
     // 担当でない人（木村・遅番）が同じ業務を開いても、サポートの1行は出ない
     await page.goto("/me?now=12:10");
@@ -106,7 +114,8 @@ test.describe("受け入れ: スマホ", () => {
     await page.getByRole("list", { name: "きょうの出勤者" }).getByRole("button", { name: /^木村 / }).click();
     await page.goto(`/me?now=12:10&task=${url.searchParams.get("task")}`);
     await expect(page.getByRole("heading", { level: 1, name: /昼食介助/ })).toBeVisible();
-    await expect(page.getByRole("region", { name: /対象の方/ }).getByText(/^103 井上様: /)).toHaveCount(0);
+    const inoue2 = page.getByRole("region", { name: /対象の方/ }).getByRole("listitem").filter({ hasText: /^103 井上様/ });
+    expect((await inoue2.innerText()).split("\n").filter((l) => l.trim()).length).toBe(1);
   });
 
   test("L75 自分の予定・業務詳細: 押せる領域 44px 以上、文字のコントラスト 4.5:1 以上（axe color-contrast）", async ({ page }) => {

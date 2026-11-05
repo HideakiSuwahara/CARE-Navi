@@ -9,7 +9,7 @@ import { SyncEmpty } from "@/components/setup/Setup";
 import { SyncBadge } from "@/components/SyncBadge";
 import { SAMPLE_DATE } from "@/store/sample";
 import { boardColumns, paletteRows } from "@/domain/layout";
-import { shortageGroups } from "@/domain/checks";
+import { shortageGroups, unfinishedTasks } from "@/domain/checks";
 import { calendarDateOf, fmtMin, fmtRange } from "@/domain/time";
 import { updatedAtLabel } from "@/domain/display";
 import { addDays, addTodayPersonEvents, isFirstTimeDefault } from "@/domain/pattern";
@@ -47,6 +47,9 @@ function weekdayLabel(date: string): string {
   const wd = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
   return `${m}月${d}日（${"日月火水木金土"[wd]}）`;
 }
+
+/** 見出しの「終わっていない n件」。押すと該当の枠へ順に移動する */
+const UNFINISHED = "終わっていない";
 
 export function Board({ date: dateParam }: { date?: string }) {
   const { state, ready, loaded } = useAppState();
@@ -110,6 +113,8 @@ export function Board({ date: dateParam }: { date?: string }) {
     .join(" ")}`;
   const palette = useMemo(() => (ready ? paletteRows(state, date) : { working: [], off: [] }), [state, date, ready]);
   const groups = useMemo(() => (ready ? shortageGroups(state, date) : []), [state, date, ready]);
+  // 終わりの時刻を過ぎて「終わった」の印が無い枠（決定記録 0010 決定 3）。担当未定とは別に数える
+  const unfinished = useMemo(() => (ready && now !== null ? unfinishedTasks(state, date, now).length : 0), [state, date, ready, now]);
   const updated = updatedAtLabel(state.days[date]?.updatedAt);
   const hasTasks = columns.some((c) => c.cards.length > 0);
 
@@ -124,6 +129,10 @@ export function Board({ date: dateParam }: { date?: string }) {
 
   // 見出しの「担当未定 n件」を押すと、該当するカードへ順に移動する（押すたびに次へ）
   const jumpIndex = useRef<Record<string, number>>({});
+  // 印や担当が変わったら、巡回を先頭（いちばん早い時刻）からやり直す（1 件終わった直後に次を飛ばさない）
+  useEffect(() => {
+    jumpIndex.current = {};
+  }, [state]);
   // 職員表示から押したら、グループ表示に戻してから（描き終わったあとの effect で）カードへ寄せる
   const pendingJump = useRef<string | null>(null);
   const jumpTo = (label: string) => {
@@ -143,7 +152,8 @@ export function Board({ date: dateParam }: { date?: string }) {
   function jumpToCard(label: string) {
     const root = scroller.current;
     if (!root) return;
-    const cards = Array.from(root.querySelectorAll<HTMLElement>(`[data-task-id][data-badge="${label}"]`)).sort(
+    const selector = label === UNFINISHED ? "[data-task-id][data-unfinished]" : `[data-task-id][data-badge="${label}"]`;
+    const cards = Array.from(root.querySelectorAll<HTMLElement>(selector)).sort(
       (a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top || a.getBoundingClientRect().left - b.getBoundingClientRect().left,
     );
     if (cards.length === 0) return;
@@ -325,6 +335,16 @@ export function Board({ date: dateParam }: { date?: string }) {
               </button>
             ))}
             {groups.length === 0 && <span className="text-[14px] text-[var(--cn-muted)]">すべての枠に担当が付いています</span>}
+            {unfinished > 0 && (
+              <button
+                type="button"
+                onClick={() => jumpTo(UNFINISHED)}
+                aria-label={`${UNFINISHED} ${unfinished}件。時刻を過ぎて、終わったの印が無い枠。押すと次の枠へ移動`}
+                className="inline-flex h-[44px] items-center rounded-full border border-[var(--cn-control-line)] bg-white px-3.5 text-[14px] font-bold text-[var(--cn-ink)]"
+              >
+                {UNFINISHED} {unfinished}件 →
+              </button>
+            )}
             <button
               type="button"
               aria-expanded={noteOpen}
@@ -334,7 +354,7 @@ export function Board({ date: dateParam }: { date?: string }) {
             >
               ⓘ
             </button>
-            {noteOpen && <span className="text-[14px] text-[var(--cn-ink-soft)]">決めた人数にあと何人足りないか、です。ケアができていない数ではありません。</span>}
+            {noteOpen && <span className="text-[14px] text-[var(--cn-ink-soft)]">担当未定・担当あと n 人: 決めた人数にあと何人足りないか、です。終わっていない: 終わりの時刻を過ぎて「終わった」の印が無い枠の数です。どちらもケアができていない数ではありません。</span>}
           </div>
         )}
         {hasTasks && (
@@ -353,7 +373,7 @@ export function Board({ date: dateParam }: { date?: string }) {
             type="button"
             onClick={async () => {
               const done = await engine?.undo();
-              setToast(done ? `戻しました（${done.label}）` : null);
+              setToast(done ? `元に戻しました（取り消した操作: ${done.label}）` : null);
             }}
             className="inline-flex h-[44px] items-center gap-2 rounded-lg border border-[var(--cn-card-line)] bg-white px-4 text-[14px]"
           >
@@ -461,7 +481,7 @@ export function Board({ date: dateParam }: { date?: string }) {
                       const width = areaWidth / lanes;
                       return (
                         <DropZone key={task.id} id={`task:${task.id}`} data={{ kind: "task", taskId: task.id }} className="absolute p-[3px]" style={{ top, height, left: `${left}%`, width: `${width}%` }}>
-                          <TaskCard state={state} task={task} variant={rail ? "rail" : height < 84 ? "mini" : height < 150 ? "compact" : "normal"} onOpen={openDetail} onAdd={openAssign} />
+                          <TaskCard state={state} task={task} now={now} variant={rail ? "rail" : height < 84 ? "mini" : height < 150 ? "compact" : "normal"} onOpen={openDetail} onAdd={openAssign} />
                         </DropZone>
                       );
                     })}

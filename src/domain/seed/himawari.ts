@@ -1430,4 +1430,7 @@ export const himawariSeed: SeedData = {
     { date: D1, patternId: PAT_BATH_DAY },
     { date: D2, patternId: PAT_WEEKDAY },
   ],
+  // 11/3 は 8:00 までに終わる枠（申し送り・食堂準備・起床介助など）に「終わった」の印がある。
+  // 10:12 に開くと、朝食介助とバイタル測定が「終わっていない 2件」として出る（リーダーが確かめる場面）
+  doneMarks: [{ date: D1, endMinUpTo: t(8) }],
 };

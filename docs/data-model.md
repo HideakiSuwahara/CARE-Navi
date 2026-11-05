@@ -56,6 +56,7 @@ EventMeta = { id, ts, batchId, actorId? }
 | `task.remove { id }` | 削除（Undo 用。通常の「中止」は `task.update {status:'cancelled'}`） |
 | `task.update { id, patch }` | 名称・時刻・場所・必要人数・条件・メモ・状態・グループ・区分・案内項目 |
 | `task.setTargets { id, residentIds }` | 対象者の差し替え |
+| `task.done { id, done }` | 「終わった」の印の付け外し（決定記録 0010）。誰が付けたかは `actorId` に残し、画面には出さない。「終わっていない」は `unfinishedTasks`（終わりの時刻から 15 分過ぎて印なし。休憩・中止・見守りを除く） |
 | `assignment.add { assignment }` / `assignment.remove { id }` | 担当 |
 | `day.setPattern { date, patternId? }` | その日に当てた型 |
 
@@ -76,6 +77,7 @@ EventMeta = { id, ts, batchId, actorId? }
 | `task.remove` | `task.add`（元の task と対象者を復元） |
 | `task.update` | `task.update`（変更前の値を patch に） |
 | `task.setTargets` | `task.setTargets`（変更前の一覧） |
+| `task.done` | `task.done`（変更前の値） |
 | `roster.upsert` | `roster.upsert`（変更前）または `roster.remove`（新規だった場合） |
 | `day.setPattern` | `day.setPattern`（変更前） |
 UI の「元に戻す」は直近 10 の batchId を対象にする。一覧（batchId と label）は端末の localStorage に残し、読み込み直しても戻せる（打ち消しに要る「直前の状態」は起動時にイベント列から作り直す。他の端末で先に変わっていれば、打ち消しはその時点の状態に対して行う）。
@@ -107,7 +109,7 @@ UI の「元に戻す」は直近 10 の batchId を対象にする。一覧（b
 ## 6C. 自分の予定の計算（`src/domain/myday.ts`）
 
 - `viewerMinutes`: 見ている人の業務日の時刻。夜勤の人は勤務前の朝の時刻を「翌」として読む（夜勤明けの予定が出る）。
-- `myDay`: いまの時間の予定（なければ最初の予定・つぎ）、きょうの流れ。過ぎた予定は `past` だけ（完了ではない）。
+- `myDay`: いまの時間の予定（なければ最初の予定・つぎ）、きょうの流れ。過ぎた予定は `past`、人が付けた印は `done`、印を付けられる枠かは `canDone`（休憩・中止・見守りは付けない）。`past` だけでは終わった扱いにしない（決定記録 0010）。
 - `leaderContact` / `leaderSchedule`: 「困ったら」の相談先と、その一日の移り変わり（決定記録 0006）。
 - `targetLines`: 業務詳細の対象の方。時刻が違う方 → サポートのある方 → 部屋番号の順。サポートは担当の人に勤務時間中だけ（0004 §4）。
 
@@ -128,4 +130,4 @@ UI の「元に戻す」は直近 10 の batchId を対象にする。一覧（b
 - 施設コードは認証ではない。本番は認証と権限、端末に残さない設計が必要。
 
 ## 9. 作らなかった型
-- `CareRecord`（簡易実施記録）: 決定記録 0001 で見送り。将来入れる場合は `taskId`, `residentId?`, `status: done/not_done`, `performedByStaffId`, `performedAt`, `startedAt?/endedAt?` を想定し、「記録なし」と「未実施」を区別する。
+- `CareRecord`（簡易実施記録）: 決定記録 0001 で見送り、0010 で「終わった」の印だけを `TaskInstance.done`（`task.done` イベント）として持った。内容の記録・対象の方ごとの印（0010 決定 4）は作っていない。対象の方ごとの印を入れる場合は `doneResidentIds: ID[]` を同じ要領で足す（「記録なし」と「終わっていない」を区別する）。

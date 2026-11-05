@@ -6,7 +6,9 @@
  */
 
 import type { ID, Minutes, State, TaskInstance } from "./types.ts";
-import { assigneesOf, headcountLabel, taskLabel, tasksForDate } from "./checks.ts";
+import { assigneesOf, headcountLabel, isWatchTask, taskLabel, tasksForDate } from "./checks.ts";
+
+export { isWatchTask };
 
 export interface LaidOutCard {
   task: TaskInstance;
@@ -201,14 +203,6 @@ export interface WatchLine {
   groupId: ID;
   name: string;
   segments: WatchSegment[];
-}
-
-/**
- * 見守りの業務か。見守りは区切って番ごとに持つので、職員表示の最下段でつながりを1段で見せる。
- * 当面は業務の名前「見守り」で見る（個別の業務は除く）。施設が別の名前を付けた場合は段が出ない（docs/data-model.md）
- */
-export function isWatchTask(task: TaskInstance): boolean {
-  return task.kind !== "break" && task.targetMode !== "individual" && task.name.startsWith("見守り");
 }
 
 export function staffViewRows(state: State, date: string): StaffViewRow[] {

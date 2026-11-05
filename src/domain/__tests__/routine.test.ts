@@ -181,7 +181,7 @@ test("時間帯（朝 5:00–11:00・昼 11:00–17:00・夜 17:00–翌5:00）�
   assert.equal(isWithinRoutine(wake, toMin(6, 45)), false);
 });
 
-test("日課を足す・標準の時刻を変える・やめる（決定記録 0012）。すべて業務表に入り、時間割を作ると一括の枠になる", async () => {
+test("日課を足す・標準の時刻を変える・やめる（決定記録 0013）。すべて業務表に入り、時間割を作ると一括の枠になる", async () => {
   const { addRoutineEvents, retimeRoutineEvents, removeRoutineEvents } = await import("../routine.ts");
   const { invertBatch } = await import("../reducer.ts");
   const s0 = stateOf(routineSeed([{ residentId: "r-101", rows: [{ id: "a", routineId: "rt-wake-east", startMin: toMin(8, 30) }] }]));

@@ -2,7 +2,7 @@
 
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import type { Event } from "@/domain/events";
-import { shortageGroups, splitCandidates, type Candidate } from "@/domain/checks";
+import { canMarkDone, shortageGroups, splitCandidates, type Candidate } from "@/domain/checks";
 import {
   absencePreview,
   assignEvents,
@@ -11,6 +11,7 @@ import {
   escortPreview,
   ESCORT_NAMES,
   restoreTaskEvents,
+  setDoneEvents,
   shiftBreakPreview,
   shiftTaskEvents,
   unassignEvents,
@@ -30,6 +31,7 @@ import {
   shiftCheck,
   touchedTaskIds,
   unfilledGroups,
+  unfinishedCount,
   type AllRow,
 } from "@/domain/leader";
 import { businessMinutes } from "@/domain/myday";
@@ -40,13 +42,14 @@ import { MAX_MINUTES, type ID, type State } from "@/domain/types";
 import type { Engine } from "@/store/engine";
 import { useEngine, useIncoming } from "@/store/react";
 import { SyncBadge } from "@/components/SyncBadge";
+import { DONE_EVENT, DoneButton, type DoneNotice } from "@/components/DoneButton";
 import { PreviewSheet } from "./PreviewSheet";
 import { Sheet } from "./Sheet";
 
 /**
  * 全体（リーダーのスマホ）。docs/screens.md §4.1、決定記録 0004 §8
- * - 上部: 「更新 10:07」と「担当未定 2件」（押すと該当行へ）
- * - 時間順の一覧: 各行に「⋯」（中止・ずらす・担当を外す）、未充足の行に「＋」
+ * - 上部: 「更新 10:07」と「担当未定 2件」「終わっていない 1件」（押すと該当行へ。決定記録 0010 決定 3）
+ * - 時間順の一覧: 各行に「⋯」（終わった・中止・ずらす・担当を外す）、未充足の行に「＋」、時刻を過ぎた行に「終わった」
  * - 画面下: クイック操作［欠勤・早退｜付き添い・外出］と「元に戻す」
  * - クイック操作は ボタン → 選ぶ → 「この内容で決定」の3タップ。既定値を入れておく
  * - 決定後は一覧に戻り、変わった行を3秒強調する（文字でも「変わりました」）
@@ -69,7 +72,6 @@ function newBatchId(): ID {
 }
 
 export function AllView({ state, date, me, now, clock, tabs }: { state: State; date: string; me: ID; now: number; clock: number; tabs: ReactNode }) {
-  void me;
   const engine = useEngine();
   const lastUndo = useSyncExternalStore(
     (cb) => (engine ? engine.subscribe(cb) : () => {}),
@@ -87,6 +89,20 @@ export function AllView({ state, date, me, now, clock, tabs }: { state: State; d
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [incoming.count]);
   const groups = useMemo(() => unfilledGroups(rows), [rows]);
+  // 「終わっていない」は自分の勤務が始まってからの分だけ数える（夕方・夜のリーダーに日勤の分が積み上がらないように）
+  const myStart = useMemo(() => Object.values(state.roster).find((e) => e.date === date && e.staffId === me)?.startMin ?? 0, [state, date, me]);
+  const unfinished = useMemo(() => unfinishedCount(rows, myStart), [rows, myStart]);
+  // 「終わっていない n件」は押すたびに次の行へ（ボードと同じ）。印を付けたり外したりしたら先頭から
+  const unfinishedIndex = useRef(-1);
+  useEffect(() => {
+    unfinishedIndex.current = -1;
+  }, [unfinished]);
+  // 行の「終わった」を押したときも、同じトーストで知らせる（元に戻すは画面下の常設）
+  useEffect(() => {
+    const onDone = (e: globalThis.Event) => setToast((e as CustomEvent<DoneNotice>).detail.label);
+    window.addEventListener(DONE_EVENT, onDone);
+    return () => window.removeEventListener(DONE_EVENT, onDone);
+  }, []);
   const overnight = useMemo(() => overnightRows(state, date, now), [state, date, now]);
   const prevLabel = (() => {
     const p = addDays(date, -1);
@@ -164,15 +180,27 @@ export function AllView({ state, date, me, now, clock, tabs }: { state: State; d
   const undo = async () => {
     if (!engine) return;
     const done = await engine.undo();
-    if (done) setToast(`戻しました（${done.label}）`);
+    if (done) setToast(`元に戻しました（取り消した操作: ${done.label}）`);
   };
 
   const jumpTo = (label: string) => {
-    const row = rows.find((r) => r.unfilled && r.status.label === label);
+    let row: AllRow | undefined;
+    if (label === UNFINISHED) {
+      const list = rows.filter((r) => r.unfinished && r.task.endMin >= myStart);
+      if (list.length === 0) return;
+      unfinishedIndex.current = (unfinishedIndex.current + 1) % list.length;
+      row = list[unfinishedIndex.current];
+    } else {
+      row = rows.find((r) => r.unfilled && r.status.label === label);
+    }
     if (!row) return;
     const el = document.querySelector<HTMLElement>(`[data-all-task="${CSS.escape(row.task.id)}"]`);
-    el?.scrollIntoView({ block: "center" });
-    el?.focus({ preventScroll: true });
+    if (!el) return;
+    el.scrollIntoView({ block: "center" });
+    el.focus({ preventScroll: true });
+    // 先頭の行など画面が動かないときにも、着いた行が分かるように 2 秒だけ枠を付ける
+    el.style.outline = "3px solid var(--cn-accent)";
+    window.setTimeout(() => (el.style.outline = ""), 2000);
   };
 
   const [, m, d] = date.split("-").map(Number);
@@ -200,7 +228,7 @@ export function AllView({ state, date, me, now, clock, tabs }: { state: State; d
             <SyncBadge />
           </span>
         </div>
-        {groups.length > 0 ? (
+        {groups.length > 0 || unfinished > 0 ? (
           <div className="mt-2 flex flex-wrap gap-2">
             {groups.map((g) => (
               <button
@@ -216,6 +244,15 @@ export function AllView({ state, date, me, now, clock, tabs }: { state: State; d
                 {g.label} {g.count}件<span className="sr-only">（該当の行へ移る）</span>
               </button>
             ))}
+            {unfinished > 0 && (
+              <button
+                type="button"
+                onClick={() => jumpTo(UNFINISHED)}
+                className="inline-flex h-[44px] items-center rounded-lg border border-[var(--cn-control-line)] bg-white px-3 text-[16px] font-bold text-[var(--cn-ink)]"
+              >
+                {UNFINISHED} {unfinished}件<span className="sr-only">（時刻を過ぎて「終わった」の印が無い業務。押すたびに次の行へ移る）</span>
+              </button>
+            )}
           </div>
         ) : (
           rows.length > 0 && <p className="mt-1 text-[16px] text-[var(--cn-ink-soft)]">きょうの業務で、担当未定はありません。</p>
@@ -235,9 +272,11 @@ export function AllView({ state, date, me, now, clock, tabs }: { state: State; d
                   <span className="font-bold">{r.timeText}</span>
                   <span className="font-bold">{r.label}</span>
                   {r.count && <span className="text-[14px]">{r.count}</span>}
+                  {r.done && <span className="text-[14px] font-bold text-[var(--cn-accent)]">✓ 終わった</span>}
+                  {r.unfinished && <span className="text-[14px]">（時刻を過ぎました）</span>}
                 </p>
                 <p className="flex flex-wrap items-center gap-x-2 text-[16px] text-[var(--cn-ink-soft)]">
-                  {r.isBreak ? "休憩" : "担当"}: {r.assignees.length > 0 ? r.assignees.map((x) => x.surname).join("・") : "まだいません"}
+                  {r.isBreak ? "休憩" : "担当"}: {r.assignees.length > 0 ? r.assignees.map((x) => x.surname).join("・") : r.past ? "なし" : "まだいません"}
                   <Badge row={r} />
                 </p>
               </li>
@@ -267,18 +306,19 @@ export function AllView({ state, date, me, now, clock, tabs }: { state: State; d
 
       {/* 画面下（親指の位置）: クイック操作と元に戻す。その下に［自分｜全体］ */}
       <div className="fixed inset-x-0 bottom-0 z-30 mx-auto max-w-[480px] border-t border-[var(--cn-control-line)] bg-white">
+        {/* 読み上げ領域は常に置き、中身だけ出し入れする（WCAG 4.1.3） */}
+        <div role="status" aria-live="polite" className="absolute inset-x-3 bottom-full mb-2">
         {toast && (
-          <div className="absolute inset-x-3 bottom-full mb-2 flex items-center gap-2 rounded-xl bg-[var(--cn-ink)] px-3 py-2 text-[16px] text-white shadow-lg">
-            <p role="status" className="min-w-0 flex-1">
-              {toast}
-            </p>
-            {lastUndo && !toast.startsWith("戻しました") && (
+          <div className="flex items-center gap-2 rounded-xl bg-[var(--cn-ink)] px-3 py-2 text-[16px] text-white shadow-lg">
+            <p className="min-w-0 flex-1">{toast}</p>
+            {lastUndo && !toast.startsWith("元に戻しました") && (
               <button type="button" onClick={undo} className="h-[44px] shrink-0 rounded-lg border border-white px-3 font-bold">
                 元に戻す
               </button>
             )}
           </div>
         )}
+        </div>
         <div className="flex gap-2 px-3 py-2">
           <button type="button" onClick={() => open({ kind: "absence" })} className="h-[52px] flex-1 rounded-xl bg-[var(--cn-accent)] px-2 text-[16px] font-bold text-white">
             欠勤・早退
@@ -347,7 +387,8 @@ function Row({ row, flash, onMenu, onAdd }: { row: AllRow; flash: boolean; onMen
       aria-describedby={noNeed ? undefined : `${id}-sub`}
       className={`flex items-start gap-2 border-b border-[var(--cn-card-line)] px-3 py-2.5 outline-none last:border-b-0 focus-visible:outline-3 ${
         flash ? "bg-[var(--cn-short-bg)]" : row.isBreak ? "bg-[var(--cn-break-bg)]" : ""
-      } ${row.past || row.cancelled ? "border-l-4 border-l-[var(--cn-control-line)] text-[var(--cn-muted)]" : ""}`}
+      } ${row.done || row.cancelled ? "border-l-4 border-l-[var(--cn-control-line)] text-[var(--cn-muted)]" : ""}`}
+      data-unfinished={row.unfinished ? "" : undefined}
     >
       <div className="min-w-0 flex-1">
         <p id={id} className="flex flex-wrap items-baseline gap-x-2">
@@ -355,18 +396,21 @@ function Row({ row, flash, onMenu, onAdd }: { row: AllRow; flash: boolean; onMen
           <span className={`font-bold ${row.cancelled ? "line-through" : ""}`}>{row.label}</span>
           {row.count && <span className="text-[14px]">{row.count}</span>}
           {row.cancelled && <span className="rounded border border-[var(--cn-control-line)] px-1.5 text-[14px] font-bold text-[var(--cn-ink)]">中止</span>}
-          {row.past && !row.cancelled && <span className="text-[14px]">（時刻を過ぎました）</span>}
+          {row.done && !row.cancelled && <span className="text-[14px] font-bold text-[var(--cn-accent)]">✓ 終わった</span>}
+          {row.unfinished && <span className="text-[14px]">（時刻を過ぎました）</span>}
         </p>
         {!noNeed && (
           <p id={`${id}-sub`} className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[16px]">
-            <span className={row.past || row.cancelled ? "" : "text-[var(--cn-ink-soft)]"} aria-hidden={row.assignees.length === 0 && row.unfilled ? true : undefined}>
-              {row.isBreak ? "休憩" : "担当"}: {row.assignees.length > 0 ? row.assignees.map((s) => s.surname).join("・") : "まだいません"}
+            <span className={row.done || row.cancelled ? "" : "text-[var(--cn-ink-soft)]"} aria-hidden={row.assignees.length === 0 && row.unfilled ? true : undefined}>
+              {row.isBreak ? "休憩" : "担当"}: {row.assignees.length > 0 ? row.assignees.map((s) => s.surname).join("・") : row.past ? "なし" : "まだいません"}
             </span>
             <Badge row={row} />
             {flash && <span className="text-[14px] font-bold text-[var(--cn-ink)]">変わりました</span>}
           </p>
         )}
       </div>
+      {/* 時刻を過ぎた行に 1 タップの「終わった」。印の付いた行は文字だけにして、外すのは ⋯ から（触って外れないように）。これからの行も ⋯ から（決定記録 0010） */}
+      {row.unfinished && <DoneButton task={t} size="sm" />}
       {row.unfilled && (
         <button
           type="button"
@@ -380,7 +424,7 @@ function Row({ row, flash, onMenu, onAdd }: { row: AllRow; flash: boolean; onMen
       <button
         type="button"
         onClick={onMenu}
-        aria-label={`「${row.label} ${fmtRange(t.startMin, t.endMin)}」のほかの操作（中止・ずらす・担当を外す）`}
+        aria-label={`「${row.label} ${fmtRange(t.startMin, t.endMin)}」のほかの操作（終わった・中止・ずらす・担当を外す）`}
         className="inline-flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-lg border border-[var(--cn-control-line)] bg-white text-[18px] font-bold text-[var(--cn-ink)]"
       >
         ⋯
@@ -390,7 +434,9 @@ function Row({ row, flash, onMenu, onAdd }: { row: AllRow; flash: boolean; onMen
 }
 
 // ---------------------------------------------------------------------------
-// ⋯（中止・ずらす・担当を外す）。どれも1タップで決まり、元に戻せる
+const UNFINISHED = "終わっていない";
+
+// ⋯（終わった・中止・ずらす・担当を外す）。どれも1タップで決まり、元に戻せる
 // ---------------------------------------------------------------------------
 
 export type Apply = (events: Event[], label: string, keepOpen?: boolean) => Promise<void>;
@@ -436,6 +482,23 @@ function MenuSheet({ state, engine, taskId, now, onClose, onApply }: { state: St
           {notice}
         </p>
       )}
+      {canMarkDone(task) && (
+        <section aria-labelledby="menu-done">
+          <h3 id="menu-done" className="mb-1.5 text-[14px] font-bold text-[var(--cn-muted)]">
+            終わった
+          </h3>
+          {task.done ? (
+            <button type="button" className={btn} onClick={() => onApply(setDoneEvents(task.id, false, engine.context()), `「${row.label} ${fmtMin(task.startMin)}」の「終わった」を外しました`)}>
+              「✓ 終わった」を取り消す（□ に戻す）
+            </button>
+          ) : (
+            <button type="button" className={`${btn} font-bold`} onClick={() => onApply(setDoneEvents(task.id, true, engine.context()), `「${row.label} ${fmtMin(task.startMin)}」を終わったにしました`)}>
+              終わったにする
+            </button>
+          )}
+        </section>
+      )}
+
       {!cancelled && (
         <section aria-labelledby="menu-shift">
           <h3 id="menu-shift" className="mb-1.5 text-[14px] font-bold text-[var(--cn-muted)]">

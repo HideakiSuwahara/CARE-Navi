@@ -5,7 +5,7 @@
 
 import type { Event } from "./events.ts";
 import { applyEvents } from "./reducer.ts";
-import { assigneesOf, headcountStatus, rankCandidates, rosterForDate, taskLabel, tasksForDate, tasksOfStaff, type Candidate } from "./checks.ts";
+import { assigneesOf, canMarkDone, headcountStatus, rankCandidates, rosterForDate, taskLabel, tasksForDate, tasksOfStaff, type Candidate, UNFINISHED_GRACE_MIN } from "./checks.ts";
 import { addDays } from "./pattern.ts";
 import { fmtMin, fmtRange, overlaps } from "./time.ts";
 import { residentLabel } from "./display.ts";
@@ -38,8 +38,12 @@ export interface AllRow {
   unfilled: boolean;
   cancelled: boolean;
   isBreak: boolean;
-  /** 時刻を過ぎた（終わりの時刻 ≤ いま）。完了とは言わない。並びはそのまま、薄く出すだけ */
+  /** 時刻を過ぎた（終わりの時刻 ≤ いま）。それだけでは「終わった」にしない */
   past: boolean;
+  /** 「終わった」の印（人が付けたもの） */
+  done: boolean;
+  /** 時刻を過ぎて、印が無い（見出しの「終わっていない n 件」に数える） */
+  unfinished: boolean;
 }
 
 /**
@@ -68,6 +72,8 @@ export function allRows(state: State, date: DateKey, now: Minutes): AllRow[] {
         cancelled,
         isBreak,
         past,
+        done: Boolean(task.done),
+        unfinished: canMarkDone(task) && !task.done && task.endMin + UNFINISHED_GRACE_MIN <= now,
       };
     });
 }
@@ -79,12 +85,21 @@ export function allRows(state: State, date: DateKey, now: Minutes): AllRow[] {
 export function overnightRows(state: State, date: DateKey, now: Minutes): (AllRow & { timeText: string })[] {
   const prev = addDays(date, -1);
   return allRows(state, prev, now + 1440)
-    .filter((r) => r.task.endMin > now + 1440 && !r.cancelled)
+    // 夜勤帯の枠は全部（印の有無を朝のリーダーが確かめる）。前日の日中の枠は、いまも続いているものだけ
+    .filter((r) => (r.task.startMin >= 1440 || r.task.endMin > now + 1440) && !r.cancelled)
     .map((r) => {
       const s = r.task.startMin;
       const start = s >= 1440 ? fmtMin(s - 1440) : `前日 ${fmtMin(s)}`;
       return { ...r, timeText: `${start}–${fmtMin(r.task.endMin - 1440)}` };
     });
+}
+
+/**
+ * 「終わっていない n 件」の件数。fromMin を渡すと、その時刻より後に終わる枠だけ数える
+ * （リーダーの全体では自分の勤務が始まってからの分。夕方・夜のリーダーに日勤の分が積み上がらないように）
+ */
+export function unfinishedCount(rows: AllRow[], fromMin = 0): number {
+  return rows.filter((r) => r.unfinished && r.task.endMin >= fromMin).length;
 }
 
 /** 見出しの「担当未定 2件」「担当あと 1 人 1件」の件数（これからの分）。押すと最初の該当行へ */

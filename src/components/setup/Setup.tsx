@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "reac
 import { TopBar } from "@/components/TopBar";
 import { residentLabel } from "@/domain/display";
 import { himawariSeed } from "@/domain/seed";
-import { buildOwnFacility, parseStaffPaste, settingsEvent, staffEvents } from "@/domain/setup";
+import { buildOwnFacility, conditionTags, parseStaffPaste, setStaffTagEvents, settingsEvent, staffEvents, staffTagLabel, usedByTemplates } from "@/domain/setup";
 import type { ResidentDisplayMode } from "@/domain/types";
 import { useAppState, useEngine, useSyncStatus } from "@/store/react";
 import { SETUP_NOTE_KEY } from "./setupNote";
@@ -392,6 +392,10 @@ function Everyday({ onOwn, onSample }: { onOwn: () => void; onSample: () => void
   );
   const [toast, setToast] = useState<string | null>(null);
   const [staffText, setStaffText] = useState("");
+  // 職員の担当条件: 「ほかの条件を足す」の入力と、まだ誰にも付いていない追加の条件
+  const [newTag, setNewTag] = useState("");
+  const [extraTags, setExtraTags] = useState<string[]>([]);
+  const [tagStatus, setTagStatus] = useState("");
   useEffect(() => {
     const note = readSetupNote();
     if (note) setToast(note);
@@ -433,6 +437,45 @@ function Everyday({ onOwn, onSample }: { onOwn: () => void; onSample: () => void
     if (!ev) return;
     await engine.dispatch([ev], label);
     setToast(label);
+  };
+
+  // 職員の担当条件（付ける／外す。1 タップ、元に戻せる）。業務の種類が条件にしているものを先に、ほかの条件（候補の理由には出ない）を後ろに
+  const allTags = [...conditionTags(state), ...extraTags.filter((t) => !conditionTags(state).includes(t))];
+  const usedTags = allTags.filter((t) => usedByTemplates(state, t));
+  const otherTags = allTags.filter((t) => !usedByTemplates(state, t));
+  const staffRows = Object.values(state.staff).sort((a, b) => a.surname.localeCompare(b.surname, "ja"));
+  const holders = (t: string) => staffRows.filter((st) => st.tags.includes(t)).length;
+  const toggleTag = async (staffId: string, tag: string, on: boolean) => {
+    if (!engine) return;
+    const evs = setStaffTagEvents(engine.state, staffId, tag, on, engine.context());
+    if (evs.length === 0) return;
+    // 最後の 1 人から外しても、この画面にいる間は列を残す（付け替えの途中で消えないように）
+    if (!on && !usedByTemplates(state, tag)) setExtraTags((prev) => (prev.includes(tag) ? prev : [...prev, tag]));
+    const label = staffTagLabel(engine.state, staffId, tag, on);
+    await engine.dispatch(evs, label);
+    setToast(label);
+  };
+  const addTag = () => {
+    const t = newTag.trim();
+    if (!t) return;
+    if (allTags.includes(t)) {
+      setTagStatus(`「${t}」はすでにあります。`);
+      setNewTag("");
+      return;
+    }
+    setExtraTags((prev) => [...prev, t]);
+    setNewTag("");
+    setTagStatus(`「${t}」を足しました。各職員の行の右に出ています。付けたい人の □ を押してください。`);
+  };
+  // 行の中は ← → で移動（Tab は行ごとに 1 回）
+  const rowKeys = (e: React.KeyboardEvent<HTMLElement>) => {
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) return;
+    const buttons = Array.from(e.currentTarget.querySelectorAll<HTMLButtonElement>("button"));
+    const i = buttons.indexOf(document.activeElement as HTMLButtonElement);
+    if (i < 0) return;
+    e.preventDefault();
+    const next = e.key === "Home" ? 0 : e.key === "End" ? buttons.length - 1 : (i + (e.key === "ArrowRight" ? 1 : buttons.length - 1)) % buttons.length;
+    buttons[next]?.focus();
   };
 
   const staffPaste = parseStaffPaste(state, staffText);
@@ -507,6 +550,89 @@ function Everyday({ onOwn, onSample }: { onOwn: () => void; onSample: () => void
         </div>
       </section>
 
+      <section aria-labelledby="s-tags" className="rounded-xl border border-[var(--cn-border)] bg-white p-4">
+        <h3 id="s-tags" className="mb-1 text-[16px] font-bold">
+          職員の担当条件
+        </h3>
+        <p className="mb-1 text-[14px] text-[var(--cn-ink-soft)]">
+          入浴介助など、業務の種類ごとに決めた条件（{usedTags.join("・") || "なし"}）を、その職員が満たしているかを付けます。押すと付き、もう一度押すと外れます（元に戻せます）。
+          満たさない人も担当にできます（ボードの ＋ で「注意: 条件「…」を満たしていません」と出ます）。等級や評価ではありません。
+        </p>
+        {staffRows.length === 0 ? (
+          <p className="text-[15px]">職員がまだいません。下の「名簿の貼り付け」から足せます。</p>
+        ) : (
+          <>
+            {/* 列の見出し: 条件ごとの人数 */}
+            <p className="mb-1 mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[14px] text-[var(--cn-ink-soft)]">
+              <span>
+                <span className="font-bold text-[var(--cn-ink)]">業務の条件:</span> {usedTags.length > 0 ? usedTags.map((t) => `${t} ${holders(t)}人`).join("・") : "なし"}
+              </span>
+              {otherTags.length > 0 && (
+                <span>
+                  <span className="font-bold text-[var(--cn-ink)]">ほかの条件（候補の理由には出ません）:</span> {otherTags.map((t) => `${t} ${holders(t)}人`).join("・")}
+                </span>
+              )}
+            </p>
+            <ul role="list" aria-label="職員ごとの担当条件" className="flex flex-col divide-y divide-[var(--cn-card-line)]">
+              {staffRows.map((st) => {
+                const btn = (t: string, idx: number, other: boolean) => {
+                  const on = st.tags.includes(t);
+                  return (
+                    <button
+                      key={t}
+                      type="button"
+                      aria-pressed={on}
+                      aria-label={`${st.surname}さんの${t}${other ? "（候補の理由には出ません）" : ""}`}
+                      tabIndex={idx === 0 ? 0 : -1}
+                      onClick={() => toggleTag(st.id, t, !on)}
+                      className={`inline-flex h-[44px] items-center gap-1 rounded-lg border px-3 text-[15px] ${
+                        on ? "border-2 border-[var(--cn-accent)] bg-[var(--cn-accent-soft)] font-bold text-[var(--cn-accent)]" : "border-[var(--cn-control-line)] bg-white text-[var(--cn-ink)]"
+                      } ${other ? "border-dashed" : ""}`}
+                    >
+                      <span aria-hidden="true">{on ? "✓" : "□"}</span>
+                      {t}
+                    </button>
+                  );
+                };
+                return (
+                  <li key={st.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2">
+                    <span className="w-[140px] shrink-0">
+                      <span className="font-bold">{st.surname}</span> <span className="text-[14px] text-[var(--cn-ink-soft)]">{st.role}</span>
+                    </span>
+                    <span role="group" aria-label={`${st.surname}さんの担当条件（← → で移動）`} onKeyDown={rowKeys} className="flex flex-wrap items-center gap-1.5">
+                      {usedTags.map((t, idx) => btn(t, idx, false))}
+                      {otherTags.length > 0 && usedTags.length > 0 && <span aria-hidden="true" className="mx-1 h-[28px] w-px bg-[var(--cn-control-line)]" />}
+                      {otherTags.map((t, idx) => btn(t, usedTags.length + idx, true))}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          </>
+        )}
+        <form
+          className="mt-3 flex flex-wrap items-end gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            addTag();
+          }}
+        >
+          <label className="flex flex-col gap-1 text-[14px]">
+            <span>ほかの条件を足す（例: 喀痰吸引。Enter でも足せます）</span>
+            <input value={newTag} onChange={(e) => setNewTag(e.target.value)} aria-describedby="tag-add-hint" className="h-[44px] w-[260px] rounded-lg border border-[var(--cn-control-line)] px-2.5 text-[15px]" />
+          </label>
+          <button type="submit" disabled={!newTag.trim()} className="h-[44px] rounded-lg border border-[var(--cn-control-line)] bg-white px-4 text-[15px] font-bold disabled:text-[var(--cn-muted)]">
+            条件を足す
+          </button>
+          <span id="tag-add-hint" className="basis-full text-[14px] text-[var(--cn-ink-soft)]">
+            足した条件は、誰かに付けると残ります。誰にも付けないまま画面を離れると消えます。業務の種類の条件を変える画面はありません（候補の理由に効くのは「業務の条件」だけ）。
+          </span>
+          <p role="status" aria-live="polite" className="basis-full text-[14px] font-bold text-[var(--cn-ink)]">
+            {tagStatus}
+          </p>
+        </form>
+      </section>
+
       <BackupSection onToast={setToast} />
 
       <section aria-labelledby="s-paste" className="rounded-xl border border-[var(--cn-border)] bg-white p-4">
@@ -568,16 +694,19 @@ function Everyday({ onOwn, onSample }: { onOwn: () => void; onSample: () => void
       </section>
 
       <div className="fixed bottom-5 left-1/2 z-40 flex -translate-x-1/2 items-center gap-2">
+        {/* 読み上げ領域は常に置き、中身だけ出し入れする */}
+        <span role="status" aria-live="polite" className="contents">
         {toast && (
           <span className="flex items-center gap-3 rounded-xl bg-[var(--cn-ink)] px-4 py-2 text-[15px] text-white shadow-lg">
-            <span role="status">{toast}</span>
+            <span>{toast}</span>
             {lastUndo && !toast.startsWith("戻しました") && (
-              <button type="button" onClick={undo} className="h-[44px] rounded-lg border border-white px-3 font-bold">
+              <button type="button" onClick={undo} className="h-[44px] shrink-0 whitespace-nowrap rounded-lg border border-white px-3 font-bold">
                 元に戻す
               </button>
             )}
           </span>
         )}
+        </span>
       </div>
     </div>
   );
@@ -595,7 +724,15 @@ function SyncSection({ facilityName }: { facilityName: string }) {
   const [qr, setQr] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirmLeave, setConfirmLeave] = useState(false);
-  useEffect(() => setCode(readSyncCode()), []);
+  const [lastCode, setLastCode] = useState<string | null>(null);
+  useEffect(() => {
+    setCode(readSyncCode());
+    try {
+      setLastCode(window.localStorage.getItem("care-navi.last-sync-code"));
+    } catch {
+      // 読めなければ出さない
+    }
+  }, []);
   useEffect(() => {
     if (!code) {
       setQr(null);
@@ -645,6 +782,11 @@ function SyncSection({ facilityName }: { facilityName: string }) {
       // 消せなくても動く
     }
     writeSyncCode(null);
+    try {
+      window.localStorage.setItem("care-navi.last-sync-code", code);
+    } catch {
+      // 覚えられなくてもよい
+    }
     writeSetupNote("ほかの端末と同じ内容にするのをやめました。いまの内容はこの端末に残っています。ほかの端末の内容はそのままです。");
     window.location.assign("/setup");
   };
@@ -713,6 +855,11 @@ function SyncSection({ facilityName }: { facilityName: string }) {
   return (
     <div className="flex flex-col gap-3">
       <p className="text-[15px]">このブラウザだけに保存しています。ほかの端末（スマホなど）からも同じ時間割を見るには、同期を始めてコードを渡します。</p>
+      {lastCode && (
+        <p className="text-[14px] text-[var(--cn-ink-soft)]">
+          前に使っていた施設コード {lastCode} の端末とは別の、新しいコードを発行します（前のコードの端末どうしは、そのコードで続きます）。前の内容に合流したいときは、下の「参加」で前のコードを入れてください。
+        </p>
+      )}
       <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"

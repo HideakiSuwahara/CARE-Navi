@@ -51,10 +51,44 @@ test.describe("設定", () => {
     const full = page.getByRole("button", { name: /^フルネーム/ });
     await full.click();
     await expect(full).toHaveAttribute("aria-pressed", "true");
-    await expect(page.getByRole("status")).toContainText("フルネーム");
+    await expect(page.getByRole("status").filter({ hasText: "フルネーム" })).toBeVisible();
     await page.getByRole("button", { name: "元に戻す" }).first().click();
     await expect(page.getByRole("button", { name: /^部屋番号＋姓/ })).toHaveAttribute("aria-pressed", "true");
     await page.getByRole("button", { name: "しない" }).click();
     await expect(page.getByRole("button", { name: "しない" })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  test("職員の担当条件: 1 タップで付け外しでき、ボードの候補の理由に効く。元に戻せる", async ({ page }) => {
+    await page.getByRole("button", { name: "サンプル施設で試す" }).click();
+    await page.goto("/setup");
+    const list = page.getByRole("list", { name: "職員ごとの担当条件" });
+    const nakamura = list.getByRole("button", { name: "中村さんの入浴担当可", exact: true });
+    await expect(nakamura).toHaveAttribute("aria-pressed", "false");
+    await nakamura.click();
+    await expect(nakamura).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("status").filter({ hasText: "中村さんの担当条件に「入浴担当可」を付けました" })).toBeVisible();
+    // ほかの条件を足す → 誰かに付けるまでは選択肢として出るだけ
+    await page.getByLabel(/^ほかの条件を足す/).fill("喀痰吸引");
+    await page.getByRole("button", { name: "条件を足す" }).click();
+    await expect(page.getByText("「喀痰吸引」を足しました")).toBeVisible();
+    await expect(list.getByRole("button", { name: /^佐藤さんの喀痰吸引/ })).toHaveAttribute("aria-pressed", "false");
+    // 既にある条件は足さず、その旨を出す
+    await page.getByLabel(/^ほかの条件を足す/).fill("看護師");
+    await page.getByRole("button", { name: "条件を足す" }).click();
+    await expect(page.getByText("「看護師」はすでにあります")).toBeVisible();
+    // ボード: 入浴介助の候補で、中村さんの理由に「条件」が出なくなる
+    await page.goto("/board?now=10:12");
+    const card = page.locator("[data-task-id]").filter({ hasText: "入浴介助" }).filter({ hasText: "担当あと" }).first();
+    await card.getByRole("button", { name: /に担当を追加$/ }).click();
+    const panel = page.getByRole("dialog");
+    const folded = panel.getByRole("button", { name: /^ほかの人（注意/ });
+    if ((await folded.getAttribute("aria-expanded")) === "false") await folded.click();
+    const row = panel.getByRole("listitem").filter({ hasText: /^中村/ }).first();
+    await expect(row).toBeVisible();
+    await expect(row).not.toContainText("条件「入浴担当可」");
+    // 元に戻す（設定へ戻って）
+    await page.goto("/setup");
+    await page.getByRole("button", { name: "元に戻す" }).first().click();
+    await expect(page.getByRole("list", { name: "職員ごとの担当条件" }).getByRole("button", { name: "中村さんの入浴担当可", exact: true })).toHaveAttribute("aria-pressed", "false");
   });
 });

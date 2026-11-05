@@ -77,7 +77,7 @@ export function RoutineGrid({ state, groupId, flash = [] }: { state: State; grou
     if (events.length > 0) void engine.dispatch(events, label);
   };
 
-  // 日課を足す・標準の時刻を変える・外す（決定記録 0012）。業務表を直すので、次に時間割を作るときから入る
+  // 日課を足す・標準の時刻を変える・外す（決定記録 0013）。業務表を直すので、次に時間割を作るときから入る
   const decideRoutine = (r: RoutinePanelResult) => {
     if (!engine || !routinePanel) return;
     const later = "（次に時間割を作るときから入ります）";

@@ -77,6 +77,8 @@ export type EventBody =
       >;
     }
   | { type: "task.setTargets"; id: ID; residentIds: ID[] }
+  /** 「終わった」の印の付け外し（決定記録 0010）。誰が付けたかは actorId に残し、画面には出さない */
+  | { type: "task.done"; id: ID; done: boolean }
   | { type: "assignment.add"; assignment: Assignment }
   /** taskId/staffId は、同時に足した割当が別の id で届いたときの保険（id が無ければ同じ業務・同じ人の割当を外す） */
   | { type: "assignment.remove"; id: ID; taskId?: ID; staffId?: ID }

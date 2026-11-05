@@ -235,6 +235,11 @@ export interface TaskInstance {
   routineId?: string;
   /** 一括の枠の中で、標準と違う時刻の方の時刻（residentId → 開始の分）。詳細の対象者一覧に出す */
   targetTimes?: Record<ID, Minutes>;
+  /**
+   * 「終わった」の印（決定記録 0010）。担当の人かリーダーが 1 タップで付け外しする。
+   * 時刻が過ぎただけでは付かない。誰が付けたかは画面に出さない（イベントの actorId に残る）。
+   */
+  done?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -357,6 +362,8 @@ export interface SeedData {
   dayPatterns: { date: DateKey; patternId: ID }[];
   /** 利用者の24時間シート（省略可。省略した方は全員が標準どおり） */
   sheets?: ResidentSheet[];
+  /** サンプル用: その日の、この時刻までに終わる枠に「終わった」の印を付けておく（決定記録 0010。休憩・見守りには付けない） */
+  doneMarks?: { date: DateKey; endMinUpTo: Minutes }[];
 }
 
 // ---------------------------------------------------------------------------

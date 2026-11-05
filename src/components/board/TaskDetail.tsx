@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { assigneesOf, headcountStatus } from "@/domain/checks";
+import { assigneesOf, canMarkDone, headcountStatus } from "@/domain/checks";
 import { cancelTaskEvents, shiftTaskEvents, unassignEvents } from "@/domain/commands";
 import { sheetRowFor } from "@/domain/routine";
 import { clockLabel, fmtRange } from "@/domain/time";
 import type { ID, State } from "@/domain/types";
 import type { Engine } from "@/store/engine";
+import { DoneButton } from "@/components/DoneButton";
 
 /**
  * 業務の詳細（ボードでカードの名前を押すと右に開く）。
@@ -135,8 +136,9 @@ export function TaskDetail({
         {engine && (
           <section aria-labelledby="d-ops" className="flex flex-wrap items-center gap-2">
             <h3 id="d-ops" className="sr-only">
-              時刻と中止
+              終わった・時刻・中止
             </h3>
+            {canMarkDone(task) && <DoneButton task={task} />}
             <button type="button" onClick={() => shift(-30)} className="h-[44px] rounded-lg border border-[var(--cn-control-line)] px-3 text-[15px]">
               30分前へ
             </button>

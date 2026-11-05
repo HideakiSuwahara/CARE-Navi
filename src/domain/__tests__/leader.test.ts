@@ -131,7 +131,7 @@ test("付き添い: 一括の業務は対象の方から外す候補（既定は
   }
 });
 
-test("夜勤明け: 朝のリーダーには、前日の夜勤の業務のうちこれからのもの（朝食・申し送りなど）を時計の時刻で出す", async () => {
+test("夜勤明け: 朝のリーダーには、前日の夜勤帯の業務を全部（印の有無を確かめる）と、まだ続く日中の業務を時計の時刻で出す", async () => {
   const { overnightRows } = await import("../leader.ts");
   const s = state();
   // 11/4 の朝 7:00 に、11/3 の夜勤の業務が見える
@@ -140,9 +140,12 @@ test("夜勤明け: 朝のリーダーには、前日の夜勤の業務のうち
   assert.ok(rows.some((r) => r.label.startsWith("申し送り")));
   for (const r of rows) {
     assert.ok(r.task.date === DATE);
-    assert.ok(r.task.endMin > toMin(31));
+    // 夜勤帯（翌 0:00 以降に始まる）の枠は時刻が過ぎていても出す。日中の枠はいまより後に終わるものだけ
+    assert.ok(r.task.startMin >= 1440 || r.task.endMin > toMin(31));
     assert.doesNotMatch(r.timeText, /翌/);
   }
-  // 9:30 には何も残らない（申し送りは 翌8:30–9:00）
-  assert.equal(overnightRows(s, "2026-11-04", toMin(9, 30)).filter((r) => !r.isBreak).length, 0);
+  // 夜勤帯で時刻が過ぎて印の無い枠は「（時刻を過ぎました）」の対象（unfinished）
+  assert.ok(rows.some((r) => r.unfinished));
+  // 9:30 でも夜勤帯の枠は見える（朝のリーダーが夜の分を確かめる）が、前日の日中の枠は残らない
+  assert.equal(overnightRows(s, "2026-11-04", toMin(9, 30)).filter((r) => !r.isBreak && r.task.startMin < 1440).length, 0);
 });
