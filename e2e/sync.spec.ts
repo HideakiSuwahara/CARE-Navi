@@ -58,7 +58,7 @@ test.describe("同期（別端末）", () => {
     await pcPage.getByRole("button", { name: "この端末だけにする（同期をやめる）" }).click();
     await pcPage.getByRole("button", { name: "やめる", exact: true }).click();
     await pcPage.waitForURL(/\/setup/);
-    await expect(pcPage.getByRole("status")).toContainText("やめました", { timeout: 30_000 });
+    await expect(pcPage.getByRole("status").filter({ hasText: "やめました" })).toBeVisible({ timeout: 30_000 });
     await pcPage.goto("/board?now=10:12");
     const after = pcPage.locator("[data-task-id]").filter({ hasText: "リネン回収" }).first();
     await expect(after).toContainText("高橋");
