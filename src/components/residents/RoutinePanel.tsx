@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { defaultRoutineHeadcount, routineHeadcount, type Routine } from "@/domain/routine";
-import { alignToReference, alignToSheetDay, clockLabel, parseClockInput } from "@/domain/time";
+import { alignToReference, clockLabel, parseClockInput } from "@/domain/time";
 import type { ID, State } from "@/domain/types";
 
 export type RoutinePanelTarget =
@@ -45,6 +45,7 @@ export function RoutinePanel({
   const [endText, setEndText] = useState(editing ? clockLabel(editing.endMin) : "");
   const [endTouched, setEndTouched] = useState(Boolean(editing));
   const [error, setError] = useState<string | null>(null);
+  const [errorField, setErrorField] = useState<"template" | "start" | "end" | null>(null);
   const [confirmRemove, setConfirmRemove] = useState(false);
   // 必要人数（施設が決める予定値）。足すときは、同じ業務のいちばん近い日課の人数を既定にする（人が直したら触らない）
   const [headcount, setHeadcount] = useState<number>(editing ? (routineHeadcount(state, editing.routineId) ?? 1) : 1);
@@ -68,6 +69,19 @@ export function RoutinePanel({
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
+      // aria-modal なので、Tab をパネルの中にとどめる（Sheet と同じ）
+      if (e.key !== "Tab" || !panel.current) return;
+      const items = [...panel.current.querySelectorAll<HTMLElement>("button:not([disabled]), input:not([disabled]), select:not([disabled])")];
+      if (items.length === 0) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -78,7 +92,10 @@ export function RoutinePanel({
   const readStart = (text: string) => {
     const m = parseClockInput(text);
     if (m === null) return null;
-    return editing ? alignToReference(m, editing.startMin) : alignToSheetDay(m);
+    if (editing) return alignToReference(m, editing.startMin);
+    // ボードの一日（6:00〜翌6:00）に合わせる。6:00 より前は翌朝（夜勤の受け持ち）
+    const base = ((m % (24 * 60)) + 24 * 60) % (24 * 60);
+    return base < 6 * 60 ? base + 24 * 60 : base;
   };
   const readEnd = (text: string, start: number) => {
     const m = parseClockInput(text);
@@ -112,11 +129,15 @@ export function RoutinePanel({
   };
 
   const decide = () => {
-    if (!editing && !tpl) return setError("業務の種類を選んでください");
+    const fail = (field: "template" | "start" | "end", text: string) => {
+      setError(text);
+      setErrorField(field);
+    };
+    if (!editing && !tpl) return fail("template", "業務の種類を選んでください");
     const s = readStart(startText);
-    if (s === null) return setError("開始は 13:30 か 1330 のように入れてください");
+    if (s === null) return fail("start", "開始は 13:30 か 1330 のように入れてください");
     const e = readEnd(endText, s);
-    if (e === null || e <= s) return setError("終わりは開始より後の時刻を入れてください");
+    if (e === null || e <= s) return fail("end", "終わりは開始より後の時刻を入れてください");
     if (editing) onDecide({ kind: "retime", startMin: s, endMin: e, headcount });
     else onDecide({ kind: "add", templateId: tpl!.id, startMin: s, endMin: e, headcount, today: Boolean(todayLabel) && today });
   };
@@ -151,7 +172,14 @@ export function RoutinePanel({
           {!editing && (
             <label className="flex flex-col gap-1 text-[14px]">
               業務の種類
-              <select ref={first} value={templateId} onChange={(e) => onTemplate(e.target.value)} className={`${input} w-full`}>
+              <select
+                ref={first}
+                value={templateId}
+                onChange={(e) => onTemplate(e.target.value)}
+                aria-invalid={errorField === "template" || undefined}
+                aria-describedby={errorField === "template" ? "routine-panel-error" : undefined}
+                className={`${input} w-full`}
+              >
                 <option value="" disabled>
                   選ぶ
                 </option>
@@ -171,8 +199,8 @@ export function RoutinePanel({
                 value={startText}
                 placeholder="例: 13:30"
                 onChange={(e) => onStart(e.target.value)}
-                aria-invalid={error ? true : undefined}
-                aria-describedby={error ? "routine-panel-error" : undefined}
+                aria-invalid={errorField === "start" || undefined}
+                aria-describedby={errorField === "start" ? "routine-panel-error" : undefined}
                 className={`${input} w-[104px]`}
               />
             </label>
@@ -187,6 +215,8 @@ export function RoutinePanel({
                   setEndTouched(true);
                   setError(null);
                 }}
+                aria-invalid={errorField === "end" || undefined}
+                aria-describedby={errorField === "end" ? "routine-panel-error" : undefined}
                 className={`${input} w-[104px]`}
               />
             </label>
@@ -227,7 +257,7 @@ export function RoutinePanel({
             </label>
           )}
           {error && (
-            <p id="routine-panel-error" className="text-[14px] font-bold text-[var(--cn-unassigned-ink)]">
+            <p id="routine-panel-error" role="alert" className="text-[14px] font-bold text-[var(--cn-unassigned-ink)]">
               {error}
             </p>
           )}

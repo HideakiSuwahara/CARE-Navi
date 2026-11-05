@@ -898,5 +898,7 @@ export function withShortageNote(state: State, events: Event[], label: string): 
   const before = count(state);
   const now = count(after);
   if (now <= before || now === 0) return label;
-  return `${label}。担当が足りない枠がいま ${now}件（＋ から埋められます）`;
+  // ボードの見出しのバッジと同じ言い方で（「担当未定 3件・担当あと1人 5件」）
+  const parts = shortageGroups(after, day).map((g) => `${g.label} ${g.count}件`);
+  return `${label}。いま ${parts.join("・")}（＋ から埋められます）`;
 }

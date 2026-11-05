@@ -46,7 +46,7 @@ const SECTIONS: { title: string; items: { when: string; how: string; href?: stri
   {
     title: "データの備え",
     items: [
-      { when: "ブラウザのデータを消した・別の PC で開く", how: "保存はこのブラウザの中だけです。設定 →「データの備え」で、週に一度「この施設を書き出す（ファイル）」。戻すときは「ファイルから読み込む」。", href: "/setup", go: "設定を開く" },
+      { when: "ブラウザのデータを消した・別の PC で開く", how: "施設コードで同期していないときは、保存はこのブラウザの中だけです。設定 →「データの備え」で、週に一度「この施設を書き出す（ファイル）」。戻すときは「ファイルから読み込む」。", href: "/setup", go: "設定を開く" },
       { when: "スマホからも見る", how: "設定 →「ほかの端末からも見る（施設コード）」で施設コードを発行し、スマホで QR を読む。", href: "/setup", go: "設定を開く" },
     ],
   },
@@ -70,12 +70,18 @@ export function Help() {
               {sec.items.map((it) => (
                 <div key={it.when} className="flex flex-wrap items-center gap-x-4 gap-y-1 py-2.5">
                   <dt className="w-full font-bold sm:w-[15em] sm:shrink-0">{it.when}</dt>
-                  <dd className="min-w-0 flex-1">{it.how}</dd>
-                  {it.href && (
-                    <Link href={it.href} className="inline-flex h-[44px] shrink-0 items-center rounded-lg border border-[var(--cn-control-line)] bg-white px-3 text-[14px] font-bold">
-                      {it.go}
-                    </Link>
-                  )}
+                  <dd className="flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-1">
+                    <span className="min-w-0 flex-1">{it.how}</span>
+                    {it.href && (
+                      <Link
+                        href={it.href}
+                        aria-label={`${it.when}：${it.go}`}
+                        className="inline-flex h-[44px] shrink-0 items-center rounded-lg border border-[var(--cn-control-line)] bg-white px-3 text-[15px] font-bold"
+                      >
+                        {it.go}
+                      </Link>
+                    )}
+                  </dd>
                 </div>
               ))}
             </dl>

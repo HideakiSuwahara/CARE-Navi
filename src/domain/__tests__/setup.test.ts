@@ -137,3 +137,28 @@ test("自分の施設とサンプルの差をなくす: 入浴日に入浴の枠
   const su = applyEvents(emptyState(), unit.events);
   assert.ok(Object.values(su.roleSlots).some((r) => r.leaderRank !== undefined), "ユニットだけでもリーダーの番がある");
 });
+
+test("フロアが2つでも、同じ人を同じ時刻に2つの階の枠へ入れない（グループを持たない番・休憩でない共通の枠）", () => {
+  const res = buildOwnFacility({ name: "みどり荘", groupsText: "1階\n2階", residentsText: "", staffText: "" }, himawariSeed, deterministicContext("dup"));
+  const s = applyEvents(emptyState(), res.events);
+  const groupless = new Set(Object.values(s.roleSlots).filter((r) => !r.groupId).map((r) => r.id));
+  for (const p of Object.values(s.patterns)) {
+    // グループを持たない番が、同じ時刻に重なる 2 つの階の項目に付いていない
+    const items = p.items.filter((it) => it.slotIds.some((id) => groupless.has(id)) && s.groups[it.groupId ?? ""]?.kind === "floor");
+    for (const a of items)
+      for (const b of items) {
+        if (a === b || a.groupId === b.groupId) continue;
+        const shared = a.slotIds.filter((id) => groupless.has(id) && b.slotIds.includes(id));
+        assert.ok(shared.length === 0 || a.endMin <= b.startMin || b.endMin <= a.startMin, `${p.name}: ${s.templates[a.templateId]?.name} と ${s.templates[b.templateId]?.name}`);
+      }
+  }
+  // 休憩でない共通の枠は、1つのフロアの番だけ
+  const floors = Object.values(s.groups).filter((g) => g.kind === "floor");
+  const slotGroupOf = (id: string) => s.roleSlots[id]?.groupId;
+  for (const p of Object.values(s.patterns))
+    for (const it of p.items) {
+      if (s.groups[it.groupId ?? ""]?.kind !== "common" || s.templates[it.templateId]?.kind === "break") continue;
+      const gs = new Set(it.slotIds.map(slotGroupOf).filter((g) => g && floors.some((f) => f.id === g)));
+      assert.ok(gs.size <= 1, `${p.name}: ${s.templates[it.templateId]?.name}`);
+    }
+});

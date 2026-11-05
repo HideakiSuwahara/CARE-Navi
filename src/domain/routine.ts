@@ -267,7 +267,11 @@ function slotsNear(state: State, pattern: DayPattern, groupId: ID, startMin: Min
     const slots = it.slotIds.filter(onDuty);
     if (slots.length > 0) return slots;
   }
-  const covering = Object.keys(state.roleSlots).filter(onDuty);
+  // 近い日課がないときは、そのグループの番（グループを持たない番も）から。ほかの階の番には束ねない
+  const covering = Object.values(state.roleSlots)
+    .filter((s) => !s.groupId || s.groupId === groupId)
+    .map((s) => s.id)
+    .filter(onDuty);
   if (covering.length > 0) return covering;
   return near[0] ? [...near[0].slotIds] : [];
 }

@@ -179,15 +179,16 @@ export function buildOwnFacility(input: OwnFacilityInput, template: SeedData, ct
   }
   const slotGroup = new Map(template.roleSlots.map((x) => [x.id, x.groupId]));
   /** 業務表の項目の番を写す。グループ付きの番は、その項目のグループ（共通なら最初に当てはめたグループ）の番へ */
-  // 共通の項目（userGroup なし）は、その番を写したすべてのグループの番へ（2 つ目のフロアの人にも休憩・申し送りが付く）
-  const mapSlots = (ids: ID[], userGroup?: Group): ID[] => [
+  // 共通の休憩（all）は、その番を写したすべてのグループの番へ（2 つ目のフロアの人にも休憩が付く）。
+  // 休憩でない共通の項目（申し送り・記録入力など）は、最初のグループの番だけ（全フロアの人を一度に付けない）
+  const mapSlots = (ids: ID[], userGroup?: Group, all = false): ID[] => [
     ...new Set(
       ids
         .flatMap((sid) => {
           const sg = slotGroup.get(sid);
           if (!sg || sg === tplCommon?.id) return [sid];
           if (userGroup && srcOf.get(userGroup.id)?.id === sg) return [slotFor.get(`${sid}|${userGroup.id}`)];
-          if (userGroup) return [targetsOf(sg)[0] ? slotFor.get(`${sid}|${targetsOf(sg)[0].id}`) : undefined];
+          if (userGroup || !all) return [targetsOf(sg)[0] ? slotFor.get(`${sid}|${targetsOf(sg)[0].id}`) : undefined];
           return targetsOf(sg).map((g) => slotFor.get(`${sid}|${g.id}`));
         })
         .filter((x): x is ID => Boolean(x)),
@@ -204,13 +205,13 @@ export function buildOwnFacility(input: OwnFacilityInput, template: SeedData, ct
         s.leaderRank = i + 1;
       });
   }
-  /** 番が空になった項目: その時刻に勤務している最初のグループの番 */
-  const coveringSlots = (startMin: number, endMin: number): ID[] =>
-    roleSlots
-      .filter((s) => s.groupId === groups[0]?.id && s.defaultStartMin <= startMin && endMin <= s.defaultEndMin)
-      .map((s) => s.id);
-  const withSlots = <T extends { slotIds: ID[]; startMin: number; endMin: number }>(it: T, original: ID[]): T =>
-    it.slotIds.length === 0 && original.length > 0 ? { ...it, slotIds: coveringSlots(it.startMin, it.endMin) } : it;
+  /** 番が空になった項目: その項目のグループ（共通なら最初のグループ）で、その時刻に勤務している番 */
+  const coveringSlots = (groupId: ID | undefined, startMin: number, endMin: number): ID[] => {
+    const gid = groups.some((g) => g.id === groupId) ? groupId : groups[0]?.id;
+    return roleSlots.filter((s) => s.groupId === gid && s.defaultStartMin <= startMin && endMin <= s.defaultEndMin).map((s) => s.id);
+  };
+  const withSlots = <T extends { slotIds: ID[]; startMin: number; endMin: number; groupId?: ID }>(it: T, original: ID[]): T =>
+    it.slotIds.length === 0 && original.length > 0 ? { ...it, slotIds: coveringSlots(it.groupId, it.startMin, it.endMin) } : it;
 
   // 業務の種類: 雛形の施設に固有の文を外す
   const templates = template.templates.map((t) => {
@@ -237,15 +238,18 @@ export function buildOwnFacility(input: OwnFacilityInput, template: SeedData, ct
         }
       }
       if (!it.groupId || it.groupId === tplCommon?.id) {
-        return [withSlots({ ...it, groupId: it.groupId ? common.id : undefined, slotIds: mapSlots(it.slotIds) }, it.slotIds)];
+        const isBreak = template.templates.find((x) => x.id === it.templateId)?.kind === "break";
+        return [withSlots({ ...it, groupId: it.groupId ? common.id : undefined, slotIds: mapSlots(it.slotIds, undefined, isBreak) }, it.slotIds)];
       }
       const targets = targetsOf(it.groupId);
       // 同じ雛形を複数のグループに写すときは、日課の印もグループごとに分ける（1階の時刻を変えても2階は変わらない）
+      // グループを持たない番（介護助手・看護・スポット）は、最初のグループの写しにだけ付ける（同じ時刻に 2 つの階の枠へ入れない）
+      const groupless = (sid: ID) => !slotGroup.get(sid);
       return targets.map((g, i) => ({
         ...it,
         id: targets.length === 1 ? it.id : `${it.id}-${i + 1}`,
         groupId: g.id,
-        slotIds: mapSlots(it.slotIds, g),
+        slotIds: mapSlots(i === 0 ? it.slotIds : it.slotIds.filter((sid) => !groupless(sid)), g),
         ...(it.routineId && targets.length > 1 ? { routineId: `${it.routineId}-${i + 1}` } : {}),
       })).map((x) => withSlots(x, it.slotIds));
     }),

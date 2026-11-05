@@ -320,7 +320,7 @@ function OwnFacilityForm({ onCancel, onDone, isSample }: { onCancel: () => void;
       )}
       {result.skippedPersonal.length > 0 && (
         <p className="text-[14px] text-[var(--cn-ink-soft)]">
-          雛形のうち、対象の方を決めていた業務（{result.skippedPersonal.join("・")}）は入れません。利用者の画面の24時間シートから足せます。入浴は、入浴日の業務表にグループの全員で入れています（入らない方は利用者の一覧で「なし」に）。24時間シートは空から始まります。業務の種類の相談先・物品の場所も空にしています（困ったらは「いまのリーダー」が出ます）。
+          雛形のうち、対象の方を決めていた業務（{result.skippedPersonal.join("・")}）は入れません。利用者の画面の24時間シートから足せます。入浴は、入浴日の業務表にグループの全員で入れています（入らない方は利用者の一覧で「なし」に。曜日の組で入る方を分けることは、今はできません）。24時間シートは空から始まります。業務の種類の相談先・物品の場所も空にしています（困ったらは「いまのリーダー」が出ます）。
         </p>
       )}
       {tried > 0 && result.problems.length > 0 && (
@@ -376,6 +376,8 @@ function PasteNote({ count, unit, errors }: { count: number; unit: string; error
 function Everyday({ onOwn, onSample }: { onOwn: () => void; onSample: () => void }) {
   const { state } = useAppState();
   const engine = useEngine();
+  const ownFacility = Boolean(state.facility && state.facility.id !== himawariSeed.facility.id);
+  const [confirmSample, setConfirmSample] = useState(false);
   const lastUndo = useSyncExternalStore(
     (cb) => (engine ? engine.subscribe(cb) : () => {}),
     () => engine?.lastUndo ?? null,
@@ -526,13 +528,34 @@ function Everyday({ onOwn, onSample }: { onOwn: () => void; onSample: () => void
           はじめから
         </h3>
         <div className="flex flex-wrap gap-2">
-          <button type="button" onClick={onSample} className="h-[44px] rounded-lg border border-[var(--cn-control-line)] bg-white px-4">
+          <button
+            type="button"
+            onClick={() => (ownFacility ? setConfirmSample(true) : onSample())}
+            aria-expanded={ownFacility ? confirmSample : undefined}
+            className="h-[44px] rounded-lg border border-[var(--cn-control-line)] bg-white px-4"
+          >
             サンプル施設で試す
           </button>
           <button type="button" onClick={onOwn} className="h-[44px] rounded-lg border border-[var(--cn-control-line)] bg-white px-4">
             自分の施設で始める
           </button>
         </div>
+        {/* 自分の施設の内容があるときは、消えることを確かめてから（元に戻すでは戻らない） */}
+        {confirmSample && (
+          <div role="alert" className="mt-3 flex flex-col gap-2 rounded-lg border-2 border-[var(--cn-alert-line)] bg-white p-3">
+            <p>
+              いまの施設（{state.facility?.name}）の内容は、このブラウザから消えます。元に戻すでは戻りません。先に上の「データの備え」で書き出しておけば、あとで読み込めます。
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" onClick={onSample} className="h-[44px] rounded-lg border border-[var(--cn-ink)] bg-white px-4 font-bold">
+                消してサンプル施設にする
+              </button>
+              <button type="button" onClick={() => setConfirmSample(false)} className="h-[44px] rounded-lg border border-[var(--cn-control-line)] bg-white px-4">
+                やめる
+              </button>
+            </div>
+          </div>
+        )}
       </section>
 
       <div className="fixed bottom-5 left-1/2 z-40 flex -translate-x-1/2 items-center gap-2">
@@ -822,7 +845,7 @@ function BackupSection({ onToast }: { onToast: (text: string) => void }) {
     a.download = `ケアナビ_${engine.state.facility?.name ?? "施設"}_${stamp}.json`;
     a.click();
     URL.revokeObjectURL(a.href);
-    onToast(`書き出しました（${events.length}件の操作）。USB や共有フォルダに置いておくと、消えたときに戻せます`);
+    onToast(`書き出しました（${events.length}件の操作）。施設の決まりに沿った場所に置いておくと、消えたときに戻せます`);
   };
   const pick = async (file: File | undefined) => {
     setError(null);
@@ -851,7 +874,10 @@ function BackupSection({ onToast }: { onToast: (text: string) => void }) {
         データの備え（書き出し・読み込み）
       </h3>
       <p className="mb-2 text-[14px] text-[var(--cn-ink-soft)]">
-        保存はこのブラウザの中だけです。ブラウザのデータを消したり、別の PC で開いたりすると、はじめの画面に戻ります。週に一度、書き出しておくと、読み込んで同じ内容に戻せます。
+        {sync
+          ? "施設コードで同期しています。書き出したファイルは、手元の控えです。"
+          : "保存はこのブラウザの中だけです。ブラウザのデータを消したり、別の PC で開いたりすると、はじめの画面に戻ります。週に一度、書き出しておくと、読み込んで同じ内容に戻せます。"}
+        ファイルには利用者様・職員のお名前が入っています。施設の決まりに沿って保管してください。
       </p>
       <div className="flex flex-wrap items-center gap-2">
         <button type="button" onClick={download} className="h-[44px] rounded-lg bg-[var(--cn-accent)] px-4 font-bold text-white">
@@ -860,9 +886,18 @@ function BackupSection({ onToast }: { onToast: (text: string) => void }) {
         {sync ? (
           <span className="text-[14px] text-[var(--cn-ink-soft)]">施設コードで同期しているあいだは読み込めません（ほかの端末の内容も置き換わるため）。</span>
         ) : (
-          <label className="inline-flex h-[44px] cursor-pointer items-center rounded-lg border border-[var(--cn-control-line)] bg-white px-4">
+          <label className="inline-flex h-[44px] cursor-pointer items-center rounded-lg border border-[var(--cn-control-line)] bg-white px-4 focus-within:outline focus-within:outline-[3px] focus-within:outline-offset-2 focus-within:outline-[var(--cn-accent)]">
             ファイルから読み込む
-            <input type="file" accept="application/json,.json" className="sr-only" onChange={(e) => void pick(e.target.files?.[0])} />
+            <input
+              type="file"
+              accept="application/json,.json"
+              className="sr-only"
+              onChange={(e) => {
+                void pick(e.target.files?.[0]);
+                // 同じファイルを選び直せるように
+                e.target.value = "";
+              }}
+            />
           </label>
         )}
       </div>

@@ -532,3 +532,13 @@ test("時間割を作ったあとで今日来る人を足すと、その番の�
   assert.equal(s2.roster["ro-watanabe"].absent, false);
   assert.equal(headcountStatus(s2, findTask(s2, "リネン回収").id).label, "OK");
 });
+
+test("今日来る人を足す: いまより前に終わった枠には入れず、初回の印を付けられる（ループ1）", async () => {
+  const { addTodayPersonEvents } = await import("../pattern.ts");
+  const base = miniState();
+  // リネン回収は 10:30–11:00。11:30 に足すと入らない
+  const late = addTodayPersonEvents(base, DATE, "s-watanabe", "slot-helper", deterministicContext("late"), { nowMin: toMin(11, 30), firstTimer: true });
+  const s2 = applyEvents(base, late);
+  assert.equal(headcountStatus(s2, findTask(s2, "リネン回収").id).label, "担当未定");
+  assert.equal(s2.roster["ro-watanabe"].firstTimer, true);
+});

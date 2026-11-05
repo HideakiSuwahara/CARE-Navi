@@ -79,7 +79,8 @@ export function MorningBand({ state, date }: { state: State; date: DateKey }) {
         )}
         {draft.source === "recent" && (
           <p className="mt-1 text-[15px] text-[var(--cn-ink-soft)]">
-            {shortDate(draft.fromDate ?? date)}と同じ番で並べました（前の日に夜勤だった人は明けなので休み）。勤務表と違うところだけ直してください。
+            {shortDate(draft.fromDate ?? date)}と同じ番で並べました。勤務表と違うところだけ直してください。
+            {draft.afterNight && draft.afterNight.length > 0 && "前の日に夜勤だった人は明けなので休みにしています。今日の夜勤の番は、来る人を選び直してください。"}
           </p>
         )}
         {draft.source === "none" && (

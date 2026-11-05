@@ -12,7 +12,7 @@ import { boardColumns, paletteRows } from "@/domain/layout";
 import { shortageGroups } from "@/domain/checks";
 import { calendarDateOf, fmtMin, fmtRange } from "@/domain/time";
 import { updatedAtLabel } from "@/domain/display";
-import { addDays, addTodayPersonEvents } from "@/domain/pattern";
+import { addDays, addTodayPersonEvents, isFirstTimeDefault } from "@/domain/pattern";
 import { TaskCard } from "./TaskCard";
 import { MorningBand } from "./MorningBand";
 import { AbsenceFlow, EscortFlow, withShortageNote } from "@/components/me/AllView";
@@ -165,14 +165,29 @@ export function Board({ date: dateParam }: { date?: string }) {
   // 操作のあとのお知らせ（トースト）。8秒で消えるが「元に戻す」はツールバーに残る
   const [toast, setToast] = useState<string | null>(null);
   // 欠勤・早退／付き添い・外出（スマホの全体と同じ流れを PC でも開く。グリル U3）
-  const [flow, setFlow] = useState<"absence" | "escort" | null>(null);
+  const [flow, setFlowState] = useState<"absence" | "escort" | null>(null);
+  // 閉じたら、開いたボタンへフォーカスを戻す（Sheet は戻さない）
+  const flowOpener = useRef<HTMLElement | null>(null);
+  const setFlow = useCallback((f: "absence" | "escort" | null) => {
+    if (f) {
+      flowOpener.current = document.activeElement as HTMLElement | null;
+      setFlowState(f);
+      return;
+    }
+    setFlowState(null);
+    const el = flowOpener.current;
+    window.setTimeout(() => {
+      if (el && document.contains(el)) el.focus();
+      else document.getElementById("board-title")?.focus();
+    }, 0);
+  }, []);
   const applyFlow = useCallback(
     async (events: Event[], label: string) => {
       if (!engine || events.length === 0) return;
       await engine.dispatch(events, withShortageNote(engine.state, events, label));
       setFlow(null);
     },
-    [engine],
+    [engine, setFlow],
   );
   // 業務の詳細（カードの名前を押すと開く）
   // ドラッグで止めたときのお知らせ（元に戻すものはないので、ボタンなし）
@@ -324,10 +339,10 @@ export function Board({ date: dateParam }: { date?: string }) {
         )}
         {hasTasks && (
           <div className="flex items-center gap-2">
-            <button type="button" onClick={() => setFlow("absence")} className="inline-flex h-[44px] items-center rounded-lg border border-[var(--cn-control-line)] bg-white px-3.5 text-[14px] font-bold">
+            <button type="button" onClick={() => setFlow("absence")} className="inline-flex h-[44px] items-center rounded-lg border border-[var(--cn-control-line)] bg-white px-3.5 text-[15px] font-bold">
               欠勤・早退
             </button>
-            <button type="button" onClick={() => setFlow("escort")} className="inline-flex h-[44px] items-center rounded-lg border border-[var(--cn-control-line)] bg-white px-3.5 text-[14px] font-bold">
+            <button type="button" onClick={() => setFlow("escort")} className="inline-flex h-[44px] items-center rounded-lg border border-[var(--cn-control-line)] bg-white px-3.5 text-[15px] font-bold">
               付き添い・外出
             </button>
           </div>
@@ -497,7 +512,7 @@ export function Board({ date: dateParam }: { date?: string }) {
             <p className="mt-2 text-[13px] text-[var(--cn-muted)]">名前をカードへ動かすと担当になります。カードの名前をここへ戻すと外れます。</p>
           </div>
           </DropZone>
-          <AddTodayPerson state={state} date={date} />
+          <AddTodayPerson state={state} date={date} now={now} />
           {palette.off.length > 0 && (
             <section aria-labelledby="off-title" className="rounded-xl border border-[var(--cn-border)] bg-white p-3.5">
               <h2 id="off-title" className="font-bold">休み</h2>
@@ -576,7 +591,7 @@ function PaletteStaff({ staffId, later, children }: { staffId: string; later: bo
 
 /** 日付と、前の日／次の日／今日への移動（ボードの上部バー） */
 function DateNav({ date, today }: { date: string; today: string | null }) {
-  const link = "inline-flex h-[44px] items-center rounded-lg px-2.5 text-[14px] text-[var(--cn-ink-soft)] hover:bg-[var(--cn-ground)]";
+  const link = "inline-flex h-[44px] items-center rounded-lg px-2.5 text-[15px] text-[var(--cn-ink-soft)] hover:bg-[var(--cn-ground)]";
   const href = (d: string) => (d === today ? "/board" : `/board?date=${d}`);
   const prev = addDays(date, -1);
   const next = addDays(date, 1);
@@ -604,30 +619,41 @@ function DateNav({ date, today }: { date: string; today: string | null }) {
  * 時間割を作ったあとで「今日来る人を足す」（グリル U2）。名前と番を選ぶ →「この内容で決定」。
  * その番の業務のうち、勤務時間の中で担当が足りない枠に入る。1 回で元に戻せる。
  */
-function AddTodayPerson({ state, date }: { state: State; date: string }) {
+function AddTodayPerson({ state, date, now }: { state: State; date: string; now: number | null }) {
   const engine = useEngine();
-  const [open, setOpen] = useState(false);
+  const [open, setOpenState] = useState(false);
+  const opener = useRef<HTMLButtonElement>(null);
+  // 閉じたら「＋ 今日来る人を足す」へフォーカスを戻す
+  const setOpen = (v: boolean) => {
+    setOpenState(v);
+    if (!v) window.setTimeout(() => opener.current?.focus(), 0);
+  };
   const [staffId, setStaffId] = useState("");
   const [slotId, setSlotId] = useState("");
+  // 初回の印（応援・スポットで初めて来た人。既定は職種がスポットで初めての人）
+  const [first, setFirst] = useState<boolean | null>(null);
+  const firstTimer = first ?? (staffId ? isFirstTimeDefault(state, staffId, date) : false);
   const working = new Set(Object.values(state.roster).filter((e) => e.date === date && !e.absent).map((e) => e.staffId));
   const candidates = Object.values(state.staff).filter((s) => !working.has(s.id));
   const slots = Object.values(state.roleSlots).sort((a, b) => a.sortOrder - b.sortOrder);
   if (candidates.length === 0) return null;
   const decide = async () => {
     if (!engine || !staffId || !slotId) return;
-    const events = addTodayPersonEvents(engine.state, date, staffId, slotId, engine.context());
+    const events = addTodayPersonEvents(engine.state, date, staffId, slotId, engine.context(), { nowMin: now ?? undefined, firstTimer });
     const name = state.staff[staffId]?.surname ?? "";
-    const n = events.filter((e) => e.type === "assignment.add").length;
-    await engine.dispatch(events, `${name}さんを${state.roleSlots[slotId]?.name ?? ""}で足しました${n > 0 ? `（${n}件の担当）` : ""}`);
+    // 人の名前の横に件数を出さない（原則 5）
+    const any = events.some((e) => e.type === "assignment.add");
+    await engine.dispatch(events, `${name}さんを${state.roleSlots[slotId]?.name ?? ""}で足しました${any ? "。その番の、決めた人数に届いていない枠に入れました" : ""}`);
     setOpen(false);
     setStaffId("");
     setSlotId("");
+    setFirst(null);
   };
   const select = "h-[44px] w-full rounded-lg border border-[var(--cn-control-line)] bg-white px-2 text-[15px]";
   return (
     <section aria-label="今日来る人を足す" className="rounded-xl border border-dashed border-[var(--cn-muted)] bg-white p-3">
       {!open ? (
-        <button type="button" onClick={() => setOpen(true)} className="h-[44px] w-full text-left text-[15px]">
+        <button ref={opener} type="button" onClick={() => setOpen(true)} className="h-[44px] w-full text-left text-[15px]">
           ＋ 今日来る人を足す
         </button>
       ) : (
@@ -652,7 +678,11 @@ function AddTodayPerson({ state, date }: { state: State; date: string }) {
               </option>
             ))}
           </select>
-          <p className="text-[13px] text-[var(--cn-muted)]">その番の業務で、担当が足りない枠に入ります。</p>
+          <label className="flex min-h-[44px] items-center gap-2 text-[15px]">
+            <input type="checkbox" className="h-5 w-5" checked={firstTimer} onChange={(e) => setFirst(e.target.checked)} />
+            初回（はじめて来た人）
+          </label>
+          <p className="text-[14px] text-[var(--cn-muted)]">その番の業務のうち、決めた人数に届いていない枠と休憩に入ります（いまより前に終わった枠には入りません）。</p>
           <div className="flex gap-2">
             <button type="button" onClick={decide} disabled={!staffId || !slotId} className="h-[44px] flex-1 rounded-lg bg-[var(--cn-accent)] font-bold text-white disabled:opacity-50">
               この内容で決定

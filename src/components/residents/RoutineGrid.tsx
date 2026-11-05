@@ -27,7 +27,19 @@ export function RoutineGrid({ state, groupId, flash = [] }: { state: State; grou
   const residents = useMemo(() => residentsOfGroup(state, groupId), [state, groupId]);
   const [selected, setSelected] = useState<Set<ID>>(new Set());
   const [panel, setPanel] = useState<CellTarget | null>(null);
-  const [routinePanel, setRoutinePanel] = useState<RoutinePanelTarget | null>(null);
+  const [routinePanel, setRoutinePanelState] = useState<RoutinePanelTarget | null>(null);
+  // 閉じたら、開いたボタン（＋ 日課を足す／標準）へフォーカスを戻す
+  const routineOpener = useRef<HTMLElement | null>(null);
+  const setRoutinePanel = (t: RoutinePanelTarget | null) => {
+    if (t) routineOpener.current = document.activeElement as HTMLElement | null;
+    setRoutinePanelState(t);
+    if (!t) {
+      const el = routineOpener.current;
+      window.setTimeout(() => {
+        if (el && document.contains(el)) el.focus();
+      }, 0);
+    }
+  };
   // 今日（ボードと同じ業務日）。時間割がもうできていれば、足した日課を今日にも入れられる
   const today = useDefaultDate(state, "business") ?? SAMPLE_DATE;
   const todayMade = tasksForDate(state, today).length > 0;

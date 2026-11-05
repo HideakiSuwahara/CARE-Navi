@@ -282,6 +282,8 @@ export interface MorningDraft {
   source: "today" | "lastWeek" | "recent" | "none";
   /** lastWeek / recent のとき、写した日 */
   fromDate?: DateKey;
+  /** recent で、前の日に夜勤だったので休みにした人 */
+  afterNight?: ID[];
 }
 
 /**
@@ -363,19 +365,21 @@ export function morningDraft(state: State, date: DateKey, newId: () => ID): Morn
  * - 前の日に夜勤（翌日にかかる勤務）だった人は、今日は明けなので休みで並べる。
  * - スポット・初回の人は写さない。その日の名簿にいない職員は休みで足す（貼り付けで足した人も並ぶ）。
  */
-function recentDraft(state: State, date: DateKey, newId: () => ID): Pick<MorningDraft, "entries" | "source" | "fromDate"> | null {
+function recentDraft(state: State, date: DateKey, newId: () => ID): Pick<MorningDraft, "entries" | "source" | "fromDate" | "afterNight"> | null {
   for (let back = 1; back <= 6; back++) {
     const from = addDays(date, -back);
     const prev = rosterForDate(state, from);
     if (prev.length === 0) continue;
     const entries: RosterEntry[] = [];
     const listed = new Set<ID>();
+    const afterNightIds: ID[] = [];
     for (const e of prev) {
       const staff = state.staff[e.staffId];
       if (!staff || staff.role === "スポット" || e.firstTimer || listed.has(e.staffId)) continue;
       listed.add(e.staffId);
       const slot = e.slotId ? state.roleSlots[e.slotId] : undefined;
       const afterNight = back === 1 && !e.absent && e.endMin > 24 * 60;
+      if (afterNight) afterNightIds.push(e.staffId);
       entries.push({
         id: newId(),
         date,
@@ -405,7 +409,7 @@ function recentDraft(state: State, date: DateKey, newId: () => ID): Pick<Morning
     // 出勤の人を先に、番の並び順で
     const order = (e: RosterEntry) => (e.absent ? 1000 : 0) + (e.slotId ? (state.roleSlots[e.slotId]?.sortOrder ?? 999) : 999);
     entries.sort((a, b) => order(a) - order(b));
-    return { entries, source: "recent", fromDate: from };
+    return { entries, source: "recent", fromDate: from, afterNight: afterNightIds };
   }
   return null;
 }
@@ -450,19 +454,28 @@ export function createDayEvents(state: State, draft: MorningDraft, ctx: EventCon
  * 時間割を作ったあとで「今日来る人を足す」（決定記録 0012・グリル U2）。
  * 出勤者に足し、その番の業務のうち、勤務時間の中で担当が足りない枠（休憩はその番の全員）に入る。1 バッチ。
  */
-export function addTodayPersonEvents(state: State, date: DateKey, staffId: ID, slotId: ID, ctx: EventContext): Event[] {
+export function addTodayPersonEvents(
+  state: State,
+  date: DateKey,
+  staffId: ID,
+  slotId: ID,
+  ctx: EventContext,
+  opts: { nowMin?: number; firstTimer?: boolean } = {},
+): Event[] {
   const staff = state.staff[staffId];
   const slot = state.roleSlots[slotId];
   if (!staff || !slot) return [];
   const existing = rosterForDate(state, date).find((e) => e.staffId === staffId);
+  // 同じ番で勤務時間を直してあれば（短時間の人など）、その時間を残す
+  const keepTimes = existing && existing.slotId === slotId;
   const entry: RosterEntry = {
     id: existing?.id ?? ctx.newId(),
     date,
     staffId,
     slotId,
-    startMin: slot.defaultStartMin,
-    endMin: slot.defaultEndMin,
-    firstTimer: existing?.firstTimer ?? isFirstTimeDefault(state, staffId, date),
+    startMin: keepTimes ? existing.startMin : slot.defaultStartMin,
+    endMin: keepTimes ? existing.endMin : slot.defaultEndMin,
+    firstTimer: opts.firstTimer ?? existing?.firstTimer ?? isFirstTimeDefault(state, staffId, date),
     absent: false,
   };
   const events: Event[] = [{ ...metaOf(ctx), type: "roster.upsert", entry }];
@@ -470,6 +483,8 @@ export function addTodayPersonEvents(state: State, date: DateKey, staffId: ID, s
   for (const t of tasksForDate(state, date)) {
     if (!t.slotIds.includes(slotId)) continue;
     if (t.startMin < entry.startMin || t.endMin > entry.endMin) continue;
+    // いまより前に終わった枠には入れない
+    if (opts.nowMin !== undefined && t.endMin <= opts.nowMin) continue;
     const mine = assigned(t.id);
     if (mine.some((a) => a.staffId === staffId)) continue;
     if (t.kind !== "break" && mine.length >= t.headcount) continue;

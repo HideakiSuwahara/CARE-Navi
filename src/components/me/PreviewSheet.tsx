@@ -81,7 +81,9 @@ export function PreviewSheet({
         <h3 id="pv-lines" className="mb-1.5 text-[14px] font-bold text-[var(--cn-muted)]">
           変わること
         </h3>
-        <p className="mb-1.5 text-[14px] text-[var(--cn-ink-soft)]">チェックのある行を行います。外すとその行はしません。「候補」の行は、チェックを入れると行います。</p>
+        {lines.some((l) => l.optional && l.eventIds.length > 0) && (
+          <p className="mb-1.5 text-[14px] text-[var(--cn-ink-soft)]">チェックのある行を行います。外すとその行はしません。「候補」の行は、チェックを入れると行います。</p>
+        )}
         <ul className="flex flex-col divide-y divide-[var(--cn-grid)] rounded-xl border border-[var(--cn-border)] bg-white">
           {lines.map((l, i) => {
             const on = l.eventIds.every((id) => !unchecked.has(id));
