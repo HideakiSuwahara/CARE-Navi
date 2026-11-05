@@ -273,3 +273,42 @@ export function settingsEvent(state: State, patch: Partial<Pick<FacilitySettings
   if (!f) return null;
   return { ...metaOf(ctx), type: "facility.set", facility: { ...f, settings: { ...f.settings, ...patch } } };
 }
+
+/**
+ * 担当条件の一覧（設定の「職員の担当条件」の選択肢）。
+ * 業務の種類が使う条件を先に、職員が持っているその他の条件を後ろに。重複なし
+ */
+export function conditionTags(state: State): string[] {
+  const out: string[] = [];
+  const push = (t: string) => {
+    if (t && !out.includes(t)) out.push(t);
+  };
+  for (const tpl of Object.values(state.templates)) for (const t of tpl.requiredTags) push(t);
+  for (const st of Object.values(state.staff)) for (const t of st.tags) push(t);
+  return out;
+}
+
+/** 業務の種類が条件として使っているか（使っていない条件は「ほかの条件」として出す） */
+export function usedByTemplates(state: State, tag: string): boolean {
+  return Object.values(state.templates).some((tpl) => tpl.requiredTags.includes(tag));
+}
+
+/**
+ * 職員の担当条件を付ける／外す（設定の「職員の担当条件」）。1 イベント 1 バッチ。元に戻せる。
+ * 等級や経験は持たない。施設が決めた条件を、その人が持っているかどうかだけ（CLAUDE.md §3: 区分はラベル、可否は条件）
+ */
+export function setStaffTagEvents(state: State, staffId: ID, tag: string, on: boolean, ctx: EventContext): Event[] {
+  const st = state.staff[staffId];
+  const t = tag.trim();
+  if (!st || !t) return [];
+  const has = st.tags.includes(t);
+  if (has === on) return [];
+  const tags = on ? [...st.tags, t] : st.tags.filter((x) => x !== t);
+  return [{ ...metaOf(ctx), type: "staff.upsert", staff: { ...st, tags } }];
+}
+
+/** トーストの文 */
+export function staffTagLabel(state: State, staffId: ID, tag: string, on: boolean): string {
+  const name = state.staff[staffId]?.surname ?? "";
+  return on ? `${name}さんの担当条件に「${tag}」を付けました` : `${name}さんの担当条件から「${tag}」を外しました`;
+}

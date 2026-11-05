@@ -102,3 +102,34 @@ test("職員の貼り付け: 見出し行は飛ばす。区切りがない行・
   assert.match(r.errors.find((e) => e.line === 2)!.reason, /数字/);
   assert.match(r.errors.find((e) => e.line === 3)!.reason, /区切り/);
 });
+
+test("職員の担当条件: 業務の種類が使う条件が先に並び、付ける／外すは 1 イベントで元に戻せる。等級は持たない", async () => {
+  const { conditionTags, setStaffTagEvents, staffTagLabel, usedByTemplates } = await import("../setup.ts");
+  const { applyEvents, invertBatch } = await import("../reducer.ts");
+  const { himawariSeed } = await import("../seed/index.ts");
+  const { deterministicContext, stateFromSeed } = await import("../loadSeed.ts");
+  const s = stateFromSeed(himawariSeed, deterministicContext("t"));
+  const tags = conditionTags(s);
+  assert.deepEqual(tags.slice(0, 2), ["入浴担当可", "看護師"]);
+  assert.ok(tags.includes("介護福祉士"));
+  assert.equal(usedByTemplates(s, "入浴担当可"), true);
+  assert.equal(usedByTemplates(s, "介護福祉士"), false);
+  const nakamura = Object.values(s.staff).find((x) => x.surname === "中村")!;
+  assert.ok(!nakamura.tags.includes("入浴担当可"));
+  const ctx = deterministicContext("u", "2026-11-05T10:00:00+09:00", "b-tag");
+  const evs = setStaffTagEvents(s, nakamura.id, "入浴担当可", true, ctx);
+  assert.equal(evs.length, 1);
+  const s2 = applyEvents(s, evs);
+  assert.ok(s2.staff[nakamura.id].tags.includes("入浴担当可"));
+  assert.equal(staffTagLabel(s, nakamura.id, "入浴担当可", true), "中村さんの担当条件に「入浴担当可」を付けました");
+  // 既に持っている／持っていないときは何もしない。空の条件も付けない
+  assert.equal(setStaffTagEvents(s2, nakamura.id, "入浴担当可", true, ctx).length, 0);
+  assert.equal(setStaffTagEvents(s, nakamura.id, "入浴担当可", false, ctx).length, 0);
+  assert.equal(setStaffTagEvents(s, nakamura.id, "  ", true, ctx).length, 0);
+  // 元に戻す
+  const s3 = applyEvents(s2, invertBatch(evs.map((event) => ({ event, before: s })), "b-tag"));
+  assert.deepEqual(s3.staff[nakamura.id].tags, nakamura.tags);
+  // 外す
+  const s4 = applyEvents(s2, setStaffTagEvents(s2, nakamura.id, "入浴担当可", false, deterministicContext("v", "2026-11-05T10:01:00+09:00", "b-tag2")));
+  assert.deepEqual(s4.staff[nakamura.id].tags, nakamura.tags);
+});

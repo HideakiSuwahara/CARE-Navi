@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { TopBar } from "@/components/TopBar";
 import { residentLabel } from "@/domain/display";
 import { himawariSeed } from "@/domain/seed";
-import { buildOwnFacility, parseStaffPaste, settingsEvent, staffEvents } from "@/domain/setup";
+import { buildOwnFacility, conditionTags, parseStaffPaste, setStaffTagEvents, settingsEvent, staffEvents, staffTagLabel, usedByTemplates } from "@/domain/setup";
 import type { ResidentDisplayMode } from "@/domain/types";
 import { useAppState, useEngine, useSyncStatus } from "@/store/react";
 import { SETUP_NOTE_KEY } from "./setupNote";
@@ -383,6 +383,9 @@ function Everyday({ onOwn, onSample }: { onOwn: () => void; onSample: () => void
   );
   const [toast, setToast] = useState<string | null>(null);
   const [staffText, setStaffText] = useState("");
+  // 職員の担当条件: 「ほかの条件を足す」の入力と、まだ誰にも付いていない追加の条件
+  const [newTag, setNewTag] = useState("");
+  const [extraTags, setExtraTags] = useState<string[]>([]);
   useEffect(() => {
     const note = readSetupNote();
     if (note) setToast(note);
@@ -424,6 +427,27 @@ function Everyday({ onOwn, onSample }: { onOwn: () => void; onSample: () => void
     if (!ev) return;
     await engine.dispatch([ev], label);
     setToast(label);
+  };
+
+  // 職員の担当条件（付ける／外す。1 タップ、元に戻せる）
+  const tags = [...conditionTags(state), ...extraTags.filter((t) => !conditionTags(state).includes(t))];
+  const staffRows = Object.values(state.staff).sort((a, b) => a.surname.localeCompare(b.surname, "ja"));
+  const toggleTag = async (staffId: string, tag: string, on: boolean) => {
+    if (!engine) return;
+    const evs = setStaffTagEvents(engine.state, staffId, tag, on, engine.context());
+    if (evs.length === 0) return;
+    const label = staffTagLabel(engine.state, staffId, tag, on);
+    await engine.dispatch(evs, label);
+    setToast(label);
+  };
+  const addTag = () => {
+    const t = newTag.trim();
+    if (!t || tags.includes(t)) {
+      setNewTag("");
+      return;
+    }
+    setExtraTags((prev) => [...prev, t]);
+    setNewTag("");
   };
 
   const staffPaste = parseStaffPaste(state, staffText);
@@ -496,6 +520,65 @@ function Everyday({ onOwn, onSample }: { onOwn: () => void; onSample: () => void
             しない
           </button>
         </div>
+      </section>
+
+      <section aria-labelledby="s-tags" className="rounded-xl border border-[var(--cn-border)] bg-white p-4">
+        <h3 id="s-tags" className="mb-1 text-[16px] font-bold">
+          職員の担当条件
+        </h3>
+        <p className="mb-2 text-[14px] text-[var(--cn-ink-soft)]">
+          業務の種類が条件にしているもの（{tags.filter((t) => usedByTemplates(state, t)).join("・") || "なし"}）を、その人が持っているかどうか。条件を満たさない人も担当にできます（「注意」として理由が出ます）。等級や評価ではありません。
+        </p>
+        {staffRows.length === 0 ? (
+          <p className="text-[15px]">職員がまだいません。下の「名簿の貼り付け」から足せます。</p>
+        ) : (
+          <ul aria-label="職員ごとの担当条件" className="flex flex-col divide-y divide-[var(--cn-grid)]">
+            {staffRows.map((st) => (
+              <li key={st.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2">
+                <span className="w-[140px] shrink-0">
+                  <span className="font-bold">{st.surname}</span>
+                  <span className="ml-1 text-[14px] text-[var(--cn-ink-soft)]">{st.role}</span>
+                </span>
+                <span className="flex flex-wrap gap-1.5">
+                  {tags.map((t) => {
+                    const on = st.tags.includes(t);
+                    return (
+                      <button
+                        key={t}
+                        type="button"
+                        aria-pressed={on}
+                        aria-label={`${st.surname}さん: ${t}`}
+                        onClick={() => toggleTag(st.id, t, !on)}
+                        className={`inline-flex h-[44px] items-center gap-1 rounded-lg border px-3 text-[15px] ${
+                          on ? "border-2 border-[var(--cn-accent)] bg-[var(--cn-accent-soft)] font-bold text-[var(--cn-accent)]" : "border-[var(--cn-control-line)] bg-white text-[var(--cn-ink)]"
+                        }`}
+                      >
+                        <span aria-hidden="true">{on ? "✓" : "□"}</span>
+                        {t}
+                      </button>
+                    );
+                  })}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+        <form
+          className="mt-3 flex flex-wrap items-end gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            addTag();
+          }}
+        >
+          <label className="flex flex-col gap-1 text-[14px]">
+            <span>ほかの条件を足す（例: 喀痰吸引）</span>
+            <input value={newTag} onChange={(e) => setNewTag(e.target.value)} className="h-[44px] w-[220px] rounded-lg border border-[var(--cn-control-line)] px-2.5 text-[15px]" />
+          </label>
+          <button type="submit" disabled={!newTag.trim()} className="h-[44px] rounded-lg border border-[var(--cn-control-line)] bg-white px-4 text-[15px] font-bold disabled:text-[var(--cn-muted)]">
+            条件を足す
+          </button>
+          <span className="text-[14px] text-[var(--cn-muted)]">足した条件は、誰かに付けると残ります。</span>
+        </form>
       </section>
 
       <section aria-labelledby="s-paste" className="rounded-xl border border-[var(--cn-border)] bg-white p-4">
