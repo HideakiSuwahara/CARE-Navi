@@ -179,15 +179,38 @@ export function buildOwnFacility(input: OwnFacilityInput, template: SeedData, ct
   }
   const slotGroup = new Map(template.roleSlots.map((x) => [x.id, x.groupId]));
   /** 業務表の項目の番を写す。グループ付きの番は、その項目のグループ（共通なら最初に当てはめたグループ）の番へ */
-  const mapSlots = (ids: ID[], userGroup?: Group): ID[] =>
-    ids
-      .map((sid) => {
-        const sg = slotGroup.get(sid);
-        if (!sg || sg === tplCommon?.id) return sid;
-        const g = userGroup && srcOf.get(userGroup.id)?.id === sg ? userGroup : targetsOf(sg)[0];
-        return g ? slotFor.get(`${sid}|${g.id}`) : undefined;
-      })
-      .filter((x): x is ID => Boolean(x));
+  // 共通の項目（userGroup なし）は、その番を写したすべてのグループの番へ（2 つ目のフロアの人にも休憩・申し送りが付く）
+  const mapSlots = (ids: ID[], userGroup?: Group): ID[] => [
+    ...new Set(
+      ids
+        .flatMap((sid) => {
+          const sg = slotGroup.get(sid);
+          if (!sg || sg === tplCommon?.id) return [sid];
+          if (userGroup && srcOf.get(userGroup.id)?.id === sg) return [slotFor.get(`${sid}|${userGroup.id}`)];
+          if (userGroup) return [targetsOf(sg)[0] ? slotFor.get(`${sid}|${targetsOf(sg)[0].id}`) : undefined];
+          return targetsOf(sg).map((g) => slotFor.get(`${sid}|${g.id}`));
+        })
+        .filter((x): x is ID => Boolean(x)),
+    ),
+  ];
+
+  // リーダーの番: 写した番に一つもなければ、最初のグループの番に勤務の始まりが早い順で付ける（困ったらの帯が同じ形で出る）
+  if (groups.length > 0 && !roleSlots.some((s) => s.leaderRank !== undefined)) {
+    roleSlots
+      .filter((s) => s.groupId === groups[0].id)
+      .sort((a, b) => a.defaultStartMin - b.defaultStartMin)
+      .slice(0, 3)
+      .forEach((s, i) => {
+        s.leaderRank = i + 1;
+      });
+  }
+  /** 番が空になった項目: その時刻に勤務している最初のグループの番 */
+  const coveringSlots = (startMin: number, endMin: number): ID[] =>
+    roleSlots
+      .filter((s) => s.groupId === groups[0]?.id && s.defaultStartMin <= startMin && endMin <= s.defaultEndMin)
+      .map((s) => s.id);
+  const withSlots = <T extends { slotIds: ID[]; startMin: number; endMin: number }>(it: T, original: ID[]): T =>
+    it.slotIds.length === 0 && original.length > 0 ? { ...it, slotIds: coveringSlots(it.startMin, it.endMin) } : it;
 
   // 業務の種類: 雛形の施設に固有の文を外す
   const templates = template.templates.map((t) => {
@@ -201,14 +224,20 @@ export function buildOwnFacility(input: OwnFacilityInput, template: SeedData, ct
   const skipped = new Set<string>();
   const patterns = template.patterns.map((p) => ({
     ...p,
-    items: p.items.flatMap((it) => {
+    items: p.items.flatMap((orig) => {
+      let it = orig;
       if (it.targetRule === "residents") {
         const tpl = template.templates.find((x) => x.id === it.templateId);
-        if (tpl) skipped.add(tpl.name);
-        return [];
+        // 一括の入浴は、グループの全員を対象にした日課として写す（入浴日に入浴の枠がある。入らない方は一覧で「なし」）
+        if (tpl && tpl.targetMode === "group" && /入浴/.test(tpl.name) && it.groupId && it.groupId !== tplCommon?.id) {
+          it = { ...it, targetRule: "allInGroup", residentIds: undefined, routineId: it.routineId ?? `rt-${it.id}` };
+        } else {
+          if (tpl) skipped.add(tpl.name);
+          return [];
+        }
       }
       if (!it.groupId || it.groupId === tplCommon?.id) {
-        return [{ ...it, groupId: it.groupId ? common.id : undefined, slotIds: mapSlots(it.slotIds) }];
+        return [withSlots({ ...it, groupId: it.groupId ? common.id : undefined, slotIds: mapSlots(it.slotIds) }, it.slotIds)];
       }
       const targets = targetsOf(it.groupId);
       // 同じ雛形を複数のグループに写すときは、日課の印もグループごとに分ける（1階の時刻を変えても2階は変わらない）
@@ -218,7 +247,7 @@ export function buildOwnFacility(input: OwnFacilityInput, template: SeedData, ct
         groupId: g.id,
         slotIds: mapSlots(it.slotIds, g),
         ...(it.routineId && targets.length > 1 ? { routineId: `${it.routineId}-${i + 1}` } : {}),
-      }));
+      })).map((x) => withSlots(x, it.slotIds));
     }),
   }));
 

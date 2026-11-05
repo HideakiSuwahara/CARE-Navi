@@ -11,7 +11,8 @@
 
 import type { DateKey, DayPattern, DayPatternItem, ID, Minutes, ResidentSheet, SheetRow, State } from "./types.ts";
 import type { Event } from "./events.ts";
-import { metaOf, type EventContext } from "./pattern.ts";
+import { metaOf, staffForSlots, taskFromPatternItem, type EventContext } from "./pattern.ts";
+import { rosterForDate, tasksForDate } from "./checks.ts";
 import { clockSortKey } from "./time.ts";
 
 export interface Routine {
@@ -358,6 +359,35 @@ export function removeRoutineEvents(state: State, routine: Pick<Routine, "routin
     if (groupId && state.residents[sheet.residentId]?.groupId !== groupId) continue;
     if (!sheet.rows.some((r) => r.routineId === routineId)) continue;
     events.push({ ...metaOf(ctx), type: "sheet.upsert", sheet: { ...sheet, rows: sheet.rows.filter((r) => r.routineId !== routineId) } });
+  }
+  return events;
+}
+
+/**
+ * 足した日課を、もうできている日の時間割にも入れる（グリル U5）。
+ * その日の業務表の項目から、グループの全員（なしの方を除く）を対象にした一括の枠を 1 枚作り、
+ * 業務表から作るときと同じく、番のその日の出勤者（勤務時間の中）を担当にする。すでにその日課の枠があれば何もしない。
+ */
+export function addRoutineToDayEvents(state: State, date: DateKey, routineId: string, groupId: ID, ctx: EventContext): Event[] {
+  if (tasksForDate(state, date).length === 0) return [];
+  if (tasksForDate(state, date, true).some((t) => t.routineId === routineId && t.groupId === groupId)) return [];
+  const applied = state.days[date]?.appliedPatternId;
+  const patterns = [state.patterns[applied ?? ""], ...Object.values(state.patterns)].filter(Boolean) as DayPattern[];
+  const item = patterns.map((p) => p.items.find((it) => it.routineId === routineId && it.groupId === groupId)).find(Boolean);
+  if (!item) return [];
+  const task = taskFromPatternItem(state, date, item, ctx.newId());
+  if (!task) return [];
+  const residents = Object.values(state.residents)
+    .filter((r) => r.groupId === groupId)
+    .sort((a, b) => a.room.localeCompare(b.room, "ja"))
+    .map((r) => r.id)
+    .filter((rid) => !sheetRowFor(state, rid, routineId)?.skip);
+  const events: Event[] = [{ ...metaOf(ctx), type: "task.add", task: { ...task, routineId }, residentIds: residents }];
+  const roster = rosterForDate(state, date);
+  for (const staffId of staffForSlots(state, date, item.slotIds)) {
+    const e = roster.find((r) => r.staffId === staffId);
+    if (!e || e.startMin > task.startMin || e.endMin < task.endMin) continue;
+    events.push({ ...metaOf(ctx), type: "assignment.add", assignment: { id: ctx.newId(), taskId: task.id, staffId } });
   }
   return events;
 }

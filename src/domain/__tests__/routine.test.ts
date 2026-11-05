@@ -230,3 +230,21 @@ test("日課を足す・標準の時刻を変える・やめる（決定記録 0
   assert.equal(routinesOf(back, "g-east").some((r) => r.routineId === "rt-wake-east"), true);
   assert.equal(back.sheets["r-101"]?.rows[0]?.startMin, toMin(8, 30));
 });
+
+test("足した日課を、もうできている今日の時間割にも入れる（グリル U5）。2回目は何もしない", async () => {
+  const { addRoutineEvents, addRoutineToDayEvents } = await import("../routine.ts");
+  const s0 = stateOf(routineSeed([{ residentId: "r-102", rows: [{ id: "x", routineId: "rt-new", skip: true }] }]));
+  const made = applyEvents(s0, applyPatternEvents(s0, DATE, "p-day", deterministicContext("ap")));
+  const add = addRoutineEvents(made, { templateId: "t-wake", groupId: "g-east", startMin: toMin(13, 30), endMin: toMin(14) }, deterministicContext("add"));
+  const s1 = applyEvents(made, add);
+  const rt = routinesOf(s1, "g-east").find((r) => r.startMin === toMin(13, 30))!;
+  const today = addRoutineToDayEvents(s1, DATE, rt.routineId, "g-east", deterministicContext("today"));
+  const s2 = applyEvents(s1, today);
+  const t = tasksForDate(s2, DATE).find((x) => x.routineId === rt.routineId);
+  assert.ok(t, "今日の時間割に枠ができる");
+  assert.equal(fmtRange(t!.startMin, t!.endMin), "13:30–14:00");
+  assert.ok((s2.targets[t!.id] ?? []).length > 0, "グループの方が対象");
+  assert.ok(Object.values(s2.assignments).some((a) => a.taskId === t!.id), "番のその日の出勤者が担当");
+  assert.equal(addRoutineToDayEvents(s2, DATE, rt.routineId, "g-east", deterministicContext("again")).length, 0);
+  assert.equal(addRoutineToDayEvents(s1, "2026-11-20", rt.routineId, "g-east", deterministicContext("empty")).length, 0, "時間割のない日は何もしない");
+});

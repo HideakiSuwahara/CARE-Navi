@@ -4,13 +4,14 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { useAppState } from "@/store/react";
 
-export type TopBarPage = "board" | "residents" | "review" | "setup";
+export type TopBarPage = "board" | "residents" | "review" | "setup" | "help";
 
 const NAV: { id: TopBarPage; href: string; label: string }[] = [
   { id: "board", href: "/board", label: "ボード" },
   { id: "residents", href: "/residents", label: "利用者" },
   { id: "review", href: "/review", label: "業務の見直し" },
   { id: "setup", href: "/setup", label: "設定" },
+  { id: "help", href: "/help", label: "使い方" },
 ];
 
 /** PC の上部バー（1段）。施設名・主な画面のナビ・右側の情報 */

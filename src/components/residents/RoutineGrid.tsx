@@ -1,8 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useEngine } from "@/store/react";
-import { addRoutineEvents, removeRoutineEvents, retimeRoutineEvents, ROUTINE_BANDS, routinesInBand, routinesOf, sheetRowFor, type Routine, type RoutineBand } from "@/domain/routine";
+import { useDefaultDate, useEngine } from "@/store/react";
+import { SAMPLE_DATE } from "@/store/sample";
+import { applyEvents } from "@/domain/reducer";
+import { tasksForDate } from "@/domain/checks";
+import { addRoutineEvents, addRoutineToDayEvents, removeRoutineEvents, retimeRoutineEvents, ROUTINE_BANDS, routinesInBand, routinesOf, sheetRowFor, type Routine, type RoutineBand } from "@/domain/routine";
 import { residentsOfGroup, routineChangeEvents, routineGridCsvRows, type RoutineChange } from "@/domain/residentsIO";
 import { clockLabel } from "@/domain/time";
 import type { ID, State } from "@/domain/types";
@@ -25,6 +28,10 @@ export function RoutineGrid({ state, groupId, flash = [] }: { state: State; grou
   const [selected, setSelected] = useState<Set<ID>>(new Set());
   const [panel, setPanel] = useState<CellTarget | null>(null);
   const [routinePanel, setRoutinePanel] = useState<RoutinePanelTarget | null>(null);
+  // 今日（ボードと同じ業務日）。時間割がもうできていれば、足した日課を今日にも入れられる
+  const today = useDefaultDate(state, "business") ?? SAMPLE_DATE;
+  const todayMade = tasksForDate(state, today).length > 0;
+  const todayLabel = todayMade ? `${Number(today.slice(5, 7))}/${Number(today.slice(8, 10))}` : undefined;
   const groupName = state.groups[groupId]?.name ?? "";
   const chosen = residents.filter((r) => selected.has(r.id));
   const allChecked = residents.length > 0 && chosen.length === residents.length;
@@ -65,8 +72,14 @@ export function RoutineGrid({ state, groupId, flash = [] }: { state: State; grou
     let events: Event[] = [];
     let label = "";
     if (r.kind === "add") {
-      events = addRoutineEvents(engine.state, { templateId: r.templateId, groupId, startMin: r.startMin, endMin: r.endMin, headcount: r.headcount }, engine.context());
-      label = `${groupName}に「${state.templates[r.templateId]?.name ?? ""} ${clockLabel(r.startMin)}」を足しました${later}`;
+      const ctx = engine.context();
+      events = addRoutineEvents(engine.state, { templateId: r.templateId, groupId, startMin: r.startMin, endMin: r.endMin, headcount: r.headcount }, ctx);
+      const added = events.flatMap((e) => (e.type === "pattern.upsert" ? e.pattern.items : [])).find((it) => it.startMin === r.startMin && it.templateId === r.templateId)?.routineId;
+      const todayEvents = r.today && added ? addRoutineToDayEvents(applyEvents(engine.state, events), today, added, groupId, ctx) : [];
+      events = [...events, ...todayEvents];
+      label = `${groupName}に「${state.templates[r.templateId]?.name ?? ""} ${clockLabel(r.startMin)}」を足しました${
+        todayEvents.length > 0 ? `（今日 ${todayLabel} の時間割にも入れました）` : later
+      }`;
       // 足した時間帯が見えるように「すべて」に戻す
       setBand("all");
     } else if (routinePanel.mode === "edit") {
@@ -261,7 +274,7 @@ export function RoutineGrid({ state, groupId, flash = [] }: { state: State; grou
         </table>
       </div>
       {routinePanel && (
-        <RoutinePanel state={state} groupId={groupId} groupName={groupName} target={routinePanel} onDecide={decideRoutine} onClose={() => setRoutinePanel(null)} />
+        <RoutinePanel state={state} groupId={groupId} groupName={groupName} todayLabel={todayLabel} target={routinePanel} onDecide={decideRoutine} onClose={() => setRoutinePanel(null)} />
       )}
       {panel && <CellPanel key={`${panel.routine.routineId}-${panel.residentIds.join(",")}`} target={panel} onDecide={decide} onClose={() => setPanel(null)} />}
     </section>

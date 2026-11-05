@@ -10,7 +10,7 @@ export type RoutinePanelTarget =
   | { mode: "edit"; routine: Routine; anchor: DOMRect };
 
 export type RoutinePanelResult =
-  | { kind: "add"; templateId: ID; startMin: number; endMin: number; headcount: number }
+  | { kind: "add"; templateId: ID; startMin: number; endMin: number; headcount: number; today: boolean }
   | { kind: "retime"; startMin: number; endMin: number; headcount: number }
   | { kind: "remove" };
 
@@ -23,12 +23,15 @@ export function RoutinePanel({
   groupId,
   groupName,
   target,
+  todayLabel,
   onDecide,
   onClose,
 }: {
   state: State;
   groupId: ID;
   groupName: string;
+  /** 今日の時間割がもうできていれば、その日付（「11/5」）。足すときに今日にも入れるかを選べる */
+  todayLabel?: string;
   target: RoutinePanelTarget;
   onDecide: (r: RoutinePanelResult) => void;
   onClose: () => void;
@@ -46,6 +49,7 @@ export function RoutinePanel({
   // 必要人数（施設が決める予定値）。足すときは、同じ業務のいちばん近い日課の人数を既定にする（人が直したら触らない）
   const [headcount, setHeadcount] = useState<number>(editing ? (routineHeadcount(state, editing.routineId) ?? 1) : 1);
   const [headcountTouched, setHeadcountTouched] = useState(Boolean(editing));
+  const [today, setToday] = useState(true);
   const first = useRef<HTMLSelectElement & HTMLInputElement>(null);
   const panel = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState({ top: target.anchor.bottom + 4, left: target.anchor.left });
@@ -114,7 +118,7 @@ export function RoutinePanel({
     const e = readEnd(endText, s);
     if (e === null || e <= s) return setError("終わりは開始より後の時刻を入れてください");
     if (editing) onDecide({ kind: "retime", startMin: s, endMin: e, headcount });
-    else onDecide({ kind: "add", templateId: tpl!.id, startMin: s, endMin: e, headcount });
+    else onDecide({ kind: "add", templateId: tpl!.id, startMin: s, endMin: e, headcount, today: Boolean(todayLabel) && today });
   };
 
   const input = "h-[44px] rounded-lg border border-[var(--cn-control-line)] bg-white px-2 text-[16px]";
@@ -216,6 +220,12 @@ export function RoutinePanel({
               ＋
             </button>
           </div>
+          {!editing && todayLabel && (
+            <label className="flex min-h-[44px] items-center gap-2 text-[15px]">
+              <input type="checkbox" className="h-5 w-5" checked={today} onChange={(e) => setToday(e.target.checked)} />
+              今日（{todayLabel}）の時間割にも入れる
+            </label>
+          )}
           {error && (
             <p id="routine-panel-error" className="text-[14px] font-bold text-[var(--cn-unassigned-ink)]">
               {error}

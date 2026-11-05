@@ -320,7 +320,7 @@ function OwnFacilityForm({ onCancel, onDone, isSample }: { onCancel: () => void;
       )}
       {result.skippedPersonal.length > 0 && (
         <p className="text-[14px] text-[var(--cn-ink-soft)]">
-          雛形のうち、対象の方を決めていた業務（{result.skippedPersonal.join("・")}）は入れません。利用者の画面の24時間シートから足せます。業務の種類の相談先・物品の場所も空にしています（困ったらは「いまのリーダー」が出ます）。
+          雛形のうち、対象の方を決めていた業務（{result.skippedPersonal.join("・")}）は入れません。利用者の画面の24時間シートから足せます。入浴は、入浴日の業務表にグループの全員で入れています（入らない方は利用者の一覧で「なし」に）。24時間シートは空から始まります。業務の種類の相談先・物品の場所も空にしています（困ったらは「いまのリーダー」が出ます）。
         </p>
       )}
       {tried > 0 && result.problems.length > 0 && (
@@ -429,7 +429,7 @@ function Everyday({ onOwn, onSample }: { onOwn: () => void; onSample: () => void
   const staffPaste = parseStaffPaste(state, staffText);
   const addStaff = async () => {
     if (!engine || staffPaste.staff.length === 0) return;
-    const label = `職員 ${staffPaste.staff.length}人を足しました（今日来るなら、ボードの「今日来る人を足す」から）`;
+    const label = `職員 ${staffPaste.staff.length}人を足しました（今日来るなら、ボードの右の「＋ 今日来る人を足す」から）`;
     await engine.dispatch(staffEvents(staffPaste.staff, engine.context()), label);
     setStaffText("");
     setToast(label);
@@ -497,6 +497,8 @@ function Everyday({ onOwn, onSample }: { onOwn: () => void; onSample: () => void
           </button>
         </div>
       </section>
+
+      <BackupSection onToast={setToast} />
 
       <section aria-labelledby="s-paste" className="rounded-xl border border-[var(--cn-border)] bg-white p-4">
         <h3 id="s-paste" className="mb-1 text-[16px] font-bold">
@@ -797,5 +799,93 @@ export function SyncEmpty() {
         この端末だけにする（同期をやめる）
       </button>
     </div>
+  );
+}
+
+/**
+ * データの備え（グリル U9）。保存はこのブラウザの中だけなので、ファイルに書き出しておき、
+ * 消えたとき・別の PC で始めるときに読み込む。中身はイベント列（JSON）。読み込みは今の内容と置き換える。
+ */
+function BackupSection({ onToast }: { onToast: (text: string) => void }) {
+  const engine = useEngine();
+  const [pending, setPending] = useState<{ name: string; events: Event[] } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const sync = engine?.storeKind === "sync";
+  const download = async () => {
+    if (!engine) return;
+    const events = await engine.exportEvents();
+    const d = new Date();
+    const stamp = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
+    const blob = new Blob([JSON.stringify({ app: "care-navi", version: 1, exportedAt: d.toISOString(), events })], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `ケアナビ_${engine.state.facility?.name ?? "施設"}_${stamp}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    onToast(`書き出しました（${events.length}件の操作）。USB や共有フォルダに置いておくと、消えたときに戻せます`);
+  };
+  const pick = async (file: File | undefined) => {
+    setError(null);
+    if (!file) return;
+    try {
+      const data = JSON.parse(await file.text());
+      const events: Event[] = Array.isArray(data) ? data : data?.events;
+      if (!Array.isArray(events) || events.length === 0 || !events.every((e) => e && typeof e.type === "string" && typeof e.eventId === "string")) {
+        setError("ケアナビで書き出したファイルではないようです。書き出したときのファイル（.json）を選んでください。");
+        return;
+      }
+      setPending({ name: file.name, events });
+    } catch {
+      setError("ファイルを読めませんでした。書き出したときのファイル（.json）を選んでください。");
+    }
+  };
+  const restore = async () => {
+    if (!engine || !pending) return;
+    await engine.reset(pending.events);
+    setPending(null);
+    onToast(`読み込みました（${pending.name}）。ボードで今日を確かめてください`);
+  };
+  return (
+    <section aria-labelledby="s-backup" className="rounded-xl border border-[var(--cn-border)] bg-white p-4">
+      <h3 id="s-backup" className="mb-1 text-[16px] font-bold">
+        データの備え（書き出し・読み込み）
+      </h3>
+      <p className="mb-2 text-[14px] text-[var(--cn-ink-soft)]">
+        保存はこのブラウザの中だけです。ブラウザのデータを消したり、別の PC で開いたりすると、はじめの画面に戻ります。週に一度、書き出しておくと、読み込んで同じ内容に戻せます。
+      </p>
+      <div className="flex flex-wrap items-center gap-2">
+        <button type="button" onClick={download} className="h-[44px] rounded-lg bg-[var(--cn-accent)] px-4 font-bold text-white">
+          この施設を書き出す（ファイル）
+        </button>
+        {sync ? (
+          <span className="text-[14px] text-[var(--cn-ink-soft)]">施設コードで同期しているあいだは読み込めません（ほかの端末の内容も置き換わるため）。</span>
+        ) : (
+          <label className="inline-flex h-[44px] cursor-pointer items-center rounded-lg border border-[var(--cn-control-line)] bg-white px-4">
+            ファイルから読み込む
+            <input type="file" accept="application/json,.json" className="sr-only" onChange={(e) => void pick(e.target.files?.[0])} />
+          </label>
+        )}
+      </div>
+      {error && (
+        <p role="alert" className="mt-2 text-[14px] font-bold text-[var(--cn-unassigned-ink)]">
+          {error}
+        </p>
+      )}
+      {pending && (
+        <div role="alert" className="mt-3 flex flex-col gap-2 rounded-lg border-2 border-[var(--cn-alert-line)] p-3">
+          <p>
+            「{pending.name}」（{pending.events.length}件の操作）を読み込むと、いまのこのブラウザの内容と置き換わります。よろしいですか。
+          </p>
+          <div className="flex gap-2">
+            <button type="button" onClick={restore} className="h-[44px] rounded-lg border border-[var(--cn-ink)] bg-white px-4 font-bold">
+              置き換えて読み込む
+            </button>
+            <button type="button" onClick={() => setPending(null)} className="h-[44px] rounded-lg border border-[var(--cn-control-line)] bg-white px-4">
+              やめる
+            </button>
+          </div>
+        </div>
+      )}
+    </section>
   );
 }

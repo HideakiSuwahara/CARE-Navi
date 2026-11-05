@@ -300,8 +300,8 @@ export function morningDraft(state: State, date: DateKey, newId: () => ID): Morn
     const recent = recentDraft(state, date, newId);
     if (recent) return { date, patternId, ...recent };
     // はじめての日: 職員を全員「休み」で並べる。番は職種の言葉がある番（看護・介護助手・スポット）だけ仮に入れ、ほかは人が選ぶ
+    // 貼り付けた順（登録順）に並べる。紙の勤務表と上から照らせるように
     const entries = Object.values(state.staff)
-      .sort((a, b) => a.displayName.localeCompare(b.displayName, "ja"))
       .map((staff) => {
         const slot = suggestSlot(state, staff.role);
         return {
@@ -317,12 +317,14 @@ export function morningDraft(state: State, date: DateKey, newId: () => ID): Morn
       });
     return { date, patternId, entries, source: "none" };
   }
-  const entries = prev
+  const listed = new Set<ID>();
+  const entries: RosterEntry[] = prev
     .filter((e) => {
       const staff = state.staff[e.staffId];
       return staff && staff.role !== "スポット" && !e.firstTimer;
     })
     .map((e) => {
+      listed.add(e.staffId);
       const slot = e.slotId ? state.roleSlots[e.slotId] : undefined;
       return {
         id: newId(),
@@ -332,10 +334,26 @@ export function morningDraft(state: State, date: DateKey, newId: () => ID): Morn
         startMin: slot?.defaultStartMin ?? e.startMin,
         endMin: slot?.defaultEndMin ?? e.endMin,
         firstTimer: false,
-        absent: false,
+        // 休みの印は引き継がない（受け入れ L35）。ただし番のない人は休みのまま（番のない出勤を作らない。グリル U1）
+        absent: !e.slotId,
         carriedFrom: lastWeek,
       };
     });
+  // 先週の名簿にいない職員（あとから足した人）は休みで並べる
+  for (const staff of Object.values(state.staff)) {
+    if (listed.has(staff.id) || staff.role === "スポット") continue;
+    const slot = suggestSlot(state, staff.role);
+    entries.push({
+      id: newId(),
+      date,
+      staffId: staff.id,
+      slotId: slot?.id,
+      startMin: slot?.defaultStartMin ?? 9 * 60,
+      endMin: slot?.defaultEndMin ?? 18 * 60,
+      firstTimer: isFirstTimeDefault(state, staff.id, date),
+      absent: true,
+    });
+  }
   return { date, patternId, entries, source: "lastWeek", fromDate: lastWeek };
 }
 
@@ -426,4 +444,36 @@ export function createDayEvents(state: State, draft: MorningDraft, ctx: EventCon
   let s = state;
   for (const ev of events) s = reduceOne(s, ev);
   return [...events, ...applyPatternEvents(s, draft.date, draft.patternId, ctx)];
+}
+
+/**
+ * 時間割を作ったあとで「今日来る人を足す」（決定記録 0012・グリル U2）。
+ * 出勤者に足し、その番の業務のうち、勤務時間の中で担当が足りない枠（休憩はその番の全員）に入る。1 バッチ。
+ */
+export function addTodayPersonEvents(state: State, date: DateKey, staffId: ID, slotId: ID, ctx: EventContext): Event[] {
+  const staff = state.staff[staffId];
+  const slot = state.roleSlots[slotId];
+  if (!staff || !slot) return [];
+  const existing = rosterForDate(state, date).find((e) => e.staffId === staffId);
+  const entry: RosterEntry = {
+    id: existing?.id ?? ctx.newId(),
+    date,
+    staffId,
+    slotId,
+    startMin: slot.defaultStartMin,
+    endMin: slot.defaultEndMin,
+    firstTimer: existing?.firstTimer ?? isFirstTimeDefault(state, staffId, date),
+    absent: false,
+  };
+  const events: Event[] = [{ ...metaOf(ctx), type: "roster.upsert", entry }];
+  const assigned = (taskId: ID) => Object.values(state.assignments).filter((a) => a.taskId === taskId);
+  for (const t of tasksForDate(state, date)) {
+    if (!t.slotIds.includes(slotId)) continue;
+    if (t.startMin < entry.startMin || t.endMin > entry.endMin) continue;
+    const mine = assigned(t.id);
+    if (mine.some((a) => a.staffId === staffId)) continue;
+    if (t.kind !== "break" && mine.length >= t.headcount) continue;
+    events.push({ ...metaOf(ctx), type: "assignment.add", assignment: { id: ctx.newId(), taskId: t.id, staffId } });
+  }
+  return events;
 }

@@ -117,3 +117,23 @@ test("自分の施設で始める: フロアが2つなら日課はフロアご�
   assert.equal(routinesOf(s2, g1.id)[0].startMin, first.startMin + 30);
   assert.equal(routinesOf(s2, g2.id)[0].startMin, first.startMin, "2階はそのまま");
 });
+
+test("自分の施設とサンプルの差をなくす: 入浴日に入浴の枠、2つ目のフロアにも休憩、ユニットだけでもリーダーの番、番が空の項目なし", async () => {
+  const { routinesOf } = await import("../routine.ts");
+  const res = buildOwnFacility({ name: "みどり荘", groupsText: "1階\n2階\nあおばユニット", residentsText: "", staffText: "" }, himawariSeed, deterministicContext("par"));
+  const s = applyEvents(emptyState(), res.events);
+  const floors = Object.values(s.groups).filter((g) => g.kind === "floor").sort((a, b) => a.sortOrder - b.sortOrder);
+  const bathDay = Object.values(s.patterns).find((p) => p.name.includes("入浴"))!;
+  for (const g of floors) {
+    assert.ok(bathDay.items.some((it) => it.groupId === g.id && s.templates[it.templateId]?.name === "入浴介助" && it.routineId), `${g.name}に入浴の日課`);
+    assert.ok(routinesOf(s, g.id).some((r) => r.name === "入浴介助"), "一覧の列にも出る");
+  }
+  const second = new Set(Object.values(s.roleSlots).filter((r) => r.groupId === floors[1].id).map((r) => r.id));
+  const breaks = Object.values(s.patterns).flatMap((p) => p.items).filter((it) => s.templates[it.templateId]?.kind === "break");
+  assert.ok(breaks.some((it) => it.slotIds.some((id) => second.has(id))), "2つ目のフロアの番にも休憩");
+  for (const p of Object.values(s.patterns)) for (const it of p.items) assert.ok(it.slotIds.length > 0, `${p.name} ${s.templates[it.templateId]?.name} に番がある`);
+
+  const unit = buildOwnFacility({ name: "ユニット荘", groupsText: "あおばユニット", residentsText: "", staffText: "" }, himawariSeed, deterministicContext("unit"));
+  const su = applyEvents(emptyState(), unit.events);
+  assert.ok(Object.values(su.roleSlots).some((r) => r.leaderRank !== undefined), "ユニットだけでもリーダーの番がある");
+});
