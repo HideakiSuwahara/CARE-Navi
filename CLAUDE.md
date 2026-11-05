@@ -39,7 +39,7 @@
 6. **製品内で AI を使わない。** 判断・配置・適性は人。
 7. **言わないことは言わない。** 個人名は出さない。設計思想は本プロジェクトのものとして語る。創作した「現場の声」は使わない。
 8. **D&D は職員チップの割当だけ。** 時刻変更はメニュー。
-9. **機能凍結 11/6（金）正午。** 以降は修正・レビュー・動画のみ。提出目標 11/8（日）18:00。
+9. **機能凍結はしない。提出まで磨く**（決定記録 0011）。`main` はいつでも提出できる状態に保つ。提出目標 11/8（日）18:00。
 
 ## 3. 表現の規則（docs/wording.md が正。要点）
 
@@ -134,4 +134,4 @@
 
 ## 11. 文書の地図
 
-- `docs/concept.md` 構想 ／ `docs/decisions/` 決定記録（0001 スコープ、0002 AI を使わない、0003 画面と押す回数、0004 施設の日課と24時間シート、0005 ⋯ に作り直しを置かない、0006 困ったらの相談先、0007 リーダーの全体、0008 業務の見直しの数字、0009 同期を作る） ／ `docs/screens.md` 画面仕様 ／ `docs/data-model.md` データとイベント ／ `docs/acceptance.md` 受け入れ条件 ／ `docs/wording.md` 表現の規則 ／ `docs/usability-script.md` 試用台本 ／ `docs/video-storyboard.md` 動画の筋 ／ `docs/dev-process.md` 開発の進め方 ／ `docs/reviews/` レビューループの記録 ／ `docs/progress.md` 進み具合
+- `docs/concept.md` 構想 ／ `docs/decisions/` 決定記録（0001 スコープ、0002 AI を使わない、0003 画面と押す回数、0004 施設の日課と24時間シート、0005 ⋯ に作り直しを置かない、0006 困ったらの相談先、0007 リーダーの全体、0008 業務の見直しの数字、0009 同期を作る、0010 現場の聞き取りを受けた改修、0011 機能凍結をやめる） ／ `docs/screens.md` 画面仕様 ／ `docs/data-model.md` データとイベント ／ `docs/acceptance.md` 受け入れ条件 ／ `docs/wording.md` 表現の規則 ／ `docs/usability-script.md` 試用台本 ／ `docs/video-storyboard.md` 動画の筋 ／ `docs/dev-process.md` 開発の進め方 ／ `docs/reviews/` レビューループの記録 ／ `docs/progress.md` 進み具合
