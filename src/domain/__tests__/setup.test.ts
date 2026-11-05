@@ -102,3 +102,18 @@ test("職員の貼り付け: 見出し行は飛ばす。区切りがない行・
   assert.match(r.errors.find((e) => e.line === 2)!.reason, /数字/);
   assert.match(r.errors.find((e) => e.line === 3)!.reason, /区切り/);
 });
+
+test("自分の施設で始める: フロアが2つなら日課はフロアごとに別。1階の時刻を変えても2階は変わらない", async () => {
+  const { routinesOf, retimeRoutineEvents } = await import("../routine.ts");
+  const res = buildOwnFacility({ name: "みどり荘", groupsText: "1階\n2階", residentsText: "", staffText: "" }, himawariSeed, deterministicContext("two"));
+  const s = applyEvents(emptyState(), res.events);
+  const [g1, g2] = Object.values(s.groups).filter((g) => g.kind === "floor").sort((a, b) => a.sortOrder - b.sortOrder);
+  const r1 = routinesOf(s, g1.id);
+  const r2 = routinesOf(s, g2.id);
+  assert.ok(r1.length > 0 && r1.length === r2.length);
+  assert.ok(r1.every((r) => !r2.some((x) => x.routineId === r.routineId)), "日課の印はフロアごとに違う");
+  const first = r1[0];
+  const s2 = applyEvents(s, retimeRoutineEvents(s, first, first.startMin + 30, first.endMin + 30, deterministicContext("rt")));
+  assert.equal(routinesOf(s2, g1.id)[0].startMin, first.startMin + 30);
+  assert.equal(routinesOf(s2, g2.id)[0].startMin, first.startMin, "2階はそのまま");
+});

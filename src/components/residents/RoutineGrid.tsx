@@ -73,8 +73,8 @@ export function RoutineGrid({ state, groupId, flash = [] }: { state: State; grou
       const rt = routinePanel.routine;
       events =
         r.kind === "retime"
-          ? retimeRoutineEvents(engine.state, rt.routineId, r.startMin, r.endMin, engine.context(), r.headcount)
-          : removeRoutineEvents(engine.state, rt.routineId, engine.context());
+          ? retimeRoutineEvents(engine.state, rt, r.startMin, r.endMin, engine.context(), r.headcount)
+          : removeRoutineEvents(engine.state, rt, engine.context());
       label =
         r.kind === "retime"
           ? `${rt.name}を ${clockLabel(r.startMin)}–${clockLabel(r.endMin)}・${r.headcount}人にしました${later}`

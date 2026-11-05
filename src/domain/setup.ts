@@ -211,7 +211,14 @@ export function buildOwnFacility(input: OwnFacilityInput, template: SeedData, ct
         return [{ ...it, groupId: it.groupId ? common.id : undefined, slotIds: mapSlots(it.slotIds) }];
       }
       const targets = targetsOf(it.groupId);
-      return targets.map((g, i) => ({ ...it, id: targets.length === 1 ? it.id : `${it.id}-${i + 1}`, groupId: g.id, slotIds: mapSlots(it.slotIds, g) }));
+      // 同じ雛形を複数のグループに写すときは、日課の印もグループごとに分ける（1階の時刻を変えても2階は変わらない）
+      return targets.map((g, i) => ({
+        ...it,
+        id: targets.length === 1 ? it.id : `${it.id}-${i + 1}`,
+        groupId: g.id,
+        slotIds: mapSlots(it.slotIds, g),
+        ...(it.routineId && targets.length > 1 ? { routineId: `${it.routineId}-${i + 1}` } : {}),
+      }));
     }),
   }));
 

@@ -325,7 +325,7 @@ export function addRoutineEvents(state: State, input: NewRoutine, ctx: EventCont
 /** 日課の標準の時刻（と必要人数）を変える（すべての業務表で） */
 export function retimeRoutineEvents(
   state: State,
-  routineId: string,
+  routine: Pick<Routine, "routineId" | "groupId">,
   startMin: Minutes,
   endMin: Minutes,
   ctx: EventContext,
@@ -333,10 +333,11 @@ export function retimeRoutineEvents(
 ): Event[] {
   if (endMin <= startMin) return [];
   const events: Event[] = [];
+  const mine = (it: DayPatternItem) => it.routineId === routine.routineId && it.groupId === routine.groupId;
   for (const p of Object.values(state.patterns)) {
-    if (!p.items.some((it) => it.routineId === routineId)) continue;
+    if (!p.items.some(mine)) continue;
     const items = p.items.map((it) =>
-      it.routineId === routineId ? { ...it, startMin, endMin, ...(headcount ? { headcount: Math.max(1, headcount) } : {}) } : it,
+      mine(it) ? { ...it, startMin, endMin, ...(headcount ? { headcount: Math.max(1, headcount) } : {}) } : it,
     );
     events.push({ ...metaOf(ctx), type: "pattern.upsert", pattern: { ...p, items } });
   }
@@ -344,13 +345,17 @@ export function retimeRoutineEvents(
 }
 
 /** 日課をやめる（すべての業務表から外す）。方ごとの時刻・なしの調整も外す（元に戻すと戻る） */
-export function removeRoutineEvents(state: State, routineId: string, ctx: EventContext): Event[] {
+export function removeRoutineEvents(state: State, routine: Pick<Routine, "routineId" | "groupId">, ctx: EventContext): Event[] {
   const events: Event[] = [];
+  const { routineId, groupId } = routine;
+  const mine = (it: DayPatternItem) => it.routineId === routineId && it.groupId === groupId;
   for (const p of Object.values(state.patterns)) {
-    if (!p.items.some((it) => it.routineId === routineId)) continue;
-    events.push({ ...metaOf(ctx), type: "pattern.upsert", pattern: { ...p, items: p.items.filter((it) => it.routineId !== routineId) } });
+    if (!p.items.some(mine)) continue;
+    events.push({ ...metaOf(ctx), type: "pattern.upsert", pattern: { ...p, items: p.items.filter((it) => !mine(it)) } });
   }
+  // 方ごとの調整は、そのグループの方の分だけ外す
   for (const sheet of Object.values(state.sheets)) {
+    if (groupId && state.residents[sheet.residentId]?.groupId !== groupId) continue;
     if (!sheet.rows.some((r) => r.routineId === routineId)) continue;
     events.push({ ...metaOf(ctx), type: "sheet.upsert", sheet: { ...sheet, rows: sheet.rows.filter((r) => r.routineId !== routineId) } });
   }

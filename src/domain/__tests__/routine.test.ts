@@ -211,13 +211,13 @@ test("日課を足す・標準の時刻を変える・やめる（決定記録 0
   assert.equal(fmtRange(made[0].startMin, made[0].endMin), "13:30–14:00");
 
   // 標準を 14:00–14:30 に変える
-  const s3 = applyEvents(s1, retimeRoutineEvents(s1, added.routineId, toMin(14), toMin(14, 30), deterministicContext("rt"), 2));
+  const s3 = applyEvents(s1, retimeRoutineEvents(s1, added, toMin(14), toMin(14, 30), deterministicContext("rt"), 2));
   assert.equal(routinesOf(s3, "g-east").find((r) => r.routineId === added.routineId)?.startMin, toMin(14));
   const { routineHeadcount } = await import("../routine.ts");
   assert.equal(routineHeadcount(s3, added.routineId), 2);
 
   // 起床介助をやめると、業務表からも方ごとの調整からも消える。元に戻すと戻る
-  const rm = removeRoutineEvents(s3, "rt-wake-east", deterministicContext("rm", "t", "b-rm"));
+  const rm = removeRoutineEvents(s3, { routineId: "rt-wake-east", groupId: "g-east" }, deterministicContext("rm", "t", "b-rm"));
   let s4 = s3;
   const history = rm.map((event) => {
     const h = { event, before: s4 };

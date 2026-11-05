@@ -120,13 +120,14 @@
 
 ## 9. スキル（`.claude/skills/`）
 
-`review-loop`（ループの回し方）、`wording-check`（文言チェック）、`acceptance-check`（受け入れ条件の検証）、`decision-record`（決定記録の書式）、`demo-data`（架空データの作法）。
+`review-loop`（ループの回し方）、`wording-check`（文言チェック）、`acceptance-check`（受け入れ条件の検証）、`decision-record`（決定記録の書式）、`demo-data`（架空データの作法）、`grill-gate`（使い手の目線の改善案をグリルしてから改修する。`docs/grills/`）。
 
 ## 10. フック（`.claude/settings.json`）
 
 | フック | 何をするか |
 |---|---|
 | PreToolUse（Bash） | `scripts/hooks/pre-bash.mjs`: force push、`.env` の表示、秘密値の echo、`reset --hard` などを止める（exit 2） |
+| PreToolUse（Write／Edit） | `scripts/hooks/pre-edit-grill.mjs`: `docs/grills/` に「状態: グリル待ち」の改善案があるあいだ、`src/` の .ts/.tsx を変えさせない（exit 2）。グリルして「改修可」にすると通る（`grill-gate`） |
 | PostToolUse（Write／Edit） | `scripts/hooks/post-edit.mjs`: 変更した .ts/.tsx/.md に表現の規則チェック。違反があれば結果を返す（exit 2） |
 | Stop | `scripts/hooks/on-stop.mjs`: 全体工程 約 n%（`docs/progress.md`）を毎回 1 行出す。未コミットの変更があれば注意を出す（止めない） |
 
