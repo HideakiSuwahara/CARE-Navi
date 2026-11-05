@@ -32,6 +32,13 @@ export function StaffEditor({
   const [role, setRole] = useState(prev?.role ?? "");
   const [phone, setPhone] = useState(prev?.phone ?? "");
   const [picked, setPicked] = useState<string[]>(prev?.tags ?? []);
+  // 職種が条件の名前と同じなら（看護師 など）、その条件を既定で付ける（外せる）
+  const onRole = (v: string) => {
+    setRole(v);
+    const t = v.trim();
+    if (!prev && t && tags.includes(t)) setPicked((p) => (p.includes(t) ? p : [...p, t]));
+  };
+  const dirty = prev ? name !== prev.displayName || role !== prev.role || phone !== (prev.phone ?? "") : Boolean(name || role || phone);
   const [error, setError] = useState("");
   const [confirmRetire, setConfirmRetire] = useState(false);
   const first = useRef<HTMLInputElement>(null);
@@ -80,7 +87,7 @@ export function StaffEditor({
         </label>
         <label className="flex flex-col gap-1 text-[14px]">
           職種
-          <input value={role} onChange={(e) => setRole(e.target.value)} list="staff-roles" className={`${field} w-[160px]`} placeholder="例: 介護職員" />
+          <input value={role} onChange={(e) => onRole(e.target.value)} list="staff-roles" className={`${field} w-[160px]`} placeholder="例: 介護職員" />
           <datalist id="staff-roles">
             {[...new Set(Object.values(state.staff).map((s) => s.role))].map((r) => (
               <option key={r} value={r} />
@@ -92,6 +99,7 @@ export function StaffEditor({
           <input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="numeric" className={`${field} w-[120px]`} placeholder="例: 811" />
         </label>
       </div>
+      <p className="text-[14px] text-[var(--cn-ink-soft)]">単発で来る人は職種を「スポット」にすると、はじめの日に朝の帯で「初回」の印が付きます。</p>
       {!prev && tags.length > 0 && (
         <fieldset className="flex flex-wrap items-center gap-1.5">
           <legend className="mb-1 text-[14px]">担当条件（施設が決めた条件を持っているか）</legend>
@@ -124,21 +132,23 @@ export function StaffEditor({
           {prev ? "この内容で直す" : "この内容で足す"}
         </button>
         <button type="button" onClick={onClose} className="h-[44px] rounded-lg px-3 text-[15px] text-[var(--cn-ink-soft)] underline">
-          閉じる
+          {dirty ? "閉じる（直した内容は保存されません）" : "閉じる"}
         </button>
         {prev && !confirmRetire && (
           <button type="button" onClick={() => setConfirmRetire(true)} className="ml-auto h-[44px] rounded-lg border border-[var(--cn-control-line)] bg-white px-3 text-[15px]">
-            退職にする
+            退職にする…
           </button>
         )}
       </div>
       {prev && confirmRetire && (
         <div className="flex flex-wrap items-center gap-2 rounded-lg border border-[var(--cn-control-line)] p-3 text-[15px]">
           <span>
-            {prev.surname}さんを一覧から外します。{future > 0 ? `今日以降の担当 ${future}件からも外れます（外れた枠は「担当未定」になります）。` : "今日以降の担当はありません。"}元に戻せます。
+            {prev.surname}さんを一覧から外します。押すのは、最後に出た日の翌日にしてください（まだ出る日がある人は、その日まで待ってください）。
+            {future > 0 ? `今日以降の担当 ${future}件からも外れます（外れた枠は「担当未定」か「担当あと n 人」になります）。` : "今日以降の担当はありません。"}
+            過去の分担表からも名前が消えます。元に戻せます。
           </span>
           <button type="button" onClick={retire} className="h-[44px] rounded-lg border-2 border-[var(--cn-alert-line)] bg-white px-4 font-bold">
-            退職にする
+            外す（元に戻せます）
           </button>
           <button type="button" onClick={() => setConfirmRetire(false)} className="h-[44px] rounded-lg px-3 text-[15px] text-[var(--cn-ink-soft)] underline">
             やめる

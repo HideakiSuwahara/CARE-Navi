@@ -118,9 +118,9 @@ export function Residents() {
             {lastUndo && (
               <button
                 type="button"
-                onClick={() => {
-                  setToast(null);
-                  void engine?.undo();
+                onClick={async () => {
+                  const done = await engine?.undo();
+                  setToast(done ? `戻しました（${done.label}）` : null);
                 }}
                 className="inline-flex h-[44px] items-center gap-2 rounded-lg border border-[var(--cn-card-line)] bg-white px-4 text-[14px]"
               >

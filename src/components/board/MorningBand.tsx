@@ -66,6 +66,8 @@ export function MorningBand({ state, date }: { state: State; date: DateKey }) {
     requestAnimationFrame(() => document.getElementById("board-title")?.focus());
   };
 
+  // 過去に一度も出ていない人には、職種を問わず「初回」の印を出せる（押して外せる既定。属性では決めない）
+  const hasPast = (staffId: ID) => Object.values(state.roster).some((r) => r.staffId === staffId && r.date < date && !r.absent);
   return (
     <section aria-labelledby="morning-title" className="flex flex-col gap-4 overflow-auto p-5">
       <div>
@@ -85,7 +87,7 @@ export function MorningBand({ state, date }: { state: State; date: DateKey }) {
         )}
         {draft.source === "today" && (
           <p className="mt-1 text-[15px] text-[var(--cn-ink-soft)]">
-            入れてある勤務表の番で並べました（設定の「勤務表の貼り付け」か、前に直した分）。違うところだけ直してください。
+            勤務表どおり（{shortDate(date)}）に並べました。違うところだけ直してください。
           </p>
         )}
         {draft.source === "none" && (
@@ -108,7 +110,7 @@ export function MorningBand({ state, date }: { state: State; date: DateKey }) {
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <span className="shrink-0 font-bold">{staff?.surname}</span>
-                  {!e.absent && (e.firstTimer || staff?.role === "スポット") && (
+                  {!e.absent && (e.firstTimer || staff?.role === "スポット" || !hasPast(e.staffId)) && (
                     <button
                       type="button"
                       aria-pressed={e.firstTimer}

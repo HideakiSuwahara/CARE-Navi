@@ -36,7 +36,9 @@ export function reduce(state: State, ev: Event): State {
     case "resident.remove": {
       const targets: Record<ID, ID[]> = {};
       for (const [taskId, ids] of Object.entries(state.targets)) {
-        targets[taskId] = ids.filter((r) => r !== ev.id);
+        // fromDate より前の枠は履歴として残す（退所した方も、その日の対象だった事実は変えない）
+        const keep = ev.fromDate !== undefined && (state.tasks[taskId]?.date ?? "") < ev.fromDate;
+        targets[taskId] = keep ? ids : ids.filter((r) => r !== ev.id);
       }
       return { ...state, residents: omit(state.residents, ev.id), targets };
     }
@@ -187,7 +189,9 @@ export function invertEvent(ev: Event, before: State): Event[] {
       // 対象者からも外れているので、戻すときは対象の一覧も戻す
       const out: Event[] = [{ ...meta, type: "resident.upsert", resident: prev }];
       for (const [taskId, ids] of Object.entries(before.targets)) {
-        if (ids.includes(ev.id)) out.push({ ...meta, type: "task.setTargets", id: taskId, residentIds: [...ids] });
+        if (!ids.includes(ev.id)) continue;
+        if (ev.fromDate !== undefined && (before.tasks[taskId]?.date ?? "") < ev.fromDate) continue;
+        out.push({ ...meta, type: "task.setTargets", id: taskId, residentIds: [...ids] });
       }
       return out;
     }

@@ -39,7 +39,8 @@ export type EventBody =
   | { type: "group.upsert"; group: Group }
   | { type: "group.remove"; id: ID }
   | { type: "resident.upsert"; resident: Resident }
-  | { type: "resident.remove"; id: ID }
+  /** fromDate があれば、その日以降の枠の対象からだけ外す（過去は履歴として残す。決定記録 0015） */
+  | { type: "resident.remove"; id: ID; fromDate?: DateKey }
   | { type: "staff.upsert"; staff: Staff }
   | { type: "staff.remove"; id: ID }
   | { type: "roleSlot.upsert"; roleSlot: RoleSlot }

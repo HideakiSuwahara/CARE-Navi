@@ -450,6 +450,13 @@ function Everyday({ onOwn, onSample }: { onOwn: () => void; onSample: () => void
   const otherTags = allTags.filter((t) => !usedByTemplates(state, t));
   const staffRows = Object.values(state.staff).sort((a, b) => a.surname.localeCompare(b.surname, "ja"));
   const holders = (t: string) => staffRows.filter((st) => st.tags.includes(t)).length;
+  // 同じ姓が 2 人以上いるときは名も添えて見分ける（「高橋（けんた）」）
+  const sameSurname = (st: { surname: string }) => staffRows.filter((x) => x.surname === st.surname).length > 1;
+  const shown = (st: { surname: string; displayName: string }) => {
+    if (!sameSurname(st)) return st.surname;
+    const given = st.displayName.replace(st.surname, "").trim();
+    return given ? `${st.surname}（${given}）` : st.surname;
+  };
   const toggleTag = async (staffId: string, tag: string, on: boolean) => {
     if (!engine) return;
     const evs = setStaffTagEvents(engine.state, staffId, tag, on, engine.context());
@@ -627,12 +634,15 @@ function Everyday({ onOwn, onSample }: { onOwn: () => void; onSample: () => void
                     <button
                       type="button"
                       aria-expanded={editing === st.id}
-                      aria-label={`${st.surname}さんを直す（${st.role}）`}
+                      aria-label={`${shown(st)}さんを直す（${st.role}${st.phone ? `、PHS ${st.phone}` : ""}）`}
                       onClick={() => setEditing(editing === st.id ? null : st.id)}
-                      className="inline-flex h-[44px] w-[140px] shrink-0 items-center gap-1 rounded-lg px-2 text-left hover:bg-[var(--cn-ground)]"
+                      className="inline-flex h-[44px] w-[200px] shrink-0 flex-col items-start justify-center rounded-lg px-2 text-left hover:bg-[var(--cn-ground)]"
                     >
-                      <span className="font-bold underline decoration-[var(--cn-control-line)] underline-offset-4">{st.surname}</span>{" "}
-                      <span className="text-[14px] text-[var(--cn-ink-soft)]">{st.role}</span>
+                      <span>
+                        <span className="font-bold underline decoration-[var(--cn-control-line)] underline-offset-4">{shown(st)}</span>{" "}
+                        <span className="text-[14px] text-[var(--cn-ink-soft)]">{st.role}</span>
+                      </span>
+                      <span className="text-[13px] text-[var(--cn-muted)]">{st.phone ? `PHS ${st.phone}` : "PHS なし"}</span>
                     </button>
                     <span role="group" aria-label={`${st.surname}さんの担当条件（← → で移動）`} onKeyDown={rowKeys} className="flex flex-wrap items-center gap-1.5">
                       {usedTags.map((t, idx) => btn(t, idx, false))}
@@ -706,7 +716,7 @@ function Everyday({ onOwn, onSample }: { onOwn: () => void; onSample: () => void
         </button>
       </section>
 
-      <RosterPaste state={state} onDone={setToast} />
+      <RosterPaste state={state} today={today} onDone={setToast} />
 
       <section aria-labelledby="s-start" className="rounded-xl border border-dashed border-[var(--cn-control-line)] p-4">
         <h3 id="s-start" className="mb-2 text-[16px] font-bold">

@@ -35,18 +35,22 @@ test("職員を 1 人ずつ足す・直す: 名前・職種は必須、PHS は�
   assert.equal(s4.staff[added.id].phone, "811");
 });
 
-test("退職: 今日以降の担当と出勤を外して職員を外す。元に戻すで全部戻る", () => {
+test("退職: 今日以降の担当と出勤を外して職員を外す（過去の担当は履歴として残る）。元に戻すで全部戻る", () => {
   const s = state();
   const takahashi = Object.values(s.staff).find((x) => x.surname === "高橋")!;
-  const before = staffFutureAssignments(s, takahashi.id, DATE);
+  const TODAY = DATE;
+  const before = staffFutureAssignments(s, takahashi.id, TODAY);
   assert.ok(before > 0);
-  const r = removeStaffEvents(s, takahashi.id, DATE, ctx("c"));
+  // 11/4 を今日にすると、11/3 の担当は数えない（過去）
+  const onlyTomorrow = Object.values(s.assignments).filter((a) => a.staffId === takahashi.id && (s.tasks[a.taskId]?.date ?? "") >= "2026-11-04").length;
+  assert.equal(staffFutureAssignments(s, takahashi.id, "2026-11-04"), onlyTomorrow);
+  const r = removeStaffEvents(s, takahashi.id, TODAY, ctx("c"));
   assert.equal(r.assignments, before);
   assert.ok(r.rosterDays >= 1);
   const s2 = applyEvents(s, r.events);
   assert.equal(s2.staff[takahashi.id], undefined);
-  assert.equal(Object.values(s2.assignments).filter((a) => a.staffId === takahashi.id).length, 0);
-  assert.equal(Object.values(s2.roster).filter((e) => e.staffId === takahashi.id && e.date >= DATE).length, 0);
+  assert.equal(Object.values(s2.assignments).filter((a) => a.staffId === takahashi.id && (s.tasks[a.taskId]?.date ?? "") >= TODAY).length, 0);
+  assert.equal(Object.values(s2.roster).filter((e) => e.staffId === takahashi.id && e.date >= TODAY).length, 0);
   assert.match(r.label, /高橋さんを退職にしました（今日以降の担当 \d+件から外れました）/);
   // 元に戻す（1 バッチ）
   let cur = s;
@@ -57,7 +61,7 @@ test("退職: 今日以降の担当と出勤を外して職員を外す。元に
   });
   const s3 = applyEvents(s2, invertBatch(history, "c"));
   assert.ok(s3.staff[takahashi.id]);
-  assert.equal(staffFutureAssignments(s3, takahashi.id, DATE), before);
+  assert.equal(staffFutureAssignments(s3, takahashi.id, TODAY), before);
 });
 
 test("利用者を 1 人ずつ足す・直す・退所。退所は対象から外れ、元に戻すと対象にも戻る", () => {
@@ -79,7 +83,11 @@ test("利用者を 1 人ずつ足す・直す・退所。退所は対象から�
   assert.equal(rm.targets, n);
   const s5 = applyEvents(s, rm.events);
   assert.equal(s5.residents[tanaka.id], undefined);
-  assert.equal(Object.values(s5.targets).some((ids) => ids.includes(tanaka.id)), false);
+  assert.equal(residentFutureTargets(s5, tanaka.id, DATE), 0, "今日以降の枠の対象から外れる");
+  // 今日より前の枠（10/27 など）が対象に残っているなら、それは履歴として変えない
+  const pastKept = Object.entries(s.targets).filter(([taskId, ids]) => ids.includes(tanaka.id) && (s.tasks[taskId]?.date ?? "") < DATE);
+  for (const [taskId] of pastKept) assert.ok(s5.targets[taskId].includes(tanaka.id));
+  assert.match(rm.label, /田中様を退所にしました（今日以降の時間割 \d+枠の対象から外れました）/);
   const s6 = applyEvents(s5, invertBatch(rm.events.map((event) => ({ event, before: s })), "f"));
   assert.ok(s6.residents[tanaka.id]);
   assert.equal(residentFutureTargets(s6, tanaka.id, DATE), n);

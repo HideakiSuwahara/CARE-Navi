@@ -85,7 +85,7 @@ export function ResidentForm({
       </h2>
       <p className="mt-1 text-[14px] text-[var(--cn-ink-soft)]">まとめて入れるときは「名簿を貼り付ける」。足した方は、施設の日課が標準どおりに入ります。</p>
       <label className="mt-2 flex flex-col gap-1 text-[14px]">
-        直す方（新しく足すときは「新しく足す」のまま）
+        直す方を選ぶ（新しく足すときは「新しく足す」のまま）
         <select value={pickedId} onChange={(e) => pick(e.target.value)} className={`${field} w-[280px]`}>
           <option value="">新しく足す</option>
           {list.map((r) => (
@@ -107,7 +107,7 @@ export function ResidentForm({
         <div className="flex flex-wrap gap-3">
           <label className="flex flex-col gap-1 text-[14px]">
             名前（姓 名）
-            <input ref={first} value={name} onChange={(e) => setName(e.target.value)} className={`${field} w-[200px]`} placeholder="例: 山本 ハル" />
+            <input ref={first} value={name} onChange={(e) => setName(e.target.value)} className={`${field} w-[200px]`} placeholder="例: 大野 ハル" />
           </label>
           <label className="flex flex-col gap-1 text-[14px]">
             グループ
@@ -138,17 +138,18 @@ export function ResidentForm({
           </button>
           {prev && !confirmLeave && (
             <button type="button" onClick={() => setConfirmLeave(true)} className="ml-auto h-[44px] rounded-lg border border-[var(--cn-control-line)] bg-white px-3 text-[15px]">
-              退所にする
+              退所にする…
             </button>
           )}
         </div>
         {prev && confirmLeave && (
           <div className="flex flex-wrap items-center gap-2 rounded-lg border border-[var(--cn-control-line)] p-3 text-[15px]">
             <span>
-              {prev.surname}様を一覧から外します。{future > 0 ? `今日以降の対象 ${future}件からも外れます。` : ""}元に戻せます（24時間シートも戻ります）。
+              {prev.surname}様を一覧から外します。{future > 0 ? `今日以降の時間割 ${future}枠（朝食介助など）の対象から外れます。` : ""}
+              入院など戻ってくる方は、ここでは外さないでください（対象のままで構いません）。元に戻せます（24時間シートも戻ります）。
             </span>
             <button type="button" onClick={leave} className="h-[44px] rounded-lg border-2 border-[var(--cn-alert-line)] bg-white px-4 font-bold">
-              退所にする
+              外す（元に戻せます）
             </button>
             <button type="button" onClick={() => setConfirmLeave(false)} className="h-[44px] rounded-lg px-3 text-[15px] text-[var(--cn-ink-soft)] underline">
               やめる

@@ -121,24 +121,24 @@ test.describe("設定", () => {
     await expect(page.getByRole("status").filter({ hasText: "野村さんを直しました" })).toBeVisible();
     // 退職 → 一覧から消える → 元に戻す
     await list.getByRole("button", { name: /^野村さんを直す/ }).click();
-    await edit.getByRole("button", { name: "退職にする" }).click();
+    await edit.getByRole("button", { name: "退職にする…" }).click();
     await expect(edit).toContainText("今日以降の担当はありません");
-    await edit.getByRole("button", { name: "退職にする" }).last().click();
+    await edit.getByRole("button", { name: "外す（元に戻せます）" }).click();
     await expect(page.getByRole("status").filter({ hasText: "野村さんを退職にしました" })).toBeVisible();
     await expect(list.getByRole("button", { name: /^野村さんを直す/ })).toHaveCount(0);
     await page.getByRole("button", { name: "元に戻す" }).first().click();
     await expect(list.getByRole("button", { name: /^野村さんを直す/ })).toBeVisible();
   });
 
-  test("退職: 今日の担当がある人は、件数を知らせてから外し、担当未定になる。元に戻すで担当も戻る", async ({ page }) => {
+  test("退職: 今日以降の担当がある人は、件数を知らせてから外す。出勤者から消え、元に戻すで戻る", async ({ page }) => {
     await page.getByRole("button", { name: "サンプル施設で試す" }).click();
     await page.goto("/setup");
     const list = page.getByRole("list", { name: "職員ごとの担当条件" });
     await list.getByRole("button", { name: /^高橋さんを直す/ }).click();
     const edit = page.getByRole("form", { name: "高橋さんを直す" });
-    await edit.getByRole("button", { name: "退職にする" }).click();
+    await edit.getByRole("button", { name: "退職にする…" }).click();
     await expect(edit).toContainText(/今日以降の担当 \d+件からも外れます/);
-    await edit.getByRole("button", { name: "退職にする" }).last().click();
+    await edit.getByRole("button", { name: "外す（元に戻せます）" }).click();
     await expect(page.getByRole("status").filter({ hasText: /高橋さんを退職にしました（今日以降の担当 \d+件から外れました）/ })).toBeVisible();
     await page.goto("/board?now=10:12");
     await expect(page.getByLabel("きょうの出勤者")).not.toContainText("高橋");
@@ -146,23 +146,26 @@ test.describe("設定", () => {
     await expect(page.getByLabel("きょうの出勤者")).toContainText("高橋");
   });
 
-  test("勤務表の貼り付け（月）: 表を貼ると日付ごとの番が入り、朝の帯がその番で並ぶ。照らせない略称は選ぶ。名簿にない名前は知らせる", async ({ page }) => {
+  test("月の勤務表を貼り付ける: 表を貼ると日付ごとの番が入り、朝の帯がその番で並ぶ。照らせない略称は選ぶ。名簿と照らせない名前は知らせる", async ({ page }) => {
     await page.getByRole("button", { name: "サンプル施設で試す" }).click();
     await page.goto("/setup");
-    await page.getByLabel(/^月（/).fill("2026-12");
-    const text = ["氏名\t1\t2", "佐藤\t早A\t休", "高橋\t日B\tナイト", "山田 太郎\t早A\t早A"].join("\n");
-    await page.getByRole("textbox", { name: "勤務表" }).fill(text);
+    await page.getByLabel(/^何月の勤務表ですか/).fill("2026-12");
+    const text = ["氏名\t1\t2", "佐藤\t早A\t休", "高橋\t日B\tナイト", "川口 太郎\t早A\t早A"].join("\n");
+    await page.getByRole("textbox", { name: "勤務表", exact: true }).fill(text);
     await expect(page.getByText("12/1〜12/2 の 2 日・2 人を入れられます")).toBeVisible();
-    await expect(page.getByText(/名簿にない名前.*山田 太郎/)).toBeVisible();
+    await expect(page.getByText(/名簿と照らせない名前.*川口 太郎/)).toBeVisible();
+    await expect(page.getByText("読んだ対応: 早A→早番A・日B→日勤B")).toBeVisible();
+    await expect(page.getByText("休みとして読んだ印: 休")).toBeVisible();
     const apply = page.getByRole("button", { name: "この内容で入れる" });
     await expect(apply).toBeDisabled();
+    await expect(page.getByText("「ナイト」の番を選ぶと押せます。")).toBeVisible();
     await page.getByLabel("「ナイト」の番").selectOption({ label: "夜勤東" });
     await expect(apply).toBeEnabled();
     await apply.click();
     await expect(page.getByRole("status").filter({ hasText: "勤務表を入れました（12/1〜12/2・2人）" })).toBeVisible();
     // ボード 12/2: 朝の帯が入れてある番で並ぶ（佐藤は休み、高橋は夜勤東）
     await page.goto("/board?date=2026-12-02&now=7:00");
-    await expect(page.getByText("入れてある勤務表の番で並べました")).toBeVisible();
+    await expect(page.getByText("勤務表どおり（12/2）に並べました")).toBeVisible();
     const band = page.getByRole("region", { name: /今日の時間割を作る/ }).or(page.locator("section").filter({ has: page.getByRole("heading", { name: "今日の時間割を作る" }) })).first();
     await expect(band.getByLabel("高橋 の番")).toHaveValue(/.+/);
     const takahashiSlot = await band.getByLabel("高橋 の番").evaluate((el) => (el as HTMLSelectElement).selectedOptions[0]?.textContent ?? "");
@@ -171,6 +174,6 @@ test.describe("設定", () => {
     await page.goto("/setup");
     await page.getByRole("button", { name: "元に戻す" }).first().click();
     await page.goto("/board?date=2026-12-02&now=7:00");
-    await expect(page.getByText("入れてある勤務表の番で並べました")).toHaveCount(0);
+    await expect(page.getByText(/勤務表どおり（12\/2）に並べました/)).toHaveCount(0);
   });
 });

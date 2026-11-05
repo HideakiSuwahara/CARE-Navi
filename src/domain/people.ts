@@ -1,7 +1,7 @@
 /**
  * 職員・利用者を 1 人ずつ足す・直す・外す（グリル 2026-11-05 職員の個別の入力、決定記録 0015）。
  * - 貼り付けと同じイベント（staff.upsert / resident.upsert）。1 操作 1 バッチで元に戻せる。
- * - 退職（staff.remove）は、今日以降の担当と出勤を一緒に外す。退所（resident.remove）は対象者から外れる（リデューサ）。
+ * - 退職（staff.remove）は、今日以降の担当と出勤を一緒に外す。職員ごと外れるので今日の分担表にも名前は出ない（押すのは最後に出た日の翌日。画面でそう案内）。退所（resident.remove）は今日以降の枠の対象から外れる（過去は履歴として残す）。
  * - 等級・評価の項目は持たない（0011）。
  */
 
@@ -109,13 +109,13 @@ export function residentFormEvents(state: State, input: ResidentInput, ctx: Even
   return { events: [{ ...metaOf(ctx), type: "resident.upsert", resident }], label };
 }
 
-/** 退所: 対象者から外れる（リデューサが外す）。元に戻すで対象にも戻る */
+/** 退所: 今日以降の枠の対象から外れる（過去は履歴として残す）。元に戻すで対象にも戻る */
 export function removeResidentEvents(state: State, residentId: ID, today: DateKey, ctx: EventContext): FormResult & { targets: number } {
   const r = state.residents[residentId];
   if (!r) return { events: [], label: "", error: "その方は見つかりません", targets: 0 };
   const targets = residentFutureTargets(state, residentId, today);
-  const extra = targets > 0 ? `（今日以降の対象 ${targets}件から外れました）` : "";
-  return { events: [{ ...metaOf(ctx), type: "resident.remove", id: residentId }], label: `${r.surname}様を退所にしました${extra}`, targets };
+  const extra = targets > 0 ? `（今日以降の時間割 ${targets}枠の対象から外れました）` : "";
+  return { events: [{ ...metaOf(ctx), type: "resident.remove", id: residentId, fromDate: today }], label: `${r.surname}様を退所にしました${extra}`, targets };
 }
 
 /** 退所の前に知らせる数（今日以降の、対象に入っている枠） */
