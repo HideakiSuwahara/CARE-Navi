@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { assigneesOf, canMarkDone, headcountStatus } from "@/domain/checks";
+import { assigneesOf, canMarkDone, headcountStatus, taskLabel } from "@/domain/checks";
 import { cancelTaskEvents, shiftTaskEvents, unassignEvents } from "@/domain/commands";
 import { sheetRowFor } from "@/domain/routine";
 import { clockLabel, fmtRange } from "@/domain/time";
@@ -50,7 +50,7 @@ export function TaskDetail({
 
   const unassign = (staffId: ID, surname: string) => {
     if (!engine) return;
-    engine.dispatch(unassignEvents(engine.state, task.id, staffId, engine.context()), `${surname}さんを「${task.name}」の担当から外しました`);
+    engine.dispatch(unassignEvents(engine.state, task.id, staffId, engine.context()), `${surname}さんを「${taskLabel(engine.state, task)}」の担当から外しました`);
     // 押したボタンが消えるので、見出しへ
     window.setTimeout(() => document.getElementById("task-detail-title")?.focus(), 0);
   };
@@ -137,7 +137,7 @@ export function TaskDetail({
         {engine && (
           <section aria-labelledby="d-ops" className="flex flex-wrap items-center gap-2">
             <h3 id="d-ops" className="sr-only">
-              終わった・時刻・中止
+              {canMarkDone(task) ? "終わった・時刻・中止" : "時刻・中止"}
             </h3>
             {canMarkDone(task) && <DoneButton task={task} />}
             <button type="button" onClick={() => shift(-30)} className="h-[44px] rounded-lg border border-[var(--cn-control-line)] px-3 text-[15px]">

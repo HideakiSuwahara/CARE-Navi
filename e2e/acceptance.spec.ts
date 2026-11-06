@@ -64,7 +64,7 @@ test.describe("受け入れ: ボード", () => {
     const btn = warnRow.getByRole("button", { name: /さんを追加$/ });
     const surname = (await btn.getAttribute("aria-label"))!.replace(/さんを追加$/, "");
     await btn.click();
-    await expect(page.locator("#board-toast")).toContainText(`${surname}さんを「入浴介助」の担当にしました`);
+    await expect(page.locator("#board-toast")).toContainText(`${surname}さんを「入浴介助（東フロア）」の担当にしました`);
     await expect(page.locator(`[data-task-id="${id}"]`).getByRole("button", { name: new RegExp(`^${surname}`) })).toBeVisible();
     // 二重登録: すでに担当の人は、パネルの候補に出ない
     if (!(await page.getByRole("dialog").isVisible())) {
@@ -95,7 +95,7 @@ test.describe("受け入れ: ボード", () => {
     const kato = panel.getByRole("listitem").filter({ hasText: "加藤" });
     await expect(kato).toContainText("注意: 初回の方だけの配置になります");
     await kato.getByRole("button", { name: "加藤さんを追加" }).click();
-    await expect(page.locator("#board-toast")).toContainText("加藤さんを「面会対応」の担当にしました");
+    await expect(page.locator("#board-toast")).toContainText("加藤さんを「面会対応 松本様」の担当にしました");
   });
 
   test("L28 二重登録: 担当の人をパレットから同じカードへ落としても入らない", async ({ page }) => {

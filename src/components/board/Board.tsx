@@ -9,7 +9,7 @@ import { SyncEmpty } from "@/components/setup/Setup";
 import { SyncBadge } from "@/components/SyncBadge";
 import { SAMPLE_DATE } from "@/store/sample";
 import { boardColumns, paletteRows, residentColumns, residentViewGroup } from "@/domain/layout";
-import { shortageGroups, unfinishedTasks } from "@/domain/checks";
+import { headcountStatus, shortageGroups, tasksForDate, unfinishedTasks } from "@/domain/checks";
 import { calendarDateOf, fmtMin, fmtRange } from "@/domain/time";
 import { updatedAtLabel } from "@/domain/display";
 import { addDays, addTodayPersonEvents, isFirstTimeDefault } from "@/domain/pattern";
@@ -146,6 +146,17 @@ export function Board({ date: dateParam }: { date?: string }) {
     .join(" ")}`;
   const palette = useMemo(() => (ready ? paletteRows(state, date) : { working: [], off: [] }), [state, date, ready]);
   const groups = useMemo(() => (ready ? shortageGroups(state, date, filterGroup) : []), [state, date, ready, filterGroup]);
+  // 絞っているとき、件数のうち共通の列の分（「東フロア 1・共通 2」と分けて書く。ループ 14 #13）
+  const commonShort = useMemo(() => {
+    const m = new Map<string, number>();
+    if (!ready || !filterGroup) return m;
+    for (const g of shortageGroups(state, date, filterGroup)) {
+      const mine = shortageGroups(state, date, filterGroup).find((x) => x.label === g.label)?.count ?? 0;
+      const onlyGroup = tasksForDate(state, date).filter((t) => t.groupId === filterGroup && headcountStatus(state, t.id).label === g.label).length;
+      m.set(g.label, mine - onlyGroup);
+    }
+    return m;
+  }, [state, date, ready, filterGroup]);
   // 絞っているとき、ほかのグループの担当未定・担当あと n 人（隠れた列で見落とさないように一文で）
   const otherShort = useMemo(() => {
     if (!ready || !filterGroup) return { total: 0, text: "" };
@@ -198,13 +209,17 @@ export function Board({ date: dateParam }: { date?: string }) {
     const label = pendingJump.current;
     pendingJump.current = null;
     jumpToCard(label);
+    // 表示を切り替えた直後に 1 回だけ寄せる（jumpToCard は描画ごとに作り直すので依存に入れない）
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view]);
   function jumpToCard(label: string) {
     const root = scroller.current;
     if (!root) return;
     const selector = label === UNFINISHED ? "[data-task-id][data-unfinished]" : `[data-task-id][data-badge="${label}"]`;
+    // 見るグループを選んでいるときは、そのグループの枠を先に、共通の枠をあとに（ループ 14 #13）
+    const own = (el: HTMLElement) => (filterGroup && el.dataset.group !== filterGroup ? 1 : 0);
     const cards = Array.from(root.querySelectorAll<HTMLElement>(selector)).sort(
-      (a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top || a.getBoundingClientRect().left - b.getBoundingClientRect().left,
+      (a, b) => own(a) - own(b) || a.getBoundingClientRect().top - b.getBoundingClientRect().top || a.getBoundingClientRect().left - b.getBoundingClientRect().left,
     );
     if (cards.length === 0) return;
     const i = (jumpIndex.current[label] ?? -1) + 1;
@@ -222,6 +237,15 @@ export function Board({ date: dateParam }: { date?: string }) {
     }
   }
 
+  const moveInColumn = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(e.key)) return;
+    const items = Array.from(e.currentTarget.querySelectorAll<HTMLElement>("[data-card-title]"));
+    const i = items.indexOf(document.activeElement as HTMLElement);
+    if (i < 0 || items.length === 0) return;
+    e.preventDefault();
+    const next = e.key === "Home" ? 0 : e.key === "End" ? items.length - 1 : Math.min(items.length - 1, Math.max(0, i + (e.key === "ArrowDown" ? 1 : -1)));
+    items[next].focus();
+  };
   // 操作のあとのお知らせ（トースト）。8秒で消えるが「元に戻す」はツールバーに残る
   const [toast, setToast] = useState<string | null>(null);
   // 欠勤・早退／付き添い・外出（スマホの全体と同じ流れを PC でも開く。グリル U3）
@@ -352,7 +376,14 @@ export function Board({ date: dateParam }: { date?: string }) {
       </TopBar>
 
       {/* ツールバー（1段） */}
-      <div className="flex shrink-0 flex-wrap items-center gap-3 px-5 py-2.5">
+      <section
+        aria-label="ボードの表示と操作"
+        className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 px-5 py-2.5" /* 2 段: 上＝見るグループ・横に並べる・元に戻す・⋯／下＝件数の札・欠勤・付き添い（ループ 14 #14） */
+      >
+        {/* 表示を切り替えたら読み上げで知らせる（ループ 14 #22） */}
+        <p role="status" className="sr-only">
+          {hasTasks ? `${(view === "resident" ? residentGroup : groupId) ? state.groups[(view === "resident" ? residentGroup : groupId)!]?.name : "すべてのグループ"}を${view === "group" ? "グループごと" : view === "staff" ? "職員ごと" : "利用者ごと"}に表示しています` : ""}
+        </p>
         {hasTasks && (
           <label className="flex items-center gap-2 text-[15px]">
             見るグループ
@@ -401,19 +432,26 @@ export function Board({ date: dateParam }: { date?: string }) {
           </div>
           </div>
         )}
+        {hasTasks && <div aria-hidden="true" className="order-3 h-0 basis-full" />}
         {hasTasks && (
-          <div className="flex items-center gap-2" /* 件数の変化はトーストで知らせる（ここで読み上げると二重になる） */>
+          <div className="order-4 flex flex-wrap items-center gap-2" /* 件数の変化はトーストで知らせる（ここで読み上げると二重になる） */>
             {groups.map((g) => (
               <button
                 type="button"
                 key={g.label}
                 onClick={() => jumpTo(g.label)}
-                aria-label={`${g.label} ${g.count}件。押すと次の枠へ移動`}
+                aria-label={`${g.label} ${g.count}件${filterGroup && (commonShort.get(g.label) ?? 0) > 0 ? `（${state.groups[filterGroup]?.name} ${g.count - (commonShort.get(g.label) ?? 0)}・共通 ${commonShort.get(g.label)}）` : ""}。押すと次の枠へ移動`}
                 className={`inline-flex h-[44px] items-center rounded-full border border-[var(--cn-alert-line)] px-3.5 text-[14px] font-bold ${
                   g.level === "unassigned" ? "bg-[var(--cn-unassigned-bg)] text-[var(--cn-unassigned-ink)]" : "bg-[var(--cn-short-bg)] text-[var(--cn-short-ink)]"
                 }`}
               >
-                {g.label} {g.count}件 →
+                {g.label} {g.count}件
+                {filterGroup && (commonShort.get(g.label) ?? 0) > 0 && (
+                  <span className="ml-1 font-normal">
+                    （{state.groups[filterGroup]?.name} {g.count - (commonShort.get(g.label) ?? 0)}・共通 {commonShort.get(g.label)}）
+                  </span>
+                )}{" "}
+                →
               </button>
             ))}
             {groups.length === 0 && <span className="text-[14px] text-[var(--cn-muted)]">{filterGroup ? "このグループの枠には、すべて担当が付いています" : "すべての枠に担当が付いています"}</span>}
@@ -454,7 +492,7 @@ export function Board({ date: dateParam }: { date?: string }) {
           </div>
         )}
         {hasTasks && (
-          <div className="flex items-center gap-2">
+          <div className="order-5 flex items-center gap-2">
             <button type="button" onClick={() => setFlow("absence")} className="inline-flex h-[44px] items-center rounded-lg border border-[var(--cn-control-line)] bg-white px-3.5 text-[15px] font-bold">
               欠勤・早退
             </button>
@@ -463,7 +501,7 @@ export function Board({ date: dateParam }: { date?: string }) {
             </button>
           </div>
         )}
-        <div className="ml-auto flex items-center gap-2">
+        <div className="order-2 ml-auto flex items-center gap-2">
         {lastUndo && (
           <button
             type="button"
@@ -478,7 +516,7 @@ export function Board({ date: dateParam }: { date?: string }) {
         )}
         {hasTasks && <BoardMenu state={state} engine={engine} date={date} dateShort={`${Number(date.slice(5, 7))}/${Number(date.slice(8))}`} onPrint={printSheet} onNotice={showNotice} />}
         </div>
-      </div>
+      </section>
 
       {setupNote && (!hasTasks || setupNote.residentErrors + setupNote.staffErrors > 0) && (
         <div
@@ -585,7 +623,14 @@ export function Board({ date: dateParam }: { date?: string }) {
                   ))}
                 </div>
                 {columns.map((c) => (
-                  <div key={c.id} className="relative border-l border-[var(--cn-grid)]" role={view === "resident" ? "group" : undefined} aria-labelledby={view === "resident" ? `col-${c.id}` : undefined}>
+                  <div
+                    key={c.id}
+                    className="relative border-l border-[var(--cn-grid)]"
+                    role={view === "resident" ? "group" : undefined}
+                    aria-labelledby={view === "resident" ? `col-${c.id}` : undefined}
+                    // 利用者ごとの列の中は ↑↓・Home・End で枠を移る（ループ 14 #6）
+                    onKeyDown={view === "resident" ? moveInColumn : undefined}
+                  >
                     {c.cards.map(({ task, lane, lanes, rail }) => {
                       const top = (task.startMin - VIEW_START) * PX_PER_MIN;
                       // 15分の業務でも「＋」(44px) が収まる高さを確保する
@@ -708,7 +753,7 @@ export function Board({ date: dateParam }: { date?: string }) {
                 setToast(null);
                 engine?.undo();
               }}
-              className="h-[44px] rounded-md border border-white/40 px-3 text-[14px] font-bold"
+              className="h-[44px] shrink-0 whitespace-nowrap rounded-md border border-white/40 px-3 text-[14px] font-bold"
             >
               元に戻す
             </button>

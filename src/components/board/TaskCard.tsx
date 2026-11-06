@@ -56,7 +56,7 @@ export function TaskCard({
   const frame = isBreak
     ? "border border-dashed border-[var(--cn-break-line)] bg-[var(--cn-break-bg)]"
     : done
-      ? "border border-dashed border-[var(--cn-control-line)] bg-[var(--cn-ground)] shadow-none"
+      ? "border border-l-4 border-dashed border-[var(--cn-control-line)] [border-left-style:solid] bg-[var(--cn-ground)] shadow-none"
       : short
       ? `border-2 ${status.level === "unassigned" ? "border-dashed" : ""} border-[var(--cn-alert-line)] bg-white`
       : "border border-[var(--cn-card-line)] bg-white";
@@ -78,7 +78,8 @@ export function TaskCard({
   const when = (
     <>
       {fmtRange(task.startMin, task.endMin)}
-      {task.targetMode === "group" && targets.length > 0 && ` ・ ${targets.length}人`}
+      {/* 左のレール（細い）は時刻だけ。人数は詳細で（ループ 15 #4） */}
+      {task.targetMode === "group" && targets.length > 0 && !rail && ` ・ ${targets.length}人`}
     </>
   );
   // 業務名のボタンは 2 行（名前・時刻）で高さ 44px。負のマージンで広げないので、隣の要素に押せる領域を取られない
@@ -121,6 +122,7 @@ export function TaskCard({
         rail && !short ? "bg-[var(--cn-rail-bg)]" : ""
       } ${compact || mini ? "flex-row items-center" : "flex-col"} ${frame}`}
       data-task-id={task.id}
+      data-group={task.groupId}
       data-level={isBreak ? "break" : status.level}
       data-badge={short ? status.label : undefined}
       data-done={done ? "" : undefined}

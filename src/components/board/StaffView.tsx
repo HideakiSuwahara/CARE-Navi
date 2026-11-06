@@ -274,7 +274,7 @@ function StaffRowView({
           const body = (
             <span className="line-clamp-2 break-words">
               {bar.overlap && <span className="mr-1 font-bold text-[var(--cn-unassigned-ink)]">重なり</span>}
-              {task.done && <span className="mr-1 font-bold text-[var(--cn-accent)]">✓</span>}
+              {task.done && <span className="mr-1 font-bold text-[var(--cn-accent)]">✓ 終わった</span>}
               {bar.label}
             </span>
           );

@@ -90,3 +90,36 @@ test.describe("ループ 16 の持ち越し", () => {
     expect((await chip.boundingBox())!.height).toBe(h);
   });
 });
+
+test.describe("ループ 14・15 の持ち越し", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto("/board?now=10:12");
+    await page.evaluate(() => localStorage.clear());
+    await page.goto("/board?now=10:12");
+    await expect(page.locator("[data-task-id]").first()).toBeVisible();
+  });
+
+  test("見るグループを選ぶと、件数をグループと共通に分けて書き、押すとそのグループの枠から移る", async ({ page }) => {
+    await page.getByLabel("見るグループ").selectOption({ label: "東フロア" });
+    const chip = page.getByRole("button", { name: /^担当未定 \d+件/ });
+    await expect(chip).toContainText(/（東フロア \d+・共通 \d+）/);
+    await chip.click();
+    const focused = page.locator("[data-task-id]:has(button:focus)");
+    await expect(focused).toHaveAttribute("data-group", "grp-east");
+  });
+
+  test("利用者ごとの列の中は ↓ で次の枠へ移る", async ({ page }) => {
+    await page.getByRole("button", { name: "利用者ごと", exact: true }).click();
+    const col = page.getByRole("group", { name: /様$/ }).first();
+    const titles = col.locator("[data-card-title]");
+    expect(await titles.count()).toBeGreaterThan(1);
+    await titles.first().focus();
+    await page.keyboard.press("ArrowDown");
+    await expect(titles.nth(1)).toBeFocused();
+  });
+
+  test("職員ごとの帯で、終わった枠は「✓ 終わった」と文字で出る", async ({ page }) => {
+    await page.getByRole("button", { name: "職員ごと", exact: true }).click();
+    await expect(page.getByTestId("staff-view").getByText("✓ 終わった").first()).toBeVisible();
+  });
+});

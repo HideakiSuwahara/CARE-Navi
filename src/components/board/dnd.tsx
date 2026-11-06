@@ -10,7 +10,7 @@
 
 import { DndContext, DragOverlay, KeyboardSensor, PointerSensor, pointerWithin, rectIntersection, type CollisionDetection, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent, type DragStartEvent } from "@dnd-kit/core";
 import { useState, type CSSProperties, type ReactNode } from "react";
-import { checkAssignment } from "@/domain/checks";
+import { checkAssignment, taskLabel } from "@/domain/checks";
 import { assignEvents, moveAssignmentEvents, unassignEvents } from "@/domain/commands";
 import type { ID } from "@/domain/types";
 import type { Engine } from "@/store/engine";
@@ -54,7 +54,7 @@ export function BoardDnd({ engine, children, onNotice }: { engine: Engine | null
     if (drop.kind === "palette") {
       if (drag.kind !== "chip") return;
       const task = state.tasks[drag.fromTaskId];
-      await engine.dispatch(unassignEvents(state, drag.fromTaskId, drag.staffId, engine.context()), `${surname}さんを「${task?.name ?? ""}」の担当から外しました`);
+      await engine.dispatch(unassignEvents(state, drag.fromTaskId, drag.staffId, engine.context()), `${surname}さんを「${task ? taskLabel(state, task) : ""}」の担当から外しました`);
       return;
     }
 
@@ -72,10 +72,10 @@ export function BoardDnd({ engine, children, onNotice }: { engine: Engine | null
       const from = state.tasks[drag.fromTaskId];
       await engine.dispatch(
         moveAssignmentEvents(state, drag.fromTaskId, drop.taskId, drag.staffId, engine.context()),
-        `${surname}さんを「${from?.name ?? ""}」から「${task.name}」へ移しました${note}`,
+        `${surname}さんを「${from ? taskLabel(state, from) : ""}」から「${taskLabel(state, task)}」へ移しました${note}`,
       );
     } else {
-      await engine.dispatch(assignEvents(drop.taskId, drag.staffId, engine.context()), `${surname}さんを「${task.name}」の担当にしました${note}`);
+      await engine.dispatch(assignEvents(drop.taskId, drag.staffId, engine.context()), `${surname}さんを「${taskLabel(state, task)}」の担当にしました${note}`);
     }
   };
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { headcountStatus, rankCandidates, splitCandidates, type Candidate } from "@/domain/checks";
+import { headcountStatus, rankCandidates, splitCandidates, taskLabel, type Candidate } from "@/domain/checks";
 import { assignEvents } from "@/domain/commands";
 import { fmtRange } from "@/domain/time";
 import type { ID, State } from "@/domain/types";
@@ -50,7 +50,7 @@ export function AssignPanel({
   const add = async (c: Candidate) => {
     if (!engine) return;
     const before = headcountStatus(engine.state, task.id);
-    await engine.dispatch(assignEvents(task.id, c.staff.id, engine.context()), `${c.staff.surname}さんを「${task.name}」の担当にしました`);
+    await engine.dispatch(assignEvents(task.id, c.staff.id, engine.context()), `${c.staff.surname}さんを「${taskLabel(engine.state, task)}」の担当にしました`);
     const after = headcountStatus(engine.state, task.id);
     // 満たした（または元から満たしていた）ら閉じる
     if (after.level === "ok" || after.level === "over" || (before.level !== "unassigned" && before.level !== "short")) onClose();
