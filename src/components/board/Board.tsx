@@ -792,9 +792,8 @@ export function Board({ date: dateParam }: { date?: string }) {
                     <span className="font-bold">{r.surname}</span> {r.slotName}
                     {r.unfilledSlotTasks > 0 && (
                       <span className="block text-[13px]">
-                        {r.surname}さんの分 {r.unfilledSlotTasks}件（
-                        {r.slotTaskLabels.map((x) => `${x.label} ${x.count}`).join("・")}
-                        ）
+                        {/* 数字は人ではなく枠に付ける（原則 5。「◯◯さんの分 n件」と書かない。ループ 21） */}
+                        {r.slotName ? `${r.slotName}の枠` : "この人が入る予定だった枠"}: {r.slotTaskLabels.map((x) => `${x.label} ${x.count}`).join("・")}
                       </span>
                     )}
                   </li>

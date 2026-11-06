@@ -200,7 +200,7 @@
 | 12 | L23 暗い画面（紺・端末が覚える・印刷は明るい・全画面で axe 0） | e2e/judge.spec.ts:153、acceptance-final「L23」2 件 | 満たさない | 紺・覚える・印刷は満たす。axe（WCAG 2.0〜2.2 A/AA）で /setup に label-content-name-mismatch（2.5.3）27 件。明るい画面でも同じ。再現: サンプル → /setup で axe。見当: `src/components/setup/MasterEditor.tsx:301` の `aria-label="番「…」を直す"` が見えている文字（時刻・グループ）を含まない。ほかに best-practice の region（ボードの飛び先リンク、利用者の見出し）が出る |
 | 13 | L24 終わった枠の灰色・見るグループ・利用者ごと | e2e/board-view.spec.ts:14・23・37、boardView.test.ts 6 件、acceptance-final「L24」 | 満たす | 印のある一括の写し（n人の枠）は白のまま、見守り・休憩・共通は出ないことを今回確認 |
 | 14 | L25 現在時刻ライン | e2e/board.spec.ts:137 | 満たす | |
-| 15 | L26 出勤者に数字なし・休みの人は番の枠の件数だけ | e2e/board.spec.ts:31・175、layout.test.ts:72、acceptance-final「L26」 | 満たす | 文言は「渡辺さんの分 3件（担当未定 2・担当あと1人 1）」 |
+| 15 | L26 出勤者に数字なし・休みの人は番の枠の件数だけ | e2e/board.spec.ts:31・175、layout.test.ts:72、acceptance-final「L26」 | 満たす | 文言は「介護助手の枠: 担当未定 2・担当あと1人 1」（人の名前に数字を付けない。ループ 21） |
 | 16 | L27 スマホ幅のボードは案内 1 文と 1 ボタン | e2e/board.spec.ts:199、e2e/acceptance.phone.spec.ts:18 | 満たす | |
 | 17 | L28 D&D 1 操作・＋→追加 2 操作 | e2e/board.spec.ts:92・64 | 満たす | |
 | 18 | L29 パネルは問題なしだけ開き、ほかは畳む・理由一文 | e2e/acceptance.spec.ts:34、domain.test.ts:260 | 満たす | |

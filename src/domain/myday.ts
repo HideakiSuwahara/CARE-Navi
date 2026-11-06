@@ -7,7 +7,7 @@
  * - 利用者名は施設の設定（既定: 部屋番号＋姓）。
  */
 
-import { assigneesOf, canMarkDone, checkAssignment, headcountStatus, isWatchTask, rosterOf, taskLabel, tasksForDate, tasksOfStaff } from "./checks.ts";
+import { assigneesOf, boardName, canMarkDone, checkAssignment, headcountStatus, isWatchTask, rosterOf, taskLabel, tasksForDate, tasksOfStaff } from "./checks.ts";
 import { residentLabel } from "./display.ts";
 import { addDays } from "./pattern.ts";
 import { sheetRowFor } from "./routine.ts";
@@ -62,7 +62,8 @@ export interface LeaderContact {
   next?: ContactPerson & { slotName: string };
 }
 
-const person = (s: Staff): ContactPerson => ({ staffId: s.id, surname: s.surname, phone: s.phone });
+// 名前は同じ姓の人がいれば名を添える（決定記録 0023。スマホにも広げた）
+const person = (state: State, s: Staff): ContactPerson => ({ staffId: s.id, surname: boardName(state, s.id), phone: s.phone });
 
 /** その時刻に休憩カードの担当になっているか。なっていればその休憩 */
 export function breakAt(state: State, date: string, staffId: ID, now: Minutes): TaskInstance | undefined {
@@ -112,17 +113,17 @@ export function leaderContact(state: State, date: string, now: Minutes): LeaderC
   const nightLeader = primary.entry.endMin > 24 * 60;
   const nextDuty = byRank.find((d) => d !== primary) ?? (nightLeader ? byOrder.find((d) => d !== primary && !d.onBreak) : undefined);
   const base = {
-    leader: person(leaderStaff),
+    leader: person(state, leaderStaff),
     isLeader: primary.rank !== undefined,
     slotName: primary.entry.slotId ? (state.roleSlots[primary.entry.slotId]?.name ?? "") : "",
-    next: nextDuty ? { ...person(state.staff[nextDuty.entry.staffId]), slotName: nextDuty.entry.slotId ? (state.roleSlots[nextDuty.entry.slotId]?.name ?? "") : "" } : undefined,
+    next: nextDuty ? { ...person(state, state.staff[nextDuty.entry.staffId]), slotName: nextDuty.entry.slotId ? (state.roleSlots[nextDuty.entry.slotId]?.name ?? "") : "" } : undefined,
   };
   if (!primary.onBreak) return base;
   const sub = [...byRank, ...byOrder].find((d) => d !== primary && !d.onBreak);
   return {
     ...base,
     onBreak: { startMin: primary.onBreak.startMin - (primary.at - now), endMin: primary.onBreak.endMin - (primary.at - now) },
-    substitute: sub ? person(state.staff[sub.entry.staffId]) : undefined,
+    substitute: sub ? person(state, state.staff[sub.entry.staffId]) : undefined,
   };
 }
 
@@ -202,7 +203,7 @@ function itemOf(state: State, task: TaskInstance, staffId: ID, now: Minutes): My
       ? []
       : assigneesOf(state, task.id)
           .filter((s) => s.id !== staffId)
-          .map(person),
+          .map((s) => person(state, s)),
     isBreak,
     past: task.endMin <= now,
     done: Boolean(task.done),

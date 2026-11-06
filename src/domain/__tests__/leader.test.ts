@@ -155,3 +155,15 @@ test("付き添いの既定: 夜に開いたら深夜の受診にせず、翌 9:
   assert.equal(defaultEscortRange(28 * 60 + 5).startMin, 33 * 60);
   assert.equal(defaultEscortRange(toMin(10, 12)).startMin, toMin(10, 15));
 });
+
+test("全体・自分の予定の名前も、同じ姓がいれば名を添える（決定記録 0023。スマホにも広げた）", async () => {
+  const { leaderContact } = await import("../myday.ts");
+  const s = state();
+  const c0 = leaderContact(s, DATE, toMin(10))!;
+  const lead = s.staff[c0.leader.staffId];
+  s.staff["dup"] = { ...lead, id: "dup", displayName: `${lead.surname} 太郎` };
+  const c = leaderContact(s, DATE, toMin(10))!;
+  assert.notEqual(c.leader.surname, lead.surname, "相談先の名前に名を添える");
+  const row = allRows(s, DATE, toMin(10)).find((r) => r.assignees.some((a) => a.id === lead.id))!;
+  assert.ok(row.names.some((n) => n.startsWith(`${lead.surname}（`)));
+});

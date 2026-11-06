@@ -5,7 +5,7 @@
 
 import type { Event } from "./events.ts";
 import { applyEvents } from "./reducer.ts";
-import { assigneesOf, canMarkDone, headcountStatus, rankCandidates, rosterForDate, taskLabel, tasksForDate, tasksOfStaff, type Candidate, UNFINISHED_GRACE_MIN } from "./checks.ts";
+import { assigneesOf, boardName, canMarkDone, headcountStatus, rankCandidates, rosterForDate, taskLabel, tasksForDate, tasksOfStaff, type Candidate, UNFINISHED_GRACE_MIN } from "./checks.ts";
 import { addDays } from "./pattern.ts";
 import { fmtMin, fmtRange, overlaps } from "./time.ts";
 import { residentLabel } from "./display.ts";
@@ -32,6 +32,8 @@ export interface AllRow {
   /** 一括の人数（「20人」）。個別は label に様名が入るので空 */
   count: string;
   assignees: Staff[];
+  /** 画面に出す担当の名前（同じ姓の人がいれば名を添える。決定記録 0023） */
+  names: string[];
   /** 充足の状態（休憩・中止の行ではバッジを出さない。unfilled を見る） */
   status: HeadcountStatus;
   /** 担当未定・担当あと n 人（休憩・中止は false） */
@@ -67,6 +69,7 @@ export function allRows(state: State, date: DateKey, now: Minutes): AllRow[] {
         label: isBreak ? staffTaskName(task) : taskLabel(state, task),
         count: task.targetMode === "group" && n > 0 ? `${n}人` : "",
         assignees: assigneesOf(state, task.id),
+        names: assigneesOf(state, task.id).map((s) => boardName(state, s.id)),
         status,
         unfilled,
         cancelled,

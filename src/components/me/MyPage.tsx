@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { writeChosen } from "@/components/setup/setupNote";
-import { rosterForDate } from "@/domain/checks";
+import { rosterForDate, boardName } from "@/domain/checks";
 import { canSeeAll } from "@/domain/leader";
 import { viewerDay } from "@/domain/myday";
 import { addDays } from "@/domain/pattern";
@@ -80,7 +80,7 @@ export function MyPage({ taskId, date: dateParam, view: viewKey }: { taskId?: st
   const bizDate = view.date;
   const now = view.now;
   const entry = me ? rosterForDate(state, bizDate).find((e) => e.staffId === me && !e.absent) : undefined;
-  if (!me || !state.staff[me] || !entry) return <NamePicker state={state} date={date} clock={clock} onChoose={choose} previous={me && state.staff[me] ? state.staff[me].surname : undefined} />;
+  if (!me || !state.staff[me] || !entry) return <NamePicker state={state} date={date} clock={clock} onChoose={choose} previous={me && state.staff[me] ? boardName(state, me) : undefined} />;
   const date_ = bizDate;
   if (taskId && state.tasks[taskId]) {
     return <PhoneTaskDetail state={state} date={date_} taskId={taskId} me={me} now={now} />;
@@ -163,7 +163,7 @@ function NamePicker({
         // サンプル施設のときだけ、試す人の案内（決定記録 0018。自分の施設では名前を自分で選ぶ）
         const first = entries.find((e) => e.firstTimer && !e.overnight);
         const leader = entries.find((e) => !e.overnight && canSeeAll(state, date, e.staffId));
-        const parts = [first && `${state.staff[first.staffId].surname}（初日の人の画面）`, leader && `${state.staff[leader.staffId].surname}（リーダー。［全体］で欠勤・付き添いを 3 タップ）`].filter(Boolean);
+        const parts = [first && `${boardName(state, first.staffId)}（初日の人の画面）`, leader && `${boardName(state, leader.staffId)}（リーダー。［全体］で欠勤・付き添いを 3 タップ）`].filter(Boolean);
         return parts.length > 0 ? (
           <p className="rounded-xl border border-dashed border-[var(--cn-control-line)] bg-white p-3 text-[15px]">サンプル施設で試すなら: {parts.join("、")}</p>
         ) : null;
@@ -179,7 +179,7 @@ function NamePicker({
                 onClick={() => onChoose(s.id)}
                 className="flex min-h-[56px] w-full items-center gap-3 rounded-xl border border-[var(--cn-control-line)] bg-white px-4 text-left"
               >
-                <span className="text-[18px] font-bold">{s.surname}</span>
+                <span className="text-[18px] font-bold">{boardName(state, s.id)}</span>
                 {e.firstTimer && <span className="rounded border border-[var(--cn-control-line)] px-1.5 text-[14px]">初回</span>}
                 {e.overnight && <span className="rounded border border-[var(--cn-control-line)] px-1.5 text-[14px]">夜勤明け</span>}
                 {isSampleFacility(state) && !e.overnight && canSeeAll(state, date, e.staffId) && Object.values(state.roleSlots).some((x) => x.leaderRank !== undefined) && (

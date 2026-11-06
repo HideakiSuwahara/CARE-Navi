@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { assigneesOf, canMarkDone } from "@/domain/checks";
+import { assigneesOf, canMarkDone, boardName } from "@/domain/checks";
 import { residentLabel } from "@/domain/display";
 import { leaderContact, staffTaskName, targetLines } from "@/domain/myday";
 import { clockLabel, fmtMin, fmtRange } from "@/domain/time";
@@ -93,7 +93,7 @@ export function PhoneTaskDetail({ state, date, taskId, me, now }: { state: State
               ? together.map((s, i) => (
                   <span key={s.id}>
                     {i > 0 && "・"}
-                    <span className="font-bold">{s.surname}</span>
+                    <span className="font-bold">{boardName(state, s.id)}</span>
                     {s.phone && ` PHS ${s.phone}`}
                   </span>
                 ))

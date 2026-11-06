@@ -157,7 +157,7 @@ export interface PaletteRow {
   startMin: Minutes;
   endMin: Minutes;
   firstTimer: boolean;
-  /** 休みの人の番に束ねた枠のうち、未充足の件数（休みの欄に「渡辺さんの分 3件（担当未定 2・担当あと n 人 1）」） */
+  /** 休みの人の番に束ねた枠のうち、未充足の件数（休みの欄に「介護助手の枠: 担当未定 2・担当あと1人 1」。人には数字を付けない） */
   unfilledSlotTasks: number;
   /** その内訳（実際の文言ごと。例: [{label:"担当未定",count:2},{label:"担当あと1人",count:1}]） */
   slotTaskLabels: { label: string; count: number }[];

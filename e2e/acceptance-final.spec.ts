@@ -121,7 +121,7 @@ test.describe("通し確認: ボード", () => {
   test("L26 休みの人には「その人の番の枠 n 件」だけ。出勤者に件数・予定時間がない", async ({ page }) => {
     await openBoard(page);
     const off = page.getByRole("region", { name: "休み" });
-    await expect(off).toContainText(/渡辺さんの分 \d+件（担当未定 \d+/);
+    await expect(off).toContainText(/の枠: 担当未定 \d+/);
     const palette = await page.getByRole("region", { name: "休み" }).locator("xpath=ancestor::aside[1]").innerText();
     expect(palette).not.toMatch(/\d+時間|\d+分|\d+件の担当/);
   });

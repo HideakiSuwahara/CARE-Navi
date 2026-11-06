@@ -2,7 +2,7 @@
 
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import type { Event } from "@/domain/events";
-import { canMarkDone, shortageGroups, splitCandidates, type Candidate } from "@/domain/checks";
+import { canMarkDone, shortageGroups, splitCandidates, type Candidate, boardName } from "@/domain/checks";
 import {
   absencePreview,
   assignEvents,
@@ -283,7 +283,7 @@ export function AllView({ state, date, me, now, clock, tabs }: { state: State; d
                   {r.unfinished && <span className="text-[14px]">（時刻を過ぎました）</span>}
                 </p>
                 <p className="flex flex-wrap items-center gap-x-2 text-[16px] text-[var(--cn-ink-soft)]">
-                  {r.isBreak ? "休憩" : "担当"}: {r.assignees.length > 0 ? r.assignees.map((x) => x.surname).join("・") : "決まっていません"}
+                  {r.isBreak ? "休憩" : "担当"}: {r.assignees.length > 0 ? r.assignees.map((x) => boardName(state, x.id)).join("・") : "決まっていません"}
                   <Badge row={r} />
                 </p>
               </li>
@@ -409,7 +409,7 @@ function Row({ row, flash, onMenu, onAdd }: { row: AllRow; flash: boolean; onMen
         {!noNeed && (
           <p id={`${id}-sub`} className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[16px]">
             <span className={row.done || row.cancelled ? "" : "text-[var(--cn-ink-soft)]"} aria-hidden={row.assignees.length === 0 && row.unfilled ? true : undefined}>
-              {row.isBreak ? "休憩" : "担当"}: {row.assignees.length > 0 ? row.assignees.map((s) => s.surname).join("・") : "決まっていません"}
+              {row.isBreak ? "休憩" : "担当"}: {row.assignees.length > 0 ? row.names.join("・") : "決まっていません"}
             </span>
             <Badge row={row} />
             {flash && <span className="text-[14px] font-bold text-[var(--cn-ink)]">変わりました</span>}
@@ -470,7 +470,7 @@ function MenuSheet({ state, engine, taskId, now, onClose, onApply }: { state: St
         return;
       }
       const overlaps = p.lines.filter((l) => l.kind === "effect").map((l) => l.text);
-      onApply(p.events, `${state.staff[staffId]?.surname ?? ""}さんの休憩を ${to} にしました${overlaps.length ? `。${overlaps.join("。")}` : ""}`);
+      onApply(p.events, `${boardName(state, staffId)}さんの休憩を ${to} にしました${overlaps.length ? `。${overlaps.join("。")}` : ""}`);
       return;
     }
     const check = shiftCheck(engine.state, task.id, delta);
@@ -516,7 +516,7 @@ function MenuSheet({ state, engine, taskId, now, onClose, onApply }: { state: St
               {row.assignees.map((s) => (
                 <li key={s.id} className="flex gap-2">
                   <button type="button" className={`${btn} font-bold`} onClick={() => shift(30, s.id)}>
-                    {s.surname}さんの休憩を 30分後へ
+                    {boardName(state, s.id)}さんの休憩を 30分後へ
                   </button>
                   <button type="button" className={`${btn} w-auto shrink-0`} onClick={() => shift(-30, s.id)}>
                     30分前へ
@@ -555,9 +555,9 @@ function MenuSheet({ state, engine, taskId, now, onClose, onApply }: { state: St
                 <button
                   type="button"
                   className={btn}
-                  onClick={() => onApply(unassignEvents(engine.state, task.id, s.id, engine.context()), `${s.surname}さんを「${row.label} ${fmtMin(task.startMin)}」の担当から外しました`)}
+                  onClick={() => onApply(unassignEvents(engine.state, task.id, s.id, engine.context()), `${boardName(state, s.id)}さんを「${row.label} ${fmtMin(task.startMin)}」の担当から外しました`)}
                 >
-                  {s.surname}さんを外す
+                  {boardName(state, s.id)}さんを外す
                 </button>
               </li>
             ))}
@@ -596,7 +596,7 @@ function CandidateList({ state, cands, onPick, pickLabel }: { state: State; cand
     <li key={c.staff.id} className="flex items-center gap-3 px-3 py-2">
       <div className="min-w-0 flex-1">
         <p className="flex items-baseline gap-2">
-          <span className="font-bold">{c.staff.surname}</span>
+          <span className="font-bold">{boardName(state, c.staff.id)}</span>
           {c.entry?.slotId && state.roleSlots[c.entry.slotId] && <span className="text-[14px] text-[var(--cn-ink-soft)]">{state.roleSlots[c.entry.slotId].name}</span>}
           {c.entry?.firstTimer && <span className="rounded border border-[var(--cn-control-line)] px-1 text-[14px]">初回</span>}
         </p>
@@ -609,7 +609,7 @@ function CandidateList({ state, cands, onPick, pickLabel }: { state: State; cand
         <button
           type="button"
           onClick={() => onPick(c)}
-          aria-label={`${c.staff.surname}さんを${pickLabel}`}
+          aria-label={`${boardName(state, c.staff.id)}さんを${pickLabel}`}
           className={`h-[44px] shrink-0 rounded-lg px-4 text-[16px] font-bold ${c.tier === "ok" ? "bg-[var(--cn-accent)] text-white" : "border border-[var(--cn-control-line)] bg-white"}`}
         >
           {pickLabel}
@@ -663,7 +663,7 @@ function AssignSheet({ state, engine, taskId, onClose, onApply }: { state: State
           const evs = assignEvents(task.id, c.staff.id, engine.context());
           // まだ足りないときは開いたまま（続けて追加できる）
           const stillShort = row.status.required - row.status.assigned > 1;
-          onApply(evs, `${c.staff.surname}さんを「${row.label} ${fmtMin(task.startMin)}」の担当にしました`, stillShort);
+          onApply(evs, `${boardName(state, c.staff.id)}さんを「${row.label} ${fmtMin(task.startMin)}」の担当にしました`, stillShort);
         }}
       />
     </Sheet>
@@ -817,7 +817,7 @@ export function EscortFlow({ state, engine, date, now, onClose, onApply }: { sta
         </h3>
         {staffId ? (
           <div className="flex items-center gap-2">
-            <span className="font-bold">{state.staff[staffId]?.surname}</span>
+            <span className="font-bold">{boardName(state, staffId)}</span>
             <button type="button" onClick={() => setStaffId(undefined)} className={chip(false)}>
               担当を決めずに足す
             </button>
@@ -841,7 +841,7 @@ export function EscortFlow({ state, engine, date, now, onClose, onApply }: { sta
               {/* 「空いている人」の先頭を1タップで付けられる（docs/screens.md §4.1） */}
               {topCandidate && (
                 <button type="button" aria-pressed="false" onClick={() => setStaffId(topCandidate.staff.id)} className={chip(false)}>
-                  {topCandidate.staff.surname}さんを担当にする
+                  {boardName(state, topCandidate.staff.id)}さんを担当にする
                 </button>
               )}
               <button type="button" aria-pressed="false" onClick={() => setPickStaff(true)} className={chip(false)}>
@@ -850,7 +850,7 @@ export function EscortFlow({ state, engine, date, now, onClose, onApply }: { sta
             </div>
             {topCandidate && (
               <p className="text-[14px] text-[var(--cn-ink-soft)]">
-                {topCandidate.staff.surname}
+                {boardName(state, topCandidate.staff.id)}
                 {topCandidate.entry?.slotId && state.roleSlots[topCandidate.entry.slotId] ? `（${state.roleSlots[topCandidate.entry.slotId].name}）` : ""}は、この時間に空いています。
               </p>
             )}
@@ -894,7 +894,7 @@ export function AbsenceFlow({ state, engine, date, clock, onClose, onApply }: { 
                   onClick={() => setStaffId(c.staff.id)}
                   className="flex min-h-[52px] w-full items-center gap-3 rounded-xl border border-[var(--cn-control-line)] bg-white px-4 text-left disabled:border-[var(--cn-border)] disabled:text-[var(--cn-muted)]"
                 >
-                  <span className="text-[17px] font-bold">{c.staff.surname}</span>
+                  <span className="text-[17px] font-bold">{boardName(state, c.staff.id)}</span>
                   <span className="text-[14px]">
                     {c.slotName} {fmtRange(c.entry.startMin, c.entry.endMin)}
                   </span>
@@ -908,7 +908,7 @@ export function AbsenceFlow({ state, engine, date, clock, onClose, onApply }: { 
     );
   }
 
-  const name = state.staff[staffId]?.surname ?? "";
+  const name = boardName(state, staffId);
   const entry = choices.find((c) => c.staff.id === staffId)?.entry;
   const auto = entry ? absenceKind(entry, now) : "欠勤";
   const at = entry ? leaveAt(entry, now) : now;

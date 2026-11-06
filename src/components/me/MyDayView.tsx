@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { tasksForDate } from "@/domain/checks";
+import { tasksForDate, boardName } from "@/domain/checks";
 import { freeGaps, leaderSchedule, myDay, type FreeGap, type MyItem } from "@/domain/myday";
 import { fmtMin, fmtRange } from "@/domain/time";
 import type { ID, State } from "@/domain/types";
@@ -110,7 +110,7 @@ export function MyDayView({
       <header className="flex items-start gap-2 bg-white px-4 pb-3 pt-4">
         <div className="min-w-0 flex-1">
           <h1 ref={titleRef} tabIndex={-1} className="text-[20px] font-bold outline-none">
-            {day.staff.surname} さんの予定
+            {boardName(state, day.staff.id)} さんの予定
           </h1>
           <p className="text-[16px] text-[var(--cn-ink-soft)]">
             {m}/{d}（{wd}）{day.slotName} {fmtRange(day.entry.startMin, day.entry.endMin)}

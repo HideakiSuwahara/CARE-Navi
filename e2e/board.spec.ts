@@ -32,7 +32,7 @@ test.describe("ボード（D1）", () => {
     const palette = page.getByRole("complementary", { name: "きょうの出勤者" });
     await expect(palette.getByText(/\d+件$/)).toHaveCount(0);
     await expect(palette.getByText(/時間\d+分|予定 \d/)).toHaveCount(0);
-    await expect(page.getByRole("region", { name: "休み" }).getByText(/渡辺さんの分 \d+件（担当未定 \d+/)).toBeVisible();
+    await expect(page.getByRole("region", { name: "休み" }).getByText(/の枠: 担当未定 \d+/)).toBeVisible();
   });
 
   test("禁止の言い回しを出さない", async ({ page }) => {
@@ -172,7 +172,7 @@ test.describe("今日の時間割を作る（1タップ）", () => {
     await band.getByRole("button", { name: "この内容で作る" }).click();
     await expect(page.locator("#board-toast")).toContainText("今日の時間割を作りました");
     await expect(page.locator("#board-title")).toBeFocused();
-    await expect(page.getByRole("region", { name: "休み" }).getByText(/渡辺さんの分 \d+件（担当未定 \d+/)).toBeVisible();
+    await expect(page.getByRole("region", { name: "休み" }).getByText(/の枠: 担当未定 \d+/)).toBeVisible();
   });
 });
 
