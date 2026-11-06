@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { assigneesOf, canMarkDone, headcountStatus, taskLabel } from "@/domain/checks";
-import { cancelTaskEvents, shiftTaskEvents, unassignEvents } from "@/domain/commands";
+import { cancelTaskEvents, shiftTaskEvents, swapChoices, swapPreview, unassignEvents, type SwapChoice } from "@/domain/commands";
 import { sheetRowFor } from "@/domain/routine";
-import { clockLabel, fmtRange } from "@/domain/time";
+import { clockLabel, fmtMin, fmtRange } from "@/domain/time";
 import type { ID, State } from "@/domain/types";
 import type { Engine } from "@/store/engine";
 import { DoneButton } from "@/components/DoneButton";
@@ -30,6 +30,10 @@ export function TaskDetail({
 }) {
   const task = state.tasks[taskId];
   const closeRef = useRef<HTMLButtonElement>(null);
+  // 担当の入れ替え（決定記録 0021）: だれを → だれと → こう変わります → 決定
+  const [swapFrom, setSwapFrom] = useState<ID | null>(null);
+  const [swapWith, setSwapWith] = useState<SwapChoice | null>(null);
+  const swapRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     closeRef.current?.focus();
@@ -53,6 +57,21 @@ export function TaskDetail({
     engine.dispatch(unassignEvents(engine.state, task.id, staffId, engine.context()), `${surname}さんを「${taskLabel(engine.state, task)}」の担当から外しました`);
     // 押したボタンが消えるので、見出しへ
     window.setTimeout(() => document.getElementById("task-detail-title")?.focus(), 0);
+  };
+  const openSwap = (staffId: ID | null) => {
+    setSwapFrom(staffId);
+    setSwapWith(null);
+    if (staffId) requestAnimationFrame(() => swapRef.current?.querySelector<HTMLElement>("button")?.focus());
+  };
+  const doSwap = () => {
+    if (!engine || !swapFrom || !swapWith) return;
+    const p = swapPreview(engine.state, { taskId: task.id, staffId: swapFrom }, swapWith, engine.context());
+    if (p.events.length === 0) return;
+    engine.dispatch(p.events, p.label);
+    const back = swapFrom;
+    setSwapFrom(null);
+    setSwapWith(null);
+    window.setTimeout(() => (document.querySelector<HTMLElement>(`[data-swap-open="${back}"]`) ?? document.getElementById("task-detail-title"))?.focus(), 0);
   };
   const shift = (delta: number) => {
     if (!engine) return;
@@ -132,6 +151,38 @@ export function TaskDetail({
               </button>
             )}
           </div>
+          {engine && !isBreak && assignees.length > 0 && (
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              {assignees.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  data-swap-open={s.id}
+                  aria-expanded={swapFrom === s.id}
+                  onClick={() => openSwap(swapFrom === s.id ? null : s.id)}
+                  className="h-[44px] rounded-lg border border-[var(--cn-control-line)] px-3 text-[15px]"
+                >
+                  {s.surname}さんをほかの人と入れ替える…
+                </button>
+              ))}
+            </div>
+          )}
+          {engine && swapFrom && (
+            <SwapBox
+              state={state}
+              taskId={task.id}
+              staffId={swapFrom}
+              picked={swapWith}
+              onPick={setSwapWith}
+              onDecide={doSwap}
+              onCancel={() => {
+                const back = swapFrom;
+                openSwap(null);
+                window.setTimeout(() => document.querySelector<HTMLElement>(`[data-swap-open="${back}"]`)?.focus(), 0);
+              }}
+              boxRef={swapRef}
+            />
+          )}
         </section>
 
         {engine && (
@@ -224,5 +275,100 @@ export function TaskDetail({
         )}
       </div>
     </aside>
+  );
+}
+
+/** 入れ替えの相手を選び、「こう変わります」を見てから決める。注意は止めずに一文 */
+function SwapBox({
+  state,
+  taskId,
+  staffId,
+  picked,
+  onPick,
+  onDecide,
+  onCancel,
+  boxRef,
+}: {
+  state: State;
+  taskId: ID;
+  staffId: ID;
+  picked: SwapChoice | null;
+  onPick: (c: SwapChoice | null) => void;
+  onDecide: () => void;
+  onCancel: () => void;
+  boxRef: React.RefObject<HTMLDivElement | null>;
+}) {
+  const me = state.staff[staffId];
+  const choices = swapChoices(state, taskId, staffId);
+  const ctx = { newId: () => "preview", ts: "", batchId: "preview" };
+  const preview = picked ? swapPreview(state, { taskId, staffId }, picked, ctx) : null;
+  const decideRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (picked) decideRef.current?.focus();
+  }, [picked]);
+  if (!me) return null;
+  return (
+    <div ref={boxRef} role="group" aria-label={`${me.surname}さんの入れ替え`} className="mt-2 flex flex-col gap-2 rounded-xl border border-[var(--cn-border)] p-3">
+      {!preview ? (
+        <>
+          <p className="text-[15px] font-bold">{me.surname}さんと入れ替える人</p>
+          {choices.length === 0 ? (
+            <p className="text-[15px] text-[var(--cn-ink-soft)]">この時間に重なるほかの業務の担当の人がいません。</p>
+          ) : (
+            <ul className="flex flex-col gap-1.5">
+              {choices.map((c) => {
+                const t = state.tasks[c.taskId];
+                const s = state.staff[c.staffId];
+                if (!t || !s) return null;
+                return (
+                  <li key={`${c.taskId}:${c.staffId}`}>
+                    <button
+                      type="button"
+                      onClick={() => onPick(c)}
+                      className="flex min-h-[44px] w-full items-center gap-2 rounded-lg border border-[var(--cn-control-line)] px-3 py-1.5 text-left text-[15px]"
+                    >
+                      <span className="font-bold">{s.surname}さん</span>
+                      <span className="text-[var(--cn-ink-soft)]">
+                        {taskLabel(state, t)} {fmtMin(t.startMin)}〜
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          <button type="button" onClick={onCancel} className="h-[44px] self-start rounded-lg border border-[var(--cn-control-line)] px-3 text-[15px]">
+            やめる
+          </button>
+        </>
+      ) : (
+        <>
+          <p className="text-[15px] font-bold">こう変わります</p>
+          <ul className="flex flex-col gap-0.5 text-[15px]">
+            {preview.lines.map((l) => (
+              <li key={l}>{l}</li>
+            ))}
+          </ul>
+          {preview.notes.length > 0 && (
+            <ul className="flex flex-col gap-0.5 text-[14px]">
+              {preview.notes.map((n) => (
+                <li key={n}>
+                  <span className="font-bold text-[var(--cn-short-ink)]">注意: </span>
+                  {n}
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="flex flex-wrap gap-2">
+            <button ref={decideRef} type="button" onClick={onDecide} className="h-[44px] rounded-lg bg-[var(--cn-accent)] px-4 text-[15px] font-bold text-white">
+              この内容で入れ替える
+            </button>
+            <button type="button" onClick={() => onPick(null)} className="h-[44px] rounded-lg border border-[var(--cn-control-line)] px-3 text-[15px]">
+              選び直す
+            </button>
+          </div>
+        </>
+      )}
+    </div>
   );
 }

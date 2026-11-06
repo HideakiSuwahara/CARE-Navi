@@ -361,3 +361,31 @@ test.describe("手が空いたら（決定記録 0021）", () => {
     await expect(gap).not.toContainText("担当あと");
   });
 });
+
+test.describe("担当の入れ替え（決定記録 0021）", () => {
+  test("業務の詳細から、時間の重なるほかの枠の担当と入れ替える。こう変わりますを見てから決め、1 回で元に戻せる", async ({ page }) => {
+    await page.goto("/board?now=10:12");
+    await page.evaluate(() => localStorage.clear());
+    await page.goto("/board?now=10:12");
+    const card = page.locator("[data-task-id]").filter({ hasText: "入浴介助（2人介助）" }).first();
+    await card.locator("[data-card-title]").click();
+    const dialog = page.getByRole("dialog");
+    await dialog.getByRole("button", { name: "伊藤さんをほかの人と入れ替える…" }).click();
+    const box = dialog.getByRole("group", { name: "伊藤さんの入れ替え" });
+    const choice = box.getByRole("listitem").first().getByRole("button");
+    await expect(choice).toBeFocused();
+    const other = ((await choice.locator("span").first().innerText()) ?? "").replace("さん", "");
+    await choice.click();
+    await expect(box).toContainText("こう変わります");
+    await expect(box).toContainText(`伊藤さん: 入浴介助`);
+    const decide = box.getByRole("button", { name: "この内容で入れ替える" });
+    await expect(decide).toBeFocused();
+    await decide.click();
+    await expect(page.locator("#board-toast")).toContainText(`伊藤さんと${other}さんの担当を入れ替えました`);
+    const staffSec = dialog.getByRole("region", { name: "担当" }).or(dialog.locator('section[aria-labelledby="d-staff"]'));
+    await expect(staffSec.first()).toContainText(other);
+    await expect(staffSec.first()).not.toContainText("伊藤");
+    await page.locator("#board-toast").getByRole("button", { name: /元に戻す/ }).click();
+    await expect(staffSec.first()).toContainText("伊藤");
+  });
+});

@@ -9,9 +9,9 @@
 import type { Event } from "./events.ts";
 import { applyEvents } from "./reducer.ts";
 import { metaOf, type EventContext } from "./pattern.ts";
-import { assignmentsOf, headcountStatus, rosterOf, taskLabel as boardLabel, tasksOfStaff } from "./checks.ts";
+import { assignmentsOf, checkAssignment, headcountStatus, rosterOf, taskLabel as boardLabel, tasksForDate, tasksOfStaff } from "./checks.ts";
 import { staffTaskName } from "./myday.ts";
-import { fmtRange, overlaps } from "./time.ts";
+import { fmtMin, fmtRange, overlaps } from "./time.ts";
 import type { DateKey, ID, Minutes, State, TaskInstance } from "./types.ts";
 
 /** プレビューの文で使う業務名。休憩は丸数字を外す（丸数字はボードのカードだけ） */
@@ -470,4 +470,60 @@ export function shiftBreakPreview(state: State, taskId: ID, deltaMin: Minutes, c
     }
   }
   return { title: "休憩をずらす", lines, events };
+}
+
+// ---------------------------------------------------------------------------
+// 2 人の担当の入れ替え（決定記録 0021）
+// A さん（枠 X）と B さん（枠 Y）を入れ替える: X は B に、Y は A に。1 バッチ。注意は止めずに一文
+// ---------------------------------------------------------------------------
+
+export interface SwapChoice {
+  taskId: ID;
+  staffId: ID;
+}
+
+/** 入れ替えの相手: 同じ日で時間が重なるほかの枠の担当の人（いまの枠の担当でない人。休憩は除く） */
+export function swapChoices(state: State, taskId: ID, staffId: ID): SwapChoice[] {
+  const x = state.tasks[taskId];
+  if (!x) return [];
+  const inX = new Set(assignmentsOf(state, taskId).map((a) => a.staffId));
+  const out: SwapChoice[] = [];
+  for (const y of tasksForDate(state, x.date)) {
+    if (y.id === x.id || y.kind === "break" || !(y.startMin < x.endMin && x.startMin < y.endMin)) continue;
+    const inY = new Set(assignmentsOf(state, y.id).map((a) => a.staffId));
+    if (inY.has(staffId)) continue;
+    for (const b of inY) if (!inX.has(b) && b !== staffId) out.push({ taskId: y.id, staffId: b });
+  }
+  return out.sort((p, q) => state.tasks[p.taskId].startMin - state.tasks[q.taskId].startMin);
+}
+
+export interface SwapPreview {
+  events: Event[];
+  label: string;
+  lines: string[];
+  /** 入れ替えたあとの注意（休憩・勤務外・条件など）。止めない */
+  notes: string[];
+}
+
+export function swapPreview(state: State, a: SwapChoice, b: SwapChoice, ctx: EventContext): SwapPreview {
+  const sa = state.staff[a.staffId];
+  const sb = state.staff[b.staffId];
+  const x = state.tasks[a.taskId];
+  const y = state.tasks[b.taskId];
+  if (!sa || !sb || !x || !y) return { events: [], label: "", lines: [], notes: [] };
+  const removes = [...unassignEvents(state, x.id, sa.id, ctx), ...unassignEvents(state, y.id, sb.id, ctx)];
+  const mid = applyEvents(state, removes);
+  const notes = [
+    ...checkAssignment(mid, x.id, sb.id).map((i) => `${sb.surname}さん: ${i.message}`),
+    ...checkAssignment(mid, y.id, sa.id).map((i) => `${sa.surname}さん: ${i.message}`),
+  ];
+  const events = [...removes, ...assignEvents(x.id, sb.id, ctx), ...assignEvents(y.id, sa.id, ctx)];
+  const lx = `${taskLabel(state, x)} ${fmtMin(x.startMin)}`;
+  const ly = `${taskLabel(state, y)} ${fmtMin(y.startMin)}`;
+  return {
+    events,
+    label: `${sa.surname}さんと${sb.surname}さんの担当を入れ替えました（${lx} ⇄ ${ly}）`,
+    lines: [`${sa.surname}さん: ${lx} → ${ly}`, `${sb.surname}さん: ${ly} → ${lx}`],
+    notes,
+  };
 }
