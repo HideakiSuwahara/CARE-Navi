@@ -208,7 +208,7 @@ const CAT_OTHER = "other";
 // PHS は画面の「困ったら」で、その時刻のリーダーから出す（ここに番号を書くと夜に違う人を指す）
 const LEADER = "いまのリーダー（画面の上の「困ったら」）";
 const CONTACT_CARE = "一緒に入る常勤の職員";
-const CONTACT_NURSE = "看護師（看護の番がいる日の日中は PHS 810 ／ 日曜など看護がいない日と夜間はオンコール: 詰所に掲示の番号）";
+const CONTACT_NURSE = "看護師（看護師が出勤している日の日中は看護用 PHS 810 ／ 日曜など看護師がいない日と夜間はオンコール: 詰所に掲示の番号）";
 
 const TPL_WAKEUP = "tpl-wakeup";
 const TPL_BREAKFAST = "tpl-breakfast";
@@ -731,7 +731,7 @@ const templates: TaskTemplate[] = [
     defaultHeadcount: 2,
     requiredTags: [],
     place: "玄関（受付簿に記入）→ 詰所",
-    scopeNote: "詰所でリーダーと会い（PHS を受け取るまでは、近くの職員に声をかけてください）、更衣室・トイレ・詰所・非常口を一緒に回る。きょうの予定をスマホで確認する。2 回目からは、PHS を受け取ってきょうの予定を確かめれば、次の予定へ進んでよい。",
+    scopeNote: "詰所でリーダーと会い（PHS を受け取るまでは、近くの職員に声をかけてください）、更衣室・トイレ・詰所・非常口を一緒に回る。きょうの予定をスマホで確認する。2 回目からは、リーダーに声をかけてその日の注意（体調の変わった方・中止になった入浴など）を聞き、PHS を受け取ったら次の予定へ。",
     outOfScopeNote: "この時間は利用者の介助に入りません。案内が終わってから、次の予定へ。",
     procedure: [
       "玄関で受付簿に記入し、リーダーを呼ぶ",
@@ -825,7 +825,7 @@ const item = (spec: ItemSpec): DayPatternItem => {
 };
 
 /**
- * 日勤帯の枠（入浴日・平日・日曜で共有。入浴日だけ一部の束ね先が変わる）。
+ * 日勤帯の枠（入浴日・入浴のない日・日曜で共有。入浴日だけ一部の束ね先が変わる）。
  *
  * 束ね方の決まり（この施設の設定）:
  * - 同じ番に、時間の重なる枠を束ねない（休憩も含む）。
@@ -882,7 +882,7 @@ const dayCommon = (bathDay: boolean): ItemSpec[] => [
   { id: "spot-arrival", tpl: TPL_ARRIVAL, start: t(13), end: t(13, 15), group: GRP_COMMON, slots: [SLOT_SPOT_PM, SLOT_HAYABAN_A], hc: 2 },
   { id: "oral-east-pm", tpl: TPL_ORAL, start: t(13, 15), end: t(14), group: GRP_EAST, slots: [SLOT_SPOT_PM, SLOT_HAYABAN_A], hc: 2, rt: "rt-oral-east" },
   { id: "oral-sakura-pm", tpl: TPL_ORAL, start: t(13), end: t(13, 30), group: GRP_SAKURA, slots: [SLOT_NIKKIN_SAKURA], hc: 1, rt: "rt-oral-sakura" },
-  { id: "break-2", tpl: TPL_BREAK_2, start: t(13), end: t(14), group: GRP_COMMON, slots: [SLOT_NIKKIN_A, SLOT_NIKKIN_C, SLOT_OSOBAN], hc: 3 },
+  { id: "break-2", tpl: TPL_BREAK_2, start: t(13), end: t(14), group: GRP_COMMON, slots: [SLOT_NIKKIN_A, SLOT_NIKKIN_C, SLOT_OSOBAN, SLOT_KANGO], hc: 4 },
   bathDay
     ? { id: "break-3", tpl: TPL_BREAK_3, start: t(14), end: t(15), group: GRP_COMMON, slots: [SLOT_HAYABAN_A, SLOT_HAYABAN_B, SLOT_NIKKIN_SAKURA], hc: 3 }
     : { id: "break-3", tpl: TPL_BREAK_3, start: t(14), end: t(15), group: GRP_COMMON, slots: [SLOT_HAYABAN_A, SLOT_NIKKIN_SAKURA], hc: 2 },
@@ -942,7 +942,7 @@ const bathOnly: ItemSpec[] = [
   { id: "bath-east", tpl: TPL_BATH_GROUP, start: t(10, 30), end: t(12), group: GRP_EAST, slots: [SLOT_NIKKIN_C, SLOT_NIKKIN_A, SLOT_JOSHU], hc: 3, residents: BATH_EAST_RESIDENTS },
 ];
 
-/** 平日・入浴日の午後の雑務 */
+/** 入浴のない日・入浴日の午後の雑務 */
 const weekdayChores: ItemSpec[] = [
   { id: "rec-prep-short", tpl: TPL_REC_PREP, start: t(14), end: t(14, 30), group: GRP_COMMON, slots: [SLOT_NIKKIN_A], hc: 1 },
   { id: "laundry", tpl: TPL_LAUNDRY, start: t(14), end: t(15), group: GRP_COMMON, slots: [SLOT_NIKKIN_C, SLOT_SPOT_PM], hc: 2 },
@@ -1050,7 +1050,7 @@ const roster: RosterEntry[] = [
   ros(D1, STF_SAITO, SLOT_YAKIN_EAST),
   ros(D1, STF_NOGUCHI, SLOT_YAKIN_SAKURA),
   ros(D1, STF_WATANABE, SLOT_JOSHU, { absent: true }),
-  // 11/4（水）平日。介護助手が出勤、スポットなし。11/3 の夜勤（斉藤・野口）は明けで休み。夜勤は木村・山本
+  // 11/4（水）入浴のない日。介護助手が出勤、スポットなし。11/3 の夜勤（斉藤・野口）は明けで休み。夜勤は木村・山本
   // この日は遅番を置かない（東の 11–13 時・17–18 時の見守りが「担当未定」で見える日。勤務表の穴がボードでどう見えるかの例）
   ros(D2, STF_SATO, SLOT_HAYABAN_A),
   ros(D2, STF_TAKAHASHI, SLOT_HAYABAN_B),
@@ -1063,7 +1063,7 @@ const roster: RosterEntry[] = [
   ros(D2, STF_WATANABE, SLOT_JOSHU),
   // 11/5〜11/10: 月の勤務表から入れてある日（時間割はまだ）。基本は「入り（夜勤）・明け・休み」。明けの日は勤務表に載せない。
   // 全員、週に 1 日以上の公休（吉田・山口・杉山は 11/3・11/4 が公休）。夜勤は 東・さくら 1 人ずつ。介護助手は火・水・金の午前。
-  // 11/5（木）平日。11/4 の夜勤（木村・山本）は明け、斉藤・野口・鈴木は公休
+  // 11/5（木）入浴のない日。11/4 の夜勤（木村・山本）は明け、斉藤・野口・鈴木は公休
   ros(D3, STF_SATO, SLOT_HAYABAN_A),
   ros(D3, STF_TAKAHASHI, SLOT_HAYABAN_B),
   ros(D3, STF_ITO, SLOT_NIKKIN_B),
@@ -1084,7 +1084,7 @@ const roster: RosterEntry[] = [
   ros(D4, STF_KATO, SLOT_SPOT_PM),
   ros(D4, STF_ITO, SLOT_YAKIN_EAST),
   ros(D4, STF_NOGUCHI, SLOT_YAKIN_SAKURA),
-  // 11/7（土）平日の業務表。日中 4 人（遅番あり）
+  // 11/7（土）入浴のない日の業務表。日中 4 人（遅番あり）
   ros(D5, STF_SUZUKI, SLOT_HAYABAN_A),
   ros(D5, STF_YAMAGUCHI, SLOT_NIKKIN_B),
   ros(D5, STF_OGAWA, SLOT_NIKKIN_SAKURA),
@@ -1099,7 +1099,7 @@ const roster: RosterEntry[] = [
   ros(D6, STF_YOSHIDA, SLOT_OSOBAN),
   ros(D6, STF_KIMURA, SLOT_YAKIN_EAST),
   ros(D6, STF_YAMAGUCHI, SLOT_YAKIN_SAKURA),
-  // 11/9（月）平日
+  // 11/9（月）入浴のない日
   ros(D7, STF_SATO, SLOT_HAYABAN_A),
   ros(D7, STF_NOGUCHI, SLOT_NIKKIN_A),
   ros(D7, STF_ITO, SLOT_NIKKIN_B),

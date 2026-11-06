@@ -547,8 +547,9 @@ export function Board({ date: dateParam }: { date?: string }) {
               // 戻した結果は「元に戻す」の無いお知らせで（戻した直後にまた元に戻すを出さない。ループ 18）
               setToast(null);
               if (done) showNotice(`元に戻しました（取り消した操作: ${done.label.replace(/。いま .*$/, "")}）`);
+              focusAfterUndo();
             }}
-            className="inline-flex h-[44px] items-center gap-2 rounded-lg border border-[var(--cn-card-line)] bg-white px-4 text-[14px]"
+            className="inline-flex h-[44px] items-center gap-2 rounded-lg border border-[var(--cn-control-line)] bg-white px-4 text-[14px]"
           >
             元に戻す<span className="text-[13px] text-[var(--cn-muted)]">（{viewUndo.label}）</span>
           </button>
@@ -560,6 +561,7 @@ export function Board({ date: dateParam }: { date?: string }) {
             onDone={(t) => {
               setToast(null);
               showNotice(t);
+              focusAfterUndo();
             }}
           />
         )}
@@ -818,8 +820,8 @@ export function Board({ date: dateParam }: { date?: string }) {
           taskId={panel.taskId}
           onClose={closePanel}
           onDetail={openDetail}
-          // 続けて埋める（決定記録 0021）: 見ているグループの中で次の担当が決まっていない枠へ
-          nextOf={(id) => nextUnfilledTask(state, date, id, filterGroup)?.id}
+          // 続けて埋める（決定記録 0021）: 見ているグループの中で、担当がそろっていない次の枠へ
+          nextOf={(id) => nextUnfilledTask(state, date, id, filterGroup, now)?.id}
           onNext={(id) => openAssign(id)}
         />
       )}
@@ -1050,6 +1052,17 @@ function saveBoardView(v: { axis: BoardAxis; group: string }) {
  * 元に戻すの履歴（決定記録 0021）。見ている日の操作（と日に依らない操作）を新しい順に 10 件。
  * 選ぶと、新しい方から選んだところまで順に戻す（途中だけを抜いて戻さない）。その端末の操作だけ。
  */
+/** 戻したあとボタンが消えることがある（戻せる操作が 0 件）。履歴 → ⋯ → 見出しの順にフォーカスを渡す（ループ 20） */
+function focusAfterUndo() {
+  requestAnimationFrame(() =>
+    (
+      document.querySelector<HTMLElement>("[data-undo-history]") ??
+      document.querySelector<HTMLElement>('button[aria-label="ほかの操作"]') ??
+      document.querySelector<HTMLElement>("main h1")
+    )?.focus(),
+  );
+}
+
 function UndoHistory({ engine, date, onDone }: { engine: Engine; date: string; onDone: (text: string) => void }) {
   const [open, setOpen] = useState(false);
   const [, setTick] = useState(0);
@@ -1057,19 +1070,39 @@ function UndoHistory({ engine, date, onDone }: { engine: Engine; date: string; o
   const btnRef = useRef<HTMLButtonElement>(null);
   const pred = (u: { dates?: string[] }) => !u.dates || u.dates.includes(date);
   const list = engine.undoListWhere(pred, 10);
+  // 時刻ではなく「何分前」で（サンプルの時計と端末の時計が食い違わないように。ループ 20）
   const at = (iso: string) => {
-    const d = new Date(iso);
-    return Number.isNaN(d.getTime()) ? "" : `${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}`;
+    const t = new Date(iso).getTime();
+    if (Number.isNaN(t)) return "";
+    const m = Math.floor((Date.now() - t) / 60000);
+    return m < 1 ? "いま" : m < 60 ? `${m}分前` : `${Math.floor(m / 60)}時間前`;
+  };
+  // 2 件以上を戻すときだけ、その行で確かめる（押し間違えると取り返せないので。ループ 20）
+  const [ask, setAsk] = useState<number | null>(null);
+  const run = async (batchId: string) => {
+    const done = await engine.undoThrough(batchId, pred);
+    setOpen(false);
+    setAsk(null);
+    btnRef.current?.focus();
+    if (done.length > 0) onDone(`元に戻しました（${done.length} 件。最後に戻したもの: ${done[done.length - 1].label.replace(/。いま .*$/, "")}）`);
   };
   return (
-    <div className="relative">
+    <div
+      className="relative"
+      onBlur={(e) => {
+        // フォーカスが箱の外へ出たら閉じる（下のチップに重ならないように。ループ 20）
+        if (open && !e.currentTarget.contains(e.relatedTarget as Node | null)) setOpen(false);
+      }}
+    >
       <button
         ref={btnRef}
         type="button"
         aria-expanded={open}
         aria-controls="undo-history"
+        aria-label="元に戻すの履歴"
+        data-undo-history
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex h-[44px] items-center rounded-lg border border-[var(--cn-card-line)] bg-white px-3 text-[14px]"
+        className="inline-flex h-[44px] items-center rounded-lg border border-[var(--cn-control-line)] bg-white px-3 text-[14px]"
       >
         履歴
       </button>
@@ -1093,20 +1126,40 @@ function UndoHistory({ engine, date, onDone }: { engine: Engine; date: string; o
             <ol className="flex flex-col divide-y divide-[var(--cn-grid)]">
               {list.map((u, i) => (
                 <li key={u.batchId} className="flex items-center gap-2 py-1.5">
-                  <span className="w-[44px] shrink-0 text-[13px] text-[var(--cn-muted)]">{at(u.at)}</span>
-                  <span className="min-w-0 flex-1 text-[14px]">{u.label.replace(/。いま .*$/, "")}</span>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      const done = await engine.undoThrough(u.batchId, pred);
-                      setOpen(false);
-                      btnRef.current?.focus();
-                      if (done.length > 0) onDone(`元に戻しました（${done.length} 件。いちばん前: ${done[done.length - 1].label.replace(/。いま .*$/, "")}）`);
-                    }}
-                    className="inline-flex h-[44px] shrink-0 items-center rounded-lg border border-[var(--cn-control-line)] bg-white px-2.5 text-[14px] font-bold"
-                  >
-                    {i === 0 ? "これを戻す" : `ここまで戻す（${i + 1} 件）`}
-                  </button>
+                  <span className="w-[52px] shrink-0 text-[13px] text-[var(--cn-muted)]">{at(u.at)}</span>
+                  <span id={`undo-h-${i}`} className="min-w-0 flex-1 text-[14px]">{u.label.replace(/。いま .*$/, "")}</span>
+                  {ask === i ? (
+                    <span className="flex shrink-0 flex-col items-end gap-1">
+                      <span className="text-[13px] font-bold">{i + 1} 件を戻します</span>
+                      <span className="flex gap-1">
+                        <button
+                          type="button"
+                          autoFocus
+                          aria-describedby={`undo-h-${i}`}
+                          onClick={() => run(u.batchId)}
+                          className="inline-flex h-[44px] items-center rounded-lg bg-[var(--cn-accent)] px-2.5 text-[14px] font-bold text-white"
+                        >
+                          戻す
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setAsk(null)}
+                          className="inline-flex h-[44px] items-center rounded-lg border border-[var(--cn-control-line)] bg-white px-2.5 text-[14px]"
+                        >
+                          やめる
+                        </button>
+                      </span>
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      aria-describedby={`undo-h-${i}`}
+                      onClick={() => (i === 0 ? run(u.batchId) : setAsk(i))}
+                      className="inline-flex h-[44px] shrink-0 items-center rounded-lg border border-[var(--cn-control-line)] bg-white px-2.5 text-[14px] font-bold"
+                    >
+                      {i === 0 ? "これを戻す" : `ここまで戻す（${i + 1} 件）`}
+                    </button>
+                  )}
                 </li>
               ))}
             </ol>

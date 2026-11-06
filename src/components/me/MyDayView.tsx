@@ -200,7 +200,7 @@ export function MyDayView({
             きょうの流れ
           </h2>
           <ol className="flex flex-col overflow-hidden rounded-xl border border-[var(--cn-border)] bg-white print:border-[#767b80]">
-            {flowWithNow(day.items, now, day.entry.startMin, day.entry.endMin, freeGaps(state, date, me)).map((row) =>
+            {flowWithNow(day.items, now, day.entry.startMin, day.entry.endMin, freeGaps(state, date, me, 30, now)).map((row) =>
               row.kind === "gap" ? (
                 <li key={`gap-${row.gap.startMin}`} className="cn-noprint flex items-baseline gap-3 border-b border-dashed border-[var(--cn-grid)] px-4 py-3 text-[var(--cn-ink-soft)]">
                   <span className="w-[96px] shrink-0">
@@ -211,8 +211,10 @@ export function MyDayView({
                     <span className="block font-bold">予定のない時間</span>
                     <span className="block text-[14px]">
                       {row.gap.helpable.length > 0
-                        ? `手伝える仕事: ${row.gap.helpable.join("・")}（リーダーに声をかけてから）`
-                        : "手が空いたら、リーダーに声をかけてください"}
+                        ? `手伝える仕事: ${row.gap.helpable.join("・")}。先にリーダーに声をかけてください`
+                        : row.gap.night
+                          ? "手が空いたら、いっしょの夜勤の人に声をかけてください"
+                          : "手が空いたら、リーダーに声をかけてください"}
                     </span>
                   </span>
                 </li>
@@ -247,7 +249,14 @@ function flowWithNow(items: MyItem[], now: number, start: number, end: number, g
   // 予定のない時間（手が空いたら）を時刻の順に差し込む（決定記録 0021）
   const pending = [...gaps];
   const pushGapsBefore = (min: number) => {
-    while (pending.length > 0 && pending[0].startMin < min) rows.push({ kind: "gap", gap: pending.shift()! });
+    while (pending.length > 0 && pending[0].startMin < min) {
+      // いまの線は時刻の順に（予定のない時間より前ならその前へ。中にあるならその行の後ろへ。ループ 20）
+      if (showNow && !placed && pending[0].startMin > now) {
+        rows.push({ kind: "now" });
+        placed = true;
+      }
+      rows.push({ kind: "gap", gap: pending.shift()! });
+    }
   };
   for (const item of items) {
     pushGapsBefore(item.task.startMin);

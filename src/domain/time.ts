@@ -138,3 +138,8 @@ export function businessDateOf(d: Date): string {
   if (d.getHours() >= 6) return calendarDateOf(d);
   return calendarDateOf(new Date(d.getFullYear(), d.getMonth(), d.getDate() - 1, 12));
 }
+
+/** 時計の分（0–1439）を業務日の分へ。6:00 より前は前の日の夜勤帯（翌0:00〜翌6:00）。既に業務日の分（1440 以上）ならそのまま */
+export function businessMinutes(clockMin: Minutes): Minutes {
+  return clockMin < 6 * 60 ? clockMin + 24 * 60 : clockMin;
+}

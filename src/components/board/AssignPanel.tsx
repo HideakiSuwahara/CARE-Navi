@@ -141,30 +141,32 @@ export function AssignPanel({
       </div>
 
       <div className="flex flex-1 flex-col gap-3 overflow-auto p-4">
-        {filled && nextOf && onNext && (
-          <div role="status" className="flex flex-col gap-2 rounded-xl border-2 border-[var(--cn-accent)] bg-[var(--cn-accent-soft)] p-3 text-[15px]">
-            <span>
-              {filled}。この枠の担当はそろいました。
-            </span>
-            <div className="flex flex-wrap gap-2">
-              <button
-                ref={nextRef}
-                type="button"
-                onClick={() => {
-                  const id = nextOf(task.id);
-                  if (id) onNext(id);
-                  else onClose();
-                }}
-                className="inline-flex h-[44px] items-center rounded-lg bg-[var(--cn-accent)] px-4 font-bold text-white"
-              >
-                次の担当が決まっていない枠へ →
-              </button>
-              <button type="button" onClick={onClose} className="inline-flex h-[44px] items-center rounded-lg border border-[var(--cn-control-line)] bg-white px-3">
-                閉じる
-              </button>
-            </div>
-          </div>
-        )}
+        {/* status は常に置き、中身だけ入れ替える（できた瞬間に中身のある status は読まれないことがある。ループ 20） */}
+        <div role="status" className={filled && nextOf && onNext ? "flex flex-col gap-2 rounded-xl border-2 border-[var(--cn-accent)] bg-[var(--cn-accent-soft)] p-3 text-[15px]" : "sr-only"}>
+          {filled && nextOf && onNext && (
+            <>
+              <span id="assign-filled-msg">{filled}。この枠の担当はそろいました。</span>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  ref={nextRef}
+                  type="button"
+                  aria-describedby="assign-filled-msg"
+                  onClick={() => {
+                    const id = nextOf(task.id);
+                    if (id) onNext(id);
+                    else onClose();
+                  }}
+                  className="inline-flex h-[44px] items-center rounded-lg bg-[var(--cn-accent)] px-4 font-bold text-white"
+                >
+                  担当がそろっていない次の枠へ <span aria-hidden="true">→</span>
+                </button>
+                <button type="button" onClick={onClose} className="inline-flex h-[44px] items-center rounded-lg border border-[var(--cn-control-line)] bg-white px-3">
+                  閉じる
+                </button>
+              </div>
+            </>
+          )}
+        </div>
         <section aria-labelledby="ok-title">
           <h3 id="ok-title" className="mb-1.5 text-[14px] font-bold text-[var(--cn-muted)]">
             空いている人 {open.length}人

@@ -157,7 +157,8 @@ test("手が空いたら: 勤務中の 30 分以上の空きと、その時間�
   for (const g of all) {
     assert.ok(g.endMin - g.startMin >= 30);
     assert.ok(g.helpable.length <= 3);
-    for (const name of g.helpable) {
+    for (const item of g.helpable) {
+      const name = item.replace(/^\d{1,2}:\d{2} /, "");
       const t = tasksForDate(s, D).find((x) => taskLabel(s, x) === name && x.startMin >= g.startMin && x.startMin < g.endMin)!;
       assert.ok(t, name);
       assert.ok(["unassigned", "short"].includes(headcountStatus(s, t.id).level));

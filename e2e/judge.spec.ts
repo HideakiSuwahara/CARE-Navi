@@ -322,13 +322,15 @@ test.describe("元に戻すの履歴（決定記録 0021）", () => {
     const hist = page.getByRole("region", { name: "元に戻すの履歴" });
     await expect(hist.getByRole("listitem")).toHaveCount(2);
     await hist.getByRole("button", { name: "ここまで戻す（2 件）" }).click();
+    await expect(hist).toContainText("2 件を戻します");
+    await hist.getByRole("button", { name: "戻す", exact: true }).click();
     await expect(page.locator('[data-badge="担当未定"]')).toHaveCount(before);
     await expect(page.locator("#board-toast")).toContainText("元に戻しました（2 件");
   });
 });
 
 test.describe("続けて埋める（決定記録 0021）", () => {
-  test("担当がそろったら、パネルを閉じずに「次の担当が決まっていない枠へ」で次の枠を開ける", async ({ page }) => {
+  test("担当がそろったら、パネルを閉じずに「担当がそろっていない次の枠へ」で次の枠を開ける", async ({ page }) => {
     await page.goto("/board?now=10:12");
     await page.evaluate(() => localStorage.clear());
     await page.goto("/board?now=10:12");
@@ -340,7 +342,7 @@ test.describe("続けて埋める（決定記録 0021）", () => {
     const others = panel.getByRole("button", { name: /^ほかの人/ });
     if ((await others.count()) > 0 && (await others.getAttribute("aria-expanded")) !== "true") await others.click();
     await panel.getByRole("button", { name: "追加" }).first().click();
-    const next = panel.getByRole("button", { name: "次の担当が決まっていない枠へ →" });
+    const next = panel.getByRole("button", { name: "担当がそろっていない次の枠へ" });
     await expect(next).toBeFocused();
     await next.click();
     await expect(page.getByRole("dialog").locator("#assign-title")).not.toHaveText(title1);
@@ -355,8 +357,8 @@ test.describe("手が空いたら（決定記録 0021）", () => {
     await page.goto("/me?now=10:12");
     await page.getByRole("list", { name: "きょうの出勤者" }).getByRole("button", { name: /^高橋 / }).click();
     const gap = page.locator("li").filter({ hasText: "予定のない時間" }).filter({ hasText: "10:30" });
-    await expect(gap).toContainText("手伝える仕事: 入浴介助");
-    await expect(gap).toContainText("リーダーに声をかけてから");
+    await expect(gap).toContainText("手伝える仕事: 10:30 入浴介助");
+    await expect(gap).toContainText("先にリーダーに声をかけてください");
     await expect(gap).not.toContainText("担当未定");
     await expect(gap).not.toContainText("担当あと");
   });
@@ -387,5 +389,60 @@ test.describe("担当の入れ替え（決定記録 0021）", () => {
     await expect(staffSec.first()).not.toContainText("伊藤");
     await page.locator("#board-toast").getByRole("button", { name: /元に戻す/ }).click();
     await expect(staffSec.first()).toContainText("伊藤");
+  });
+});
+
+test.describe("やった人を変える（決定記録 0022）", () => {
+  test("始まった枠で、担当の人の代わりにやった人を選ぶと担当が替わり「終わった」が付く。1 回で戻る", async ({ page }) => {
+    await page.goto("/board?now=10:12");
+    await page.evaluate(() => localStorage.clear());
+    await page.goto("/board?now=10:12");
+    // おむつ交換（東フロア）10:00: 始まっていて、担当は鈴木・山本
+    const card = page.locator("[data-task-id]").filter({ hasText: "おむつ交換" }).filter({ hasText: "鈴木" }).first();
+    await card.locator("[data-card-title]").click();
+    const dialog = page.getByRole("dialog");
+    await dialog.getByRole("button", { name: "やった人を変える…" }).click();
+    await dialog.getByRole("button", { name: "鈴木さんの代わり" }).click();
+    const box = dialog.getByRole("region", { name: "鈴木さんの代わりにやった人" });
+    const first = box.getByRole("listitem").first().getByRole("button");
+    const who = (await first.locator("span").first().innerText()).replace("さん", "");
+    await first.click();
+    await expect(page.locator("#board-toast")).toContainText(`鈴木さんの代わりに${who}さんがやった`);
+    const staff = dialog.locator('section[aria-labelledby="d-staff"]');
+    await expect(staff).toContainText(who);
+    await expect(staff).not.toContainText("鈴木");
+    await expect(dialog.getByRole("button", { name: /終わった$/ })).toHaveAttribute("aria-pressed", "true");
+    await page.locator("#board-toast").getByRole("button", { name: /元に戻す/ }).click();
+    await expect(staff).toContainText("鈴木");
+  });
+
+  test("担当未定の始まった枠で、やった人を選ぶ", async ({ page }) => {
+    await page.goto("/board?now=10:12");
+    await page.evaluate(() => localStorage.clear());
+    await page.goto("/board?now=10:12");
+    // リネン回収 9:30–10:00 は担当未定（サンプル）
+    const card = page.locator("[data-task-id]").filter({ hasText: "リネン回収" }).first();
+    await card.locator("[data-card-title]").click();
+    const dialog = page.getByRole("dialog");
+    await dialog.getByRole("button", { name: "やった人を変える…" }).click();
+    const box = dialog.getByRole("region", { name: "やった人を選ぶ" });
+    const first = box.getByRole("listitem").first().getByRole("button");
+    await expect(first).toBeFocused();
+    const who = (await first.locator("span").first().innerText()).replace("さん", "");
+    await first.click();
+    await expect(page.locator("#board-toast")).toContainText(`${who}さんがやった`);
+    await expect(dialog.getByRole("button", { name: /終わった$/ })).toHaveAttribute("aria-pressed", "true");
+    await expect(dialog.locator('section[aria-labelledby="d-staff"]')).toContainText(who);
+    await page.locator("#board-toast").getByRole("button", { name: /元に戻す/ }).click();
+    await expect(dialog.getByRole("button", { name: /終わったら押す/ })).toBeVisible();
+  });
+
+  test("始まる前の枠には出さない", async ({ page }) => {
+    await page.goto("/board?now=10:12");
+    await page.evaluate(() => localStorage.clear());
+    await page.goto("/board?now=10:12");
+    const later = page.locator("[data-task-id]").filter({ hasText: "16:00" }).filter({ hasNot: page.locator("[data-done]") }).first();
+    await later.locator("[data-card-title]").click();
+    await expect(page.getByRole("dialog").getByRole("button", { name: "やった人を変える…" })).toHaveCount(0);
   });
 });

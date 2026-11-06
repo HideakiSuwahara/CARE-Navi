@@ -11,7 +11,7 @@ import { applyEvents } from "./reducer.ts";
 import { metaOf, type EventContext } from "./pattern.ts";
 import { assignmentsOf, checkAssignment, headcountStatus, rosterOf, taskLabel as boardLabel, tasksForDate, tasksOfStaff } from "./checks.ts";
 import { staffTaskName } from "./myday.ts";
-import { fmtMin, fmtRange, overlaps } from "./time.ts";
+import { businessMinutes, fmtRange, overlaps } from "./time.ts";
 import type { DateKey, ID, Minutes, State, TaskInstance } from "./types.ts";
 
 /** プレビューの文で使う業務名。休憩は丸数字を外す（丸数字はボードのカードだけ） */
@@ -483,13 +483,16 @@ export interface SwapChoice {
 }
 
 /** 入れ替えの相手: 同じ日で時間が重なるほかの枠の担当の人（いまの枠の担当でない人。休憩は除く） */
-export function swapChoices(state: State, taskId: ID, staffId: ID): SwapChoice[] {
+export function swapChoices(state: State, taskId: ID, staffId: ID, nowMin?: Minutes | null): SwapChoice[] {
   const x = state.tasks[taskId];
   if (!x) return [];
+  // 終わった枠（印のある枠・終わりの時刻を過ぎた枠）の担当は書き換えない（ループ 20）
+  const now = nowMin === null || nowMin === undefined ? undefined : businessMinutes(nowMin);
   const inX = new Set(assignmentsOf(state, taskId).map((a) => a.staffId));
   const out: SwapChoice[] = [];
   for (const y of tasksForDate(state, x.date)) {
-    if (y.id === x.id || y.kind === "break" || !(y.startMin < x.endMin && x.startMin < y.endMin)) continue;
+    if (y.id === x.id || y.kind === "break" || y.done || !(y.startMin < x.endMin && x.startMin < y.endMin)) continue;
+    if (now !== undefined && y.endMin <= now) continue;
     const inY = new Set(assignmentsOf(state, y.id).map((a) => a.staffId));
     if (inY.has(staffId)) continue;
     for (const b of inY) if (!inX.has(b) && b !== staffId) out.push({ taskId: y.id, staffId: b });
@@ -518,12 +521,62 @@ export function swapPreview(state: State, a: SwapChoice, b: SwapChoice, ctx: Eve
     ...checkAssignment(mid, y.id, sa.id).map((i) => `${sa.surname}さん: ${i.message}`),
   ];
   const events = [...removes, ...assignEvents(x.id, sb.id, ctx), ...assignEvents(y.id, sa.id, ctx)];
-  const lx = `${taskLabel(state, x)} ${fmtMin(x.startMin)}`;
-  const ly = `${taskLabel(state, y)} ${fmtMin(y.startMin)}`;
+  const lx = `${taskLabel(state, x)} ${fmtRange(x.startMin, x.endMin)}`;
+  const ly = `${taskLabel(state, y)} ${fmtRange(y.startMin, y.endMin)}`;
   return {
     events,
     label: `${sa.surname}さんと${sb.surname}さんの担当を入れ替えました（${lx} ⇄ ${ly}）`,
     lines: [`${sa.surname}さん: ${lx} → ${ly}`, `${sb.surname}さん: ${ly} → ${lx}`],
     notes,
   };
+}
+
+// ---------------------------------------------------------------------------
+// やった人を変える（決定記録 0022）
+// 代わってもらった・担当未定のまま誰かがやった: 担当を付け替えて「終わった」の印を付ける。1 バッチ
+// ---------------------------------------------------------------------------
+
+export interface DoerChoice {
+  staffId: ID;
+  /** 選ぶとき出す注意（休み・勤務外・重なりなど）。止めない */
+  notes: string[];
+}
+
+/** やった人の候補: その日の勤務表にいる人（この枠の担当の人は除く）。注意の無い人を先に、名前の順 */
+export function doerChoices(state: State, taskId: ID, replacedStaffId?: ID): DoerChoice[] {
+  const task = state.tasks[taskId];
+  if (!task) return [];
+  const inTask = new Set(assignmentsOf(state, taskId).map((a) => a.staffId));
+  const base = replacedStaffId ? applyEvents(state, unassignEvents(state, taskId, replacedStaffId, previewCtx())) : state;
+  const seen = new Set<ID>();
+  const out: DoerChoice[] = [];
+  for (const r of Object.values(state.roster)) {
+    if (r.date !== task.date || inTask.has(r.staffId) || seen.has(r.staffId) || !state.staff[r.staffId]) continue;
+    seen.add(r.staffId);
+    out.push({ staffId: r.staffId, notes: checkAssignment(base, taskId, r.staffId).map((i) => i.message) });
+  }
+  return out.sort((a, b) => a.notes.length - b.notes.length || state.staff[a.staffId].surname.localeCompare(state.staff[b.staffId].surname, "ja"));
+}
+
+function previewCtx(): EventContext {
+  let n = 0;
+  return { newId: () => `preview-${++n}`, ts: "", batchId: "preview" };
+}
+
+/** やった人を doerId にして「終わった」の印を付ける。replacedStaffId があればその人を外す */
+export function doneByEvents(state: State, taskId: ID, doerId: ID, replacedStaffId: ID | undefined, ctx: EventContext): { events: Event[]; label: string } {
+  const task = state.tasks[taskId];
+  const doer = state.staff[doerId];
+  if (!task || !doer) return { events: [], label: "" };
+  const events: Event[] = [
+    ...(replacedStaffId ? unassignEvents(state, taskId, replacedStaffId, ctx) : []),
+    ...assignEvents(taskId, doerId, ctx),
+    ...(task.done ? [] : setDoneEvents(taskId, true, ctx)),
+  ];
+  const name = taskLabel(state, task);
+  const replaced = replacedStaffId ? state.staff[replacedStaffId] : undefined;
+  const label = replaced
+    ? `「${name}」は${replaced.surname}さんの代わりに${doer.surname}さんがやった、にしました（「終わった」の印つき）`
+    : `「${name}」は${doer.surname}さんがやった、にしました（「終わった」の印つき）`;
+  return { events, label };
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { canMarkDone } from "@/domain/checks";
+import { canMarkDone, taskStarted } from "@/domain/checks";
 import { setDoneEvents } from "@/domain/commands";
 import type { TaskInstance } from "@/domain/types";
 import { useAppState, useDefaultDate, useEngine, useNowMinutes } from "@/store/react";
@@ -31,9 +31,10 @@ export function DoneButton({ task, size = "md" }: { task: TaskInstance; size?: "
   const [confirm, setConfirm] = useState(false);
   if (!engine || !canMarkDone(task)) return null;
   const done = Boolean(task.done);
-  const beforeStart = !done && today !== null && now !== null && (task.date > today || (task.date === today && now < task.startMin));
+  const beforeStart = !done && today !== null && now !== null && !taskStarted(task, today, now);
   const label = done ? `「${task.name}」の「終わった」を外しました` : `「${task.name}」に「終わった」の印を付けました`;
   return (
+    <>
     <button
       type="button"
       aria-pressed={done}
@@ -64,15 +65,20 @@ export function DoneButton({ task, size = "md" }: { task: TaskInstance; size?: "
     >
       {/* 押す前は空の四角（○ は「できた」の印と読まれやすい） */}
       <span aria-hidden="true">{done ? "✓" : "□"}</span>
-      {done ? "終わった" : confirm ? "まだ始まる前です。もう一度押すと付けます" : "終わったら押す"}
+      {done ? "終わった" : confirm ? "まだ始まる前です。もう一度押すと「終わった」の印が付きます" : "終わったら押す"}
     </button>
+    {/* 名前が変わるだけでは読み上げに伝わりにくいので、常に置いた status に同じ文を入れる（ループ 20） */}
+    <span aria-live="polite" className="sr-only">
+      {confirm ? "まだ始まる前です。もう一度押すと「終わった」の印が付きます" : ""}
+    </span>
+    </>
   );
 }
 
 /** ボタンの下に添える一言（一緒に入る人がいる枠・対象が複数の枠では、その分も含めて押すと分かるように） */
 export function doneHint(task: TaskInstance, togetherCount: number): string {
   if (task.done) return "「終わった」の印が付いています（押すと外せます）";
-  if (togetherCount > 0) return "一緒に入る人の分も終わったら押します（元に戻せます）";
+  if (togetherCount > 0) return "押すと、一緒に入る人の分も「終わった」になります（元に戻せます）";
   if (task.targetMode === "group") return "対象の方 全員が終わったら押します（元に戻せます）";
   return "終わったら印を付けます（元に戻せます）";
 }

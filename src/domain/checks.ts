@@ -7,7 +7,7 @@
  * - 二重登録だけ禁止（block）。他は施設設定 checkMode が warn なら警告して許可。
  */
 
-import { fmtMin, fmtRange } from "./time.ts";
+import { businessMinutes, fmtMin, fmtRange } from "./time.ts";
 import { overlaps, within } from "./time.ts";
 import type {
   Assignment,
@@ -15,6 +15,7 @@ import type {
   ID,
   Issue,
   IssueSeverity,
+  Minutes,
   RosterEntry,
   Staff,
   State,
@@ -275,6 +276,15 @@ export function isWatchTask(task: TaskInstance): boolean {
 }
 
 /** 「終わった」の印を付けられる枠か（決定記録 0010）。休憩・中止・見守りには付けない */
+/**
+ * 枠が始まったか。today は業務日（6:00 で切り替わる）、clockMin は時計の分（0–1439）か業務日の分。
+ * 夜中の 2:10 は前の業務日の 翌2:10 として比べる（夜勤の枠が「始まる前」にならないように。ループ 20）
+ */
+export function taskStarted(task: TaskInstance, today: string, clockMin: Minutes): boolean {
+  if (task.date !== today) return task.date < today;
+  return businessMinutes(clockMin) >= task.startMin;
+}
+
 export function canMarkDone(task: TaskInstance): boolean {
   return task.kind !== "break" && task.status !== "cancelled" && !isWatchTask(task);
 }
@@ -339,9 +349,12 @@ export function shortageSummary(state: State, date: string): { unassigned: numbe
  * 続けて埋める（決定記録 0021）: いまの枠の次に、担当が決まっていない（担当未定・担当あと n 人）枠。
  * 見ているグループの中で、時刻の順にいまの枠の後ろ。最後まで行ったら最初へ。いまの枠しか無ければ無し。
  */
-export function nextUnfilledTask(state: State, date: string, currentId: ID, groupId?: ID): TaskInstance | undefined {
+export function nextUnfilledTask(state: State, date: string, currentId: ID, groupId?: ID, nowMin?: Minutes | null): TaskInstance | undefined {
+  // いまの時刻がわかるときは、もう終わった枠と「終わった」の印の付いた枠は飛ばす（13:00 に朝の枠へ戻らない。ループ 20）
+  const now = nowMin === null || nowMin === undefined ? undefined : businessMinutes(nowMin);
   const list = tasksForDate(state, date).filter((t) => {
-    if (t.id === currentId || t.kind === "break" || !inGroupView(state, t, groupId)) return false;
+    if (t.id === currentId || t.kind === "break" || t.done || !inGroupView(state, t, groupId)) return false;
+    if (now !== undefined && t.endMin <= now) return false;
     const l = headcountStatus(state, t.id).level;
     return l === "unassigned" || l === "short";
   });

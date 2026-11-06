@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { assigneesOf, canMarkDone, headcountStatus, taskLabel } from "@/domain/checks";
-import { cancelTaskEvents, shiftTaskEvents, swapChoices, swapPreview, unassignEvents, type SwapChoice } from "@/domain/commands";
+import { assigneesOf, canMarkDone, headcountStatus, taskLabel, taskStarted } from "@/domain/checks";
+import { cancelTaskEvents, doerChoices, doneByEvents, shiftTaskEvents, swapChoices, swapPreview, unassignEvents, type SwapChoice } from "@/domain/commands";
 import { sheetRowFor } from "@/domain/routine";
-import { clockLabel, fmtMin, fmtRange } from "@/domain/time";
+import { clockLabel, fmtRange } from "@/domain/time";
 import type { ID, State } from "@/domain/types";
 import type { Engine } from "@/store/engine";
+import { useDefaultDate, useNowMinutes } from "@/store/react";
 import { DoneButton } from "@/components/DoneButton";
 
 /**
@@ -34,6 +35,10 @@ export function TaskDetail({
   const [swapFrom, setSwapFrom] = useState<ID | null>(null);
   const [swapWith, setSwapWith] = useState<SwapChoice | null>(null);
   const swapRef = useRef<HTMLDivElement>(null);
+  // やった人を変える（決定記録 0022）
+  const [doerOpen, setDoerOpen] = useState(false);
+  const clock = useNowMinutes();
+  const today = useDefaultDate(state, "business");
 
   useEffect(() => {
     closeRef.current?.focus();
@@ -191,6 +196,17 @@ export function TaskDetail({
               {canMarkDone(task) ? "終わった・時刻・中止" : "時刻・中止"}
             </h3>
             {canMarkDone(task) && <DoneButton task={task} />}
+            {canMarkDone(task) && (task.done || (today !== null && clock !== null && taskStarted(task, today, clock))) && (
+              <button
+                type="button"
+                data-doer-open
+                aria-expanded={doerOpen}
+                onClick={() => setDoerOpen((v) => !v)}
+                className="h-[44px] rounded-lg border border-[var(--cn-control-line)] px-3 text-[15px]"
+              >
+                やった人を変える…
+              </button>
+            )}
             <button type="button" onClick={() => shift(-30)} className="h-[44px] rounded-lg border border-[var(--cn-control-line)] px-3 text-[15px]">
               30分前へ
             </button>
@@ -203,6 +219,24 @@ export function TaskDetail({
               </button>
             )}
           </section>
+        )}
+
+        {engine && doerOpen && (
+          <DoerBox
+            state={state}
+            taskId={task.id}
+            onDecide={(doerId, replacedId) => {
+              const r = doneByEvents(engine.state, task.id, doerId, replacedId, engine.context());
+              if (r.events.length === 0) return;
+              engine.dispatch(r.events, r.label);
+              setDoerOpen(false);
+              window.setTimeout(() => (document.querySelector<HTMLElement>("[data-doer-open]") ?? document.getElementById("task-detail-title"))?.focus(), 0);
+            }}
+            onCancel={() => {
+              setDoerOpen(false);
+              window.setTimeout(() => document.querySelector<HTMLElement>("[data-doer-open]")?.focus(), 0);
+            }}
+          />
         )}
 
         {(task.scopeNote || task.outOfScopeNote) && (
@@ -299,7 +333,12 @@ function SwapBox({
   boxRef: React.RefObject<HTMLDivElement | null>;
 }) {
   const me = state.staff[staffId];
-  const choices = swapChoices(state, taskId, staffId);
+  const clock = useNowMinutes();
+  const today = useDefaultDate(state, "business");
+  const date = state.tasks[taskId]?.date;
+  // 過ぎた日はすべて終わった枠、まだ来ていない日は時刻で絞らない
+  const now = today === null || clock === null || !date ? null : date < today ? 2 * 24 * 60 : date > today ? null : clock;
+  const choices = swapChoices(state, taskId, staffId, now);
   const ctx = { newId: () => "preview", ts: "", batchId: "preview" };
   const preview = picked ? swapPreview(state, { taskId, staffId }, picked, ctx) : null;
   const decideRef = useRef<HTMLButtonElement>(null);
@@ -311,7 +350,8 @@ function SwapBox({
     <div ref={boxRef} role="group" aria-label={`${me.surname}さんの入れ替え`} className="mt-2 flex flex-col gap-2 rounded-xl border border-[var(--cn-border)] p-3">
       {!preview ? (
         <>
-          <p className="text-[15px] font-bold">{me.surname}さんと入れ替える人</p>
+          <p className="text-[15px] font-bold">{me.surname}さんと担当を入れ替える人</p>
+          <p className="text-[14px] text-[var(--cn-ink-soft)]">同じ時間に別の業務の担当がある人です（右はその人のいまの担当）。空いている人を足すときは「＋ 担当を追加」から。</p>
           {choices.length === 0 ? (
             <p className="text-[15px] text-[var(--cn-ink-soft)]">この時間に重なるほかの業務の担当の人がいません。</p>
           ) : (
@@ -324,12 +364,13 @@ function SwapBox({
                   <li key={`${c.taskId}:${c.staffId}`}>
                     <button
                       type="button"
+                      data-choice={`${c.taskId}:${c.staffId}`}
                       onClick={() => onPick(c)}
                       className="flex min-h-[44px] w-full items-center gap-2 rounded-lg border border-[var(--cn-control-line)] px-3 py-1.5 text-left text-[15px]"
                     >
                       <span className="font-bold">{s.surname}さん</span>
                       <span className="text-[var(--cn-ink-soft)]">
-                        {taskLabel(state, t)} {fmtMin(t.startMin)}〜
+                        いまの担当: {taskLabel(state, t)} {fmtRange(t.startMin, t.endMin)}
                       </span>
                     </button>
                   </li>
@@ -344,13 +385,13 @@ function SwapBox({
       ) : (
         <>
           <p className="text-[15px] font-bold">こう変わります</p>
-          <ul className="flex flex-col gap-0.5 text-[15px]">
+          <ul id="swap-lines" className="flex flex-col gap-0.5 text-[15px]">
             {preview.lines.map((l) => (
               <li key={l}>{l}</li>
             ))}
           </ul>
           {preview.notes.length > 0 && (
-            <ul className="flex flex-col gap-0.5 text-[14px]">
+            <ul id="swap-notes" className="flex flex-col gap-0.5 text-[14px]">
               {preview.notes.map((n) => (
                 <li key={n}>
                   <span className="font-bold text-[var(--cn-short-ink)]">注意: </span>
@@ -360,15 +401,94 @@ function SwapBox({
             </ul>
           )}
           <div className="flex flex-wrap gap-2">
-            <button ref={decideRef} type="button" onClick={onDecide} className="h-[44px] rounded-lg bg-[var(--cn-accent)] px-4 text-[15px] font-bold text-white">
+            <button ref={decideRef} type="button" onClick={onDecide} aria-describedby={preview.notes.length > 0 ? "swap-lines swap-notes" : "swap-lines"} className="h-[44px] rounded-lg bg-[var(--cn-accent)] px-4 text-[15px] font-bold text-white">
               この内容で入れ替える
             </button>
-            <button type="button" onClick={() => onPick(null)} className="h-[44px] rounded-lg border border-[var(--cn-control-line)] px-3 text-[15px]">
+            <button
+              type="button"
+              onClick={() => {
+                const back = picked ? `${picked.taskId}:${picked.staffId}` : "";
+                onPick(null);
+                requestAnimationFrame(() => (boxRef.current?.querySelector<HTMLElement>(`[data-choice="${back}"]`) ?? boxRef.current?.querySelector<HTMLElement>("li button"))?.focus());
+              }}
+              className="h-[44px] rounded-lg border border-[var(--cn-control-line)] px-3 text-[15px]">
               選び直す
             </button>
           </div>
         </>
       )}
     </div>
+  );
+}
+
+/**
+ * やった人を変える（決定記録 0022）: 代わってもらった・担当未定のまま誰かがやった。
+ * 選ぶと担当を付け替えて「終わった」の印を付ける（1 回で元に戻る）。注意は止めずに一文。
+ */
+function DoerBox({ state, taskId, onDecide, onCancel }: { state: State; taskId: ID; onDecide: (doerId: ID, replacedId: ID | undefined) => void; onCancel: () => void }) {
+  const assignees = assigneesOf(state, taskId);
+  // 担当が 1 人ならその人の代わり。複数なら選ぶ。担当がいなければ「やった人を選ぶ」
+  const [replaced, setReplaced] = useState<ID | undefined>(assignees.length === 1 ? assignees[0].id : undefined);
+  const needWho = assignees.length > 1 && replaced === undefined;
+  const choices = needWho ? [] : doerChoices(state, taskId, replaced);
+  const boxRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    boxRef.current?.querySelector<HTMLElement>("button")?.focus();
+  }, [needWho]);
+  const who = replaced ? state.staff[replaced]?.surname : undefined;
+  return (
+    <section
+      ref={boxRef}
+      aria-labelledby="doer-title"
+      className="flex flex-col gap-2 rounded-xl border border-[var(--cn-border)] p-3"
+      onKeyDown={(e) => {
+        if (e.key === "Escape") {
+          e.stopPropagation();
+          onCancel();
+        }
+      }}
+    >
+      <h3 id="doer-title" className="text-[15px] font-bold">
+        {needWho ? "だれの代わりにやりましたか" : who ? `${who}さんの代わりにやった人` : "やった人を選ぶ"}
+      </h3>
+      <p className="text-[14px] text-[var(--cn-ink-soft)]">選ぶと、その人を担当にして「終わった」の印を付けます（元に戻せます）。</p>
+      {needWho ? (
+        <div className="flex flex-wrap gap-2">
+          {assignees.map((a) => (
+            <button key={a.id} type="button" onClick={() => setReplaced(a.id)} className="h-[44px] rounded-lg border border-[var(--cn-control-line)] px-3 text-[15px]">
+              {a.surname}さんの代わり
+            </button>
+          ))}
+        </div>
+      ) : choices.length === 0 ? (
+        <p className="text-[15px]">選べる人がいません（この日の勤務表にいる人から選びます）。</p>
+      ) : (
+        <ul className="flex flex-col gap-1.5">
+          {choices.map((c) => {
+            const st = state.staff[c.staffId];
+            return (
+              <li key={c.staffId}>
+                <button
+                  type="button"
+                  onClick={() => onDecide(c.staffId, replaced)}
+                  className="flex min-h-[44px] w-full flex-col items-start rounded-lg border border-[var(--cn-control-line)] px-3 py-1.5 text-left text-[15px]"
+                >
+                  <span className="font-bold">{st?.surname}さん</span>
+                  {c.notes[0] && (
+                    <span className="text-[14px] text-[var(--cn-ink-soft)]">
+                      <span className="font-bold text-[var(--cn-short-ink)]">注意: </span>
+                      {c.notes[0]}
+                    </span>
+                  )}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      <button type="button" onClick={onCancel} className="h-[44px] self-start rounded-lg border border-[var(--cn-control-line)] px-3 text-[15px]">
+        やめる
+      </button>
+    </section>
   );
 }

@@ -13,10 +13,8 @@ import { addDays } from "./pattern.ts";
 import { sheetRowFor } from "./routine.ts";
 import type { DateKey, ID, Minutes, RosterEntry, Staff, State, TaskInstance } from "./types.ts";
 
-/** 時計の分（0–1439）を業務日の分へ。6:00 より前は前の日の夜勤帯（翌0:00〜翌6:00） */
-export function businessMinutes(clockMin: Minutes): Minutes {
-  return clockMin < 6 * 60 ? clockMin + 24 * 60 : clockMin;
-}
+import { businessMinutes, fmtMin } from "./time.ts";
+export { businessMinutes };
 
 /**
  * 見ている人にとっての業務日の時刻。夜勤（17:00–翌9:00 など）の人は、勤務の始まる前の朝の時刻を「翌」として読む
@@ -298,9 +296,11 @@ export interface FreeGap {
   endMin: Minutes;
   /** 手伝える仕事の名前（担当がまだ足りない枠のうち、時間内・条件を満たし注意の出ないもの）。札・件数は持たない */
   helpable: string[];
+  /** 夜勤の番の人の空き（手伝える仕事の名前を出さない） */
+  night?: boolean;
 }
 
-export function freeGaps(state: State, date: string, staffId: ID, minLength = 30): FreeGap[] {
+export function freeGaps(state: State, date: string, staffId: ID, minLength = 30, nowMin?: Minutes | null): FreeGap[] {
   const entry = rosterOf(state, date, staffId);
   if (!entry || entry.absent) return [];
   const mine = tasksOfStaff(state, date, staffId).sort((a, b) => a.startMin - b.startMin);
@@ -311,16 +311,25 @@ export function freeGaps(state: State, date: string, staffId: ID, minLength = 30
     cursor = Math.max(cursor, t.endMin);
   }
   if (entry.endMin - cursor >= minLength) gaps.push({ startMin: cursor, endMin: entry.endMin });
+  // 夜勤の番の人には、ほかの仕事の名前を出さない（自分のフロアを空けないように。ループ 20）
+  const night = entry.endMin > 24 * 60;
+  // 自分の番（なければ所属）のグループと、共通の枠だけ（別のフロアへの案内にしない）
+  const myGroup = (entry.slotId ? state.roleSlots[entry.slotId]?.groupId : undefined) ?? state.staff[staffId]?.homeGroupId;
+  const inMyArea = (t: TaskInstance) => !t.groupId || state.groups[t.groupId]?.kind === "common" || !myGroup || t.groupId === myGroup;
+  const now = nowMin === null || nowMin === undefined ? undefined : businessMinutes(nowMin);
   const all = tasksForDate(state, date);
   return gaps.map((g) => {
-    const helpable = all
-      .filter((t) => t.kind !== "break" && !isWatchTask(t) && t.startMin >= g.startMin && t.startMin < g.endMin && t.endMin <= g.endMin)
-      .filter((t) => {
-        const l = headcountStatus(state, t.id).level;
-        return (l === "unassigned" || l === "short") && checkAssignment(state, t.id, staffId).length === 0;
-      })
-      .slice(0, 3)
-      .map((t) => taskLabel(state, t));
-    return { ...g, helpable };
+    const helpable = night
+      ? []
+      : all
+          .filter((t) => t.kind !== "break" && !isWatchTask(t) && !t.done && inMyArea(t) && t.startMin >= g.startMin && t.startMin < g.endMin && t.endMin <= g.endMin)
+          .filter((t) => now === undefined || t.startMin >= now)
+          .filter((t) => {
+            const l = headcountStatus(state, t.id).level;
+            return (l === "unassigned" || l === "short") && checkAssignment(state, t.id, staffId).length === 0;
+          })
+          .slice(0, 3)
+          .map((t) => `${fmtMin(t.startMin)} ${taskLabel(state, t)}`);
+    return { ...g, helpable, night };
   });
 }
