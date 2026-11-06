@@ -7,7 +7,7 @@
  * - 利用者名は施設の設定（既定: 部屋番号＋姓）。
  */
 
-import { assigneesOf, canMarkDone, rosterOf, tasksOfStaff } from "./checks.ts";
+import { assigneesOf, canMarkDone, checkAssignment, headcountStatus, isWatchTask, rosterOf, taskLabel, tasksForDate, tasksOfStaff } from "./checks.ts";
 import { residentLabel } from "./display.ts";
 import { addDays } from "./pattern.ts";
 import { sheetRowFor } from "./routine.ts";
@@ -290,4 +290,37 @@ export function targetLines(
   all.sort((a, b) => rank(a) - rank(b) || room(a.residentId).localeCompare(room(b.residentId), "ja", { numeric: true }));
   const lines = all.slice(0, limit);
   return { lines, more: all.length - lines.length, supportShown };
+}
+
+/** 手が空いたら（決定記録 0021）: 勤務中の 30 分以上の空きと、その時間に始まり自分が入っても注意の出ない枠の名前（3 件まで） */
+export interface FreeGap {
+  startMin: Minutes;
+  endMin: Minutes;
+  /** 手伝える仕事の名前（担当がまだ足りない枠のうち、時間内・条件を満たし注意の出ないもの）。札・件数は持たない */
+  helpable: string[];
+}
+
+export function freeGaps(state: State, date: string, staffId: ID, minLength = 30): FreeGap[] {
+  const entry = rosterOf(state, date, staffId);
+  if (!entry || entry.absent) return [];
+  const mine = tasksOfStaff(state, date, staffId).sort((a, b) => a.startMin - b.startMin);
+  const gaps: { startMin: Minutes; endMin: Minutes }[] = [];
+  let cursor = entry.startMin;
+  for (const t of mine) {
+    if (t.startMin - cursor >= minLength) gaps.push({ startMin: cursor, endMin: t.startMin });
+    cursor = Math.max(cursor, t.endMin);
+  }
+  if (entry.endMin - cursor >= minLength) gaps.push({ startMin: cursor, endMin: entry.endMin });
+  const all = tasksForDate(state, date);
+  return gaps.map((g) => {
+    const helpable = all
+      .filter((t) => t.kind !== "break" && !isWatchTask(t) && t.startMin >= g.startMin && t.startMin < g.endMin && t.endMin <= g.endMin)
+      .filter((t) => {
+        const l = headcountStatus(state, t.id).level;
+        return (l === "unassigned" || l === "short") && checkAssignment(state, t.id, staffId).length === 0;
+      })
+      .slice(0, 3)
+      .map((t) => taskLabel(state, t));
+    return { ...g, helpable };
+  });
 }

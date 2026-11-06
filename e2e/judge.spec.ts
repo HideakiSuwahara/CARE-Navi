@@ -346,3 +346,18 @@ test.describe("続けて埋める（決定記録 0021）", () => {
     await expect(page.getByRole("dialog").locator("#assign-title")).not.toHaveText(title1);
   });
 });
+
+test.describe("手が空いたら（決定記録 0021）", () => {
+  test("自分の予定の空き時間に「予定のない時間」と手伝える仕事の名前。札や件数は出さない", async ({ page }) => {
+    await page.setViewportSize({ width: 412, height: 915 });
+    await page.goto("/me?now=10:12");
+    await page.evaluate(() => localStorage.clear());
+    await page.goto("/me?now=10:12");
+    await page.getByRole("list", { name: "きょうの出勤者" }).getByRole("button", { name: /^高橋 / }).click();
+    const gap = page.locator("li").filter({ hasText: "予定のない時間" }).filter({ hasText: "10:30" });
+    await expect(gap).toContainText("手伝える仕事: 入浴介助");
+    await expect(gap).toContainText("リーダーに声をかけてから");
+    await expect(gap).not.toContainText("担当未定");
+    await expect(gap).not.toContainText("担当あと");
+  });
+});

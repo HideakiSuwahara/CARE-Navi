@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { tasksForDate } from "@/domain/checks";
-import { leaderSchedule, myDay, type MyItem } from "@/domain/myday";
+import { freeGaps, leaderSchedule, myDay, type FreeGap, type MyItem } from "@/domain/myday";
 import { fmtMin, fmtRange } from "@/domain/time";
 import type { ID, State } from "@/domain/types";
 import { contactName, HelpBar } from "./HelpBar";
@@ -200,8 +200,23 @@ export function MyDayView({
             きょうの流れ
           </h2>
           <ol className="flex flex-col overflow-hidden rounded-xl border border-[var(--cn-border)] bg-white print:border-[#767b80]">
-            {flowWithNow(day.items, now, day.entry.startMin, day.entry.endMin).map((row) =>
-              row.kind === "now" ? (
+            {flowWithNow(day.items, now, day.entry.startMin, day.entry.endMin, freeGaps(state, date, me)).map((row) =>
+              row.kind === "gap" ? (
+                <li key={`gap-${row.gap.startMin}`} className="cn-noprint flex items-baseline gap-3 border-b border-dashed border-[var(--cn-grid)] px-4 py-3 text-[var(--cn-ink-soft)]">
+                  <span className="w-[96px] shrink-0">
+                    {fmtMin(row.gap.startMin)}
+                    <span>–{fmtMin(row.gap.endMin)}</span>
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block font-bold">予定のない時間</span>
+                    <span className="block text-[14px]">
+                      {row.gap.helpable.length > 0
+                        ? `手伝える仕事: ${row.gap.helpable.join("・")}（リーダーに声をかけてから）`
+                        : "手が空いたら、リーダーに声をかけてください"}
+                    </span>
+                  </span>
+                </li>
+              ) : row.kind === "now" ? (
                 <li key="now" className="cn-noprint flex items-center gap-2 border-y-2 border-[var(--cn-now)] px-4 py-1.5 text-[16px] font-bold text-[var(--cn-now)]">
                   ● いまの時間 {fmtMin(now)}
                 </li>
@@ -222,20 +237,27 @@ export function MyDayView({
   );
 }
 
-type FlowRowData = { kind: "item"; item: MyItem } | { kind: "now" } | { kind: "end" };
+type FlowRowData = { kind: "item"; item: MyItem } | { kind: "now" } | { kind: "end" } | { kind: "gap"; gap: FreeGap };
 
 /** きょうの流れに「● いまの時間」を差し込む（勤務時間中だけ） */
-function flowWithNow(items: MyItem[], now: number, start: number, end: number): FlowRowData[] {
+function flowWithNow(items: MyItem[], now: number, start: number, end: number, gaps: FreeGap[] = []): FlowRowData[] {
   const rows: FlowRowData[] = [];
   const showNow = now >= start && now < end;
   let placed = false;
+  // 予定のない時間（手が空いたら）を時刻の順に差し込む（決定記録 0021）
+  const pending = [...gaps];
+  const pushGapsBefore = (min: number) => {
+    while (pending.length > 0 && pending[0].startMin < min) rows.push({ kind: "gap", gap: pending.shift()! });
+  };
   for (const item of items) {
+    pushGapsBefore(item.task.startMin);
     if (showNow && !placed && item.task.startMin > now) {
       rows.push({ kind: "now" });
       placed = true;
     }
     rows.push({ kind: "item", item });
   }
+  pushGapsBefore(Infinity);
   if (showNow && !placed) rows.push({ kind: "now" });
   rows.push({ kind: "end" });
   return rows;

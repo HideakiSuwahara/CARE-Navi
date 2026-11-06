@@ -143,3 +143,25 @@ test("困ったら: リーダー本人には、リーダーの番の次に順の
   // 早番の佐藤が 11/4 の 7:00 に開くと、11/4 のまま
   assert.deepEqual(viewerDay(s, "2026-11-04", "stf-sato", toMin(7)), { date: "2026-11-04", now: toMin(7) });
 });
+
+test("手が空いたら: 勤務中の 30 分以上の空きと、その時間に始まり注意の出ない担当の足りない枠（決定記録 0021）", async () => {
+  const { freeGaps } = await import("../myday.ts");
+  const { headcountStatus, checkAssignment, tasksForDate, taskLabel } = await import("../checks.ts");
+  const { himawariSeed } = await import("../seed/index.ts");
+  const { stateFromSeed, deterministicContext } = await import("../loadSeed.ts");
+  const s = stateFromSeed(himawariSeed, deterministicContext("g"));
+  const D = "2026-11-03";
+  const working = Object.values(s.roster).filter((e) => e.date === D && !e.absent);
+  const all = working.flatMap((e) => freeGaps(s, D, e.staffId).map((g) => ({ ...g, staffId: e.staffId })));
+  assert.ok(all.length > 0, "サンプルの 11/3 に空きのある人がいる");
+  for (const g of all) {
+    assert.ok(g.endMin - g.startMin >= 30);
+    assert.ok(g.helpable.length <= 3);
+    for (const name of g.helpable) {
+      const t = tasksForDate(s, D).find((x) => taskLabel(s, x) === name && x.startMin >= g.startMin && x.startMin < g.endMin)!;
+      assert.ok(t, name);
+      assert.ok(["unassigned", "short"].includes(headcountStatus(s, t.id).level));
+      assert.equal(checkAssignment(s, t.id, g.staffId).length, 0);
+    }
+  }
+});
