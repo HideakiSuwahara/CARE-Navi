@@ -221,13 +221,19 @@ export function MorningBand({ state, date }: { state: State; date: DateKey }) {
           この内容で作る
         </button>
         <span className="text-[14px] text-[var(--cn-muted)]">
-          {rows.some((r) => !r.absent && !r.slotId)
-            ? `番を選んでいない人: ${rows
-                .filter((r) => !r.absent && !r.slotId)
-                .map((r) => state.staff[r.staffId]?.surname)
-                .filter(Boolean)
-                .join("・")}（「番を選ぶ」の欄）。`
-            : "作ったあとで直せます。元に戻すこともできます。"}
+          {(() => {
+            const missing = rows.filter((r) => !r.absent && !r.slotId).map((r) => state.staff[r.staffId]?.surname).filter(Boolean);
+            // 多いときは縮める（貼り付けたばかりの施設で全員が並ばないように。ループ 19）
+            const names = missing.length > 4 ? `${missing.slice(0, 4).join("・")} ほか ${missing.length - 4} 人` : missing.join("・");
+            return missing.length > 0 ? `番を選んでいない人: ${names}（「番を選ぶ」の欄）。` : "作ったあとで直せます。元に戻すこともできます。";
+          })()}
+          {(() => {
+            // 夜勤の番に入る人が全員初回なら、作る前に一言（止めない。ループ 19）
+            const night = rows.filter((r) => !r.absent && r.slotId && (state.roleSlots[r.slotId]?.defaultEndMin ?? 0) > 24 * 60);
+            return night.length > 0 && night.every((r) => r.firstTimer || !hasPast(r.staffId))
+              ? " 夜勤の番の人は全員、この施設で初めての勤務です（相談先を確かめてください）。"
+              : "";
+          })()}
         </span>
       </div>
     </section>

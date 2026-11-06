@@ -264,3 +264,23 @@ test.describe("ループ 19（スマホの元に戻す）", () => {
     await expect(page.getByRole("button", { name: /今日の時間割を作りました/ })).toHaveCount(0);
   });
 });
+
+test.describe("ループ 19 の持ち越し（朝の帯・印刷）", () => {
+  test("夜勤の番の人が全員初回なら、朝の帯に一言出る（止めない）", async ({ page }) => {
+    await page.goto("/board?now=10:12");
+    await page.evaluate(() => localStorage.clear());
+    await page.goto("/board?date=2026-11-05&now=7:00");
+    await expect(page.getByText(/夜勤の番の人は全員、この施設で初めての勤務です/)).toBeVisible();
+    await expect(page.getByRole("button", { name: "この内容で作る" })).toBeEnabled();
+  });
+
+  test("サンプル施設の自分の予定の印刷は、サンプルの日と時計で日時を出す", async ({ page }) => {
+    await page.setViewportSize({ width: 412, height: 915 });
+    await page.goto("/me?now=10:12");
+    await page.evaluate(() => localStorage.clear());
+    await page.goto("/me?now=10:12");
+    await page.getByRole("list", { name: "きょうの出勤者" }).getByRole("button", { name: /^高橋 / }).click();
+    await page.emulateMedia({ media: "print" });
+    await expect(page.getByText(/印刷 11\/3 10:12/)).toBeVisible();
+  });
+});

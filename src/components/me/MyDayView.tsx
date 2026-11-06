@@ -9,7 +9,7 @@ import type { ID, State } from "@/domain/types";
 import { contactName, HelpBar } from "./HelpBar";
 import { SyncBadge } from "@/components/SyncBadge";
 import { DONE_EVENT, DoneButton, DoneToast, doneHint, type DoneNotice } from "@/components/DoneButton";
-import { useEngine } from "@/store/react";
+import { useEngine, isSampleFacility } from "@/store/react";
 import { LAST_TASK_KEY, meHref } from "./links";
 
 /**
@@ -72,16 +72,26 @@ export function MyDayView({
     else titleRef.current?.focus({ preventScroll: true });
   }, []);
   const [printedAt, setPrintedAt] = useState("");
+  const sampleRef = useRef(isSampleFacility(state));
+  sampleRef.current = isSampleFacility(state);
+  const nowRef = useRef(now);
+  nowRef.current = now;
 
   useEffect(() => {
     const stamp = () => {
+      // サンプル施設はサンプルの日と時計で（印刷の日時が 11/3 の一日と食い違わないように。ループ 19）
+      if (sampleRef.current) {
+        const [, mm, dd] = date.split("-").map(Number);
+        setPrintedAt(`${mm}/${dd} ${fmtMin(nowRef.current)}`);
+        return;
+      }
       const d = new Date();
       setPrintedAt(`${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}`);
     };
     stamp();
     window.addEventListener("beforeprint", stamp);
     return () => window.removeEventListener("beforeprint", stamp);
-  }, []);
+  }, [date]);
 
 
   if (!day) return null;
@@ -235,7 +245,8 @@ function FlowRow({ item, now }: { item: MyItem; now: number }) {
   const t = item.task;
   // 「終わった」の印がある行は薄く。時刻が過ぎただけの行は通常の濃さのまま（決定記録 0010）
   return (
-    <li className={`flex items-stretch break-inside-avoid border-b border-[var(--cn-grid)] last:border-b-0 print:border-b-[#9a9fa5] ${item.current ? "bg-[var(--cn-accent-soft)]" : ""}`}>
+    // 「いま」の行はボタンを下の段に（業務名が 2〜3 字ずつ折れないように。ループ 19）
+    <li className={`flex items-stretch break-inside-avoid border-b border-[var(--cn-grid)] last:border-b-0 print:border-b-[#9a9fa5] ${item.current ? "flex-wrap bg-[var(--cn-accent-soft)]" : ""}`}>
       <Link
         href={meHref(t.id)}
         data-flow-task={t.id}
@@ -264,7 +275,7 @@ function FlowRow({ item, now }: { item: MyItem; now: number }) {
       </Link>
       {/* 印は始まった業務だけ（先の行で押し間違えないように。先に終えた人も、始まった後なら押せる） */}
       {item.canDone && t.startMin <= now && (
-        <span className="cn-noprint flex items-center pr-3">
+        <span className={`cn-noprint flex items-center pr-3 ${item.current ? "w-full justify-end pb-3 pl-4" : ""}`}>
           <DoneButton task={t} size="sm" />
         </span>
       )}
