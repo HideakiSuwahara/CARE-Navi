@@ -50,4 +50,4 @@
 - 実装: `inGroupView`・`shortageGroups`／`unfinishedTasks` のグループ指定（checks.ts）、`boardColumns` のグループ指定・`residentColumns`・`residentViewGroup`・`staffViewRows` の絞り込み（layout.ts）、ボードのツールバーに「見るグループ」と［利用者］、端末で覚える（Board.tsx）、終わった枠の灰色の地・点線・薄いチップ（TaskCard.tsx・StaffView.tsx）、使い方に 1 行。
 - 確かめた結果: 単体 140 件（ボードの見え方 5 件を足した）、E2E 114 件（`e2e/board-view.spec.ts` 3 件を足した）、lint・typecheck・wording 通過。
 - 画面で見た直し: ［利用者］に見守りが全員の列に出ていた → 見守りを除いた。説明の一文が時間割の中で切れていた → 時間割の上へ。「右に続き」が一文に重なる → 位置をずらした。
-- まだ: この改修のレビューループ（ループ 14）。
+- ループ 14（`docs/reviews/2026-11-06-loop14.md`）: ［利用者ごと］では何人かが対象の枠を写し（「n人の枠」、地は灰色にせず「✓ 枠に印」）にした。見出しの件数を押すと［グループごと］に戻して寄せる。切替は「横に並べる」［グループごと｜職員ごと｜利用者ごと］。既定のグループはユニットを先に。

@@ -68,7 +68,7 @@ export function StaffView({
   onOpen?: (taskId: string) => void;
 }) {
   const allRows = useMemo(() => staffViewRows(state, date, groupId), [state, date, groupId]);
-  const watch = useMemo(() => watchLines(state, date).filter((l) => !groupId || l.groupId === groupId), [state, date, groupId]);
+  const watch = useMemo(() => watchLines(state, date).filter((l) => !groupId || l.groupId === groupId || state.groups[l.groupId]?.kind === "common"), [state, date, groupId]);
   const sc = scale(range);
   // 印刷では、その範囲に勤務がある人だけを並べる
   const rows = print ? allRows.filter((r) => sc.inView(r.startMin, r.endMin)) : allRows;
@@ -102,6 +102,11 @@ export function StaffView({
 
   return (
     <div ref={scroller} className={print ? "" : "h-full overflow-auto"} data-testid={print ? undefined : "staff-view"}>
+      {groupId && !print && (
+        <p className="sticky left-0 border-b border-[var(--cn-grid)] px-3 py-1.5 text-[14px] text-[var(--cn-ink-soft)]">
+          {state.groups[groupId]?.name}に所属する人・その日の番が{state.groups[groupId]?.name}の人・{state.groups[groupId]?.name}の枠を担当している人と、所属の無い人（介護助手・看護など）の一日です。ほかのグループの担当も帯に出ます。
+        </p>
+      )}
       <div className="relative" style={{ minWidth: print ? undefined : NAME_COL + sc.span * PX_PER_MIN }}>
         {/* 時刻の見出し */}
         <div className={`flex border-b border-[var(--cn-control-line)] bg-white ${print ? "" : "sticky top-0 z-20"}`}>

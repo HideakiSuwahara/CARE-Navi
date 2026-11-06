@@ -37,7 +37,7 @@ test("横軸［利用者］: そのグループの方が列に並び、個別の
   const residents = Object.values(s.residents).filter((r) => r.groupId === gid);
   const cols = residentColumns(s, DATE, gid, (r) => r.surname);
   assert.equal(cols.length, residents.length);
-  assert.ok(cols.every((c) => c.name.endsWith(" 様")));
+  assert.ok(cols.every((c) => c.name.endsWith("様") && !c.name.endsWith(" 様")));
   const cards = cols.flatMap((c) => c.cards.map((x) => x.task));
   assert.ok(cards.length > 0);
   assert.ok(cards.every((t) => t.kind !== "break"));
@@ -53,6 +53,7 @@ test("横軸［利用者］で「すべて」なら、利用者のいる最初�
   const gid = residentViewGroup(s, undefined);
   assert.ok(gid);
   assert.ok(Object.values(s.residents).some((r) => r.groupId === gid));
+  assert.equal(s.groups[gid].kind, "unit", "利用者のいるユニットを先に");
 });
 
 test("［職員］の絞り込み: そのグループに所属するか、そのグループの枠を担当している出勤者だけ", () => {
@@ -63,6 +64,18 @@ test("［職員］の絞り込み: そのグループに所属するか、その
   assert.ok(rows.length > 0 && rows.length < all.length);
   for (const r of rows) {
     const st = s.staff[r.staffId];
-    assert.ok(st.homeGroupId === sakura.id || r.bars.some((b) => b.task.groupId === sakura.id));
+    const entry = Object.values(s.roster).find((e) => e.date === DATE && e.staffId === r.staffId && !e.absent);
+    assert.ok(!st.homeGroupId || st.homeGroupId === sakura.id || (entry?.slotId && s.roleSlots[entry.slotId]?.groupId === sakura.id) || r.bars.some((b) => b.task.groupId === sakura.id));
   }
+  // 所属の無い出勤者（介護助手・看護など）はどのグループにも出る
+  for (const r of all.filter((x) => !s.staff[x.staffId].homeGroupId)) {
+    assert.ok(rows.some((x) => x.staffId === r.staffId));
+  }
+});
+
+test("横軸［利用者］に共通の枠は出ない", () => {
+  const s = state();
+  const gid = residentViewGroup(s, undefined)!;
+  const cards = residentColumns(s, DATE, gid, (r) => r.surname).flatMap((c) => c.cards.map((x) => x.task));
+  assert.ok(cards.every((t) => !t.groupId || s.groups[t.groupId]?.kind !== "common"));
 });

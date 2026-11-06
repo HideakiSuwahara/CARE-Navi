@@ -36,19 +36,22 @@ test.describe("ボードの見え方（見るグループ・利用者・終わ�
 
   test("横軸［利用者］: そのグループの方が列に並び、列の「＋」から付けると同じ枠に付く", async ({ page }) => {
     await page.getByLabel("見るグループ").selectOption({ label: "さくらユニット" });
-    await page.getByRole("button", { name: "利用者", exact: true }).click();
+    await page.getByRole("button", { name: "利用者ごと", exact: true }).click();
     const heads = page.getByTestId("board-scroller").getByRole("heading", { level: 2 });
     expect(await heads.count()).toBeGreaterThan(3);
     await expect(heads.first()).toContainText("様");
-    await expect(page.getByText("見守り・共通・休憩は［グループ］で見ます")).toBeVisible();
+    await expect(page.getByText("対象の方が決まっていない枠（見守り・共通・休憩など）は［グループごと］で見ます")).toBeVisible();
     // 見守り・休憩は出ない
     await expect(page.locator('[data-level="break"]')).toHaveCount(0);
-    // 「＋」から担当を付けるパネルが開く
-    await page.locator("[data-task-id]").first().getByRole("button", { name: /に担当を追加$/ }).click();
+    // 何人かが対象の枠は写し（n人の枠）。押すと同じ詳細が開き、そこから担当を足せる
+    const shared = page.locator("[data-shared]").first();
+    await expect(shared).toContainText("人の枠");
+    await shared.getByRole("button").click();
     await expect(page.getByRole("dialog")).toBeVisible();
+    await expect(page.getByRole("dialog").getByRole("button", { name: "＋ 担当を追加" })).toBeVisible();
     // 読み込み直しても［利用者］のまま
     await page.keyboard.press("Escape");
     await page.reload();
-    await expect(page.getByRole("button", { name: "利用者", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("button", { name: "利用者ごと", exact: true })).toHaveAttribute("aria-pressed", "true");
   });
 });

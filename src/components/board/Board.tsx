@@ -13,7 +13,7 @@ import { shortageGroups, unfinishedTasks } from "@/domain/checks";
 import { calendarDateOf, fmtMin, fmtRange } from "@/domain/time";
 import { updatedAtLabel } from "@/domain/display";
 import { addDays, addTodayPersonEvents, isFirstTimeDefault } from "@/domain/pattern";
-import { TaskCard } from "./TaskCard";
+import { SharedTaskCard, TaskCard } from "./TaskCard";
 import { MorningBand } from "./MorningBand";
 import { AbsenceFlow, EscortFlow, withShortageNote } from "@/components/me/AllView";
 import { businessMinutes } from "@/domain/myday";
@@ -123,7 +123,7 @@ export function Board({ date: dateParam }: { date?: string }) {
       !ready
         ? []
         : view === "resident" && residentGroup
-          ? residentColumns(state, date, residentGroup, (r) => `${r.room} ${r.displayName}`, MIN_VISUAL_MIN)
+          ? residentColumns(state, date, residentGroup, (r) => `${r.room} ${r.surname}`, MIN_VISUAL_MIN)
           : boardColumns(state, date, MIN_VISUAL_MIN, groupId),
     [state, date, ready, view, residentGroup, groupId],
   );
@@ -144,9 +144,12 @@ export function Board({ date: dateParam }: { date?: string }) {
   const groups = useMemo(() => (ready ? shortageGroups(state, date, filterGroup) : []), [state, date, ready, filterGroup]);
   // 絞っているとき、ほかのグループの担当未定・担当あと n 人（隠れた列で見落とさないように一文で）
   const otherShort = useMemo(() => {
-    if (!ready || !filterGroup) return 0;
-    const all = shortageGroups(state, date).reduce((n, g) => n + g.count, 0);
-    return all - shortageGroups(state, date, filterGroup).reduce((n, g) => n + g.count, 0);
+    if (!ready || !filterGroup) return { total: 0, text: "" };
+    const mine = new Map(shortageGroups(state, date, filterGroup).map((g) => [g.label, g.count]));
+    const parts = shortageGroups(state, date)
+      .map((g) => ({ label: g.label, count: g.count - (mine.get(g.label) ?? 0) }))
+      .filter((g) => g.count > 0);
+    return { total: parts.reduce((n, g) => n + g.count, 0), text: parts.map((g) => `${g.label} ${g.count}`).join("・") };
   }, [state, date, ready, filterGroup]);
   // 終わりの時刻を過ぎて「終わった」の印が無い枠（決定記録 0010 決定 3）。担当未定とは別に数える
   const unfinished = useMemo(() => (ready && now !== null ? unfinishedTasks(state, date, now, filterGroup).length : 0), [state, date, ready, now, filterGroup]);
@@ -172,7 +175,8 @@ export function Board({ date: dateParam }: { date?: string }) {
   // 職員表示から押したら、グループ表示に戻してから（描き終わったあとの effect で）カードへ寄せる
   const pendingJump = useRef<string | null>(null);
   const jumpTo = (label: string) => {
-    if (view === "staff") {
+    // 職員・利用者の表示からは、グループの表示に戻してから寄せる（同じ枠が列の数だけ並ぶ・列に出ない枠がある）
+    if (view !== "group") {
       pendingJump.current = label;
       setView("group");
       return;
@@ -180,7 +184,7 @@ export function Board({ date: dateParam }: { date?: string }) {
     jumpToCard(label);
   };
   useEffect(() => {
-    if (view === "staff" || !pendingJump.current) return;
+    if (view !== "group" || !pendingJump.current) return;
     const label = pendingJump.current;
     pendingJump.current = null;
     jumpToCard(label);
@@ -339,11 +343,13 @@ export function Board({ date: dateParam }: { date?: string }) {
           <label className="flex items-center gap-2 text-[15px]">
             見るグループ
             <select
-              value={groupId ?? ""}
+              value={(view === "resident" ? residentGroup : groupId) ?? ""}
               onChange={(e) => setViewGroup(e.target.value)}
               className="h-[44px] rounded-lg border border-[var(--cn-control-line)] bg-white px-2.5 text-[15px] font-bold"
             >
-              <option value="">すべて</option>
+              <option value="" disabled={view === "resident"}>
+                {view === "resident" ? "すべて（利用者ごとでは選べません）" : "すべて"}
+              </option>
               {Object.values(state.groups)
                 .filter((g) => g.kind !== "common")
                 .sort((a, b) => a.sortOrder - b.sortOrder)
@@ -356,12 +362,16 @@ export function Board({ date: dateParam }: { date?: string }) {
           </label>
         )}
         {hasTasks && (
-          <div role="group" aria-label="横軸" className="inline-flex rounded-lg border border-[var(--cn-card-line)] bg-white p-0.5">
+          <div className="flex items-center gap-2">
+          <span id="axis-label" className="text-[15px]">
+            横に並べる
+          </span>
+          <div role="group" aria-label="横軸" aria-describedby="axis-label" className="inline-flex rounded-lg border border-[var(--cn-card-line)] bg-white p-0.5">
             {(
               [
-                ["group", "グループ"],
-                ["staff", "職員"],
-                ["resident", "利用者"],
+                ["group", "グループごと"],
+                ["staff", "職員ごと"],
+                ["resident", "利用者ごと"],
               ] as const
             ).map(([v, label]) => (
               <button
@@ -369,11 +379,12 @@ export function Board({ date: dateParam }: { date?: string }) {
                 type="button"
                 aria-pressed={view === v}
                 onClick={() => setView(v)}
-                className={`h-[44px] min-w-[72px] rounded-md px-3 text-[15px] ${view === v ? "bg-[var(--cn-accent-soft)] font-bold text-[var(--cn-accent)]" : "text-[var(--cn-ink-soft)]"}`}
+                className={`h-[44px] min-w-[72px] rounded-md px-3 text-[15px] ${view === v ? "bg-[var(--cn-accent-soft)] font-bold text-[var(--cn-accent)] ring-2 ring-inset ring-[var(--cn-accent)]" : "text-[var(--cn-ink-soft)]"}`}
               >
                 {label}
               </button>
             ))}
+          </div>
           </div>
         )}
         {hasTasks && (
@@ -392,9 +403,17 @@ export function Board({ date: dateParam }: { date?: string }) {
               </button>
             ))}
             {groups.length === 0 && <span className="text-[14px] text-[var(--cn-muted)]">{filterGroup ? "このグループの枠には、すべて担当が付いています" : "すべての枠に担当が付いています"}</span>}
-            {otherShort > 0 && (
-              <button type="button" onClick={() => setViewGroup("")} className="inline-flex h-[44px] items-center px-1 text-[14px] text-[var(--cn-ink-soft)] underline">
-                ほかのグループにも担当が決まっていない枠 {otherShort}件（すべてを見る）
+            {otherShort.total > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  setViewGroupRaw("");
+                  setViewRaw("group");
+                  saveBoardView({ axis: "group", group: "" });
+                }}
+                className="inline-flex h-[44px] items-center whitespace-nowrap rounded-full border border-[var(--cn-control-line)] bg-white px-3 text-[14px] text-[var(--cn-ink)]"
+              >
+                ほかのグループ: {otherShort.text}（すべてを見る）
               </button>
             )}
             {unfinished > 0 && (
@@ -483,9 +502,9 @@ export function Board({ date: dateParam }: { date?: string }) {
       <BoardDnd engine={engine} onNotice={showNotice}>
       <main className="flex min-h-0 flex-1 gap-4 px-5 pb-5">
         <section aria-label="時間割" className="relative min-w-0 flex-1 overflow-hidden rounded-xl border border-[var(--cn-border)] bg-white">
-          {/* 右の列がスクロールの先にあるとき（1280 幅など）の手掛かり。時間割の右上に重ねる */}
-          {overflowX && hasTasks && view !== "staff" && (
-            <div className={`pointer-events-none absolute right-2 z-30 ${view === "resident" ? "top-[64px]" : "top-2.5"} rounded bg-white/95 px-2 py-1 text-[14px] font-bold text-[var(--cn-ink-soft)] shadow`} role="note">
+          {/* 右の列がスクロールの先にあるとき（1280 幅など）の手掛かり。列の見出しを隠さないよう、時間割の右下に重ねる */}
+          {overflowX && hasTasks && view === "group" && (
+            <div className={`pointer-events-none absolute bottom-2 right-4 z-30 rounded bg-white/95 px-2 py-1 text-[14px] font-bold text-[var(--cn-ink-soft)] shadow`} role="note">
               → 右に続き（横にスクロール）
             </div>
           )}
@@ -508,8 +527,10 @@ export function Board({ date: dateParam }: { date?: string }) {
           ) : (
             <div className="flex h-full flex-col">
             {view === "resident" && (
-              <p className="shrink-0 border-b border-[var(--cn-grid)] px-3 py-1.5 text-[14px] text-[var(--cn-ink-soft)]">
-                {residentGroup ? state.groups[residentGroup]?.name : ""}の方ごとの枠です。みんなで行う枠は、方ごとの列に同じ 1 枚が出ます（どの列から担当を付けても同じ枠）。見守り・共通・休憩は［グループ］で見ます。
+              <p id="resident-note" className="shrink-0 border-b border-[var(--cn-grid)] px-3 py-1.5 text-[14px] text-[var(--cn-ink-soft)]">
+                {groupId && residentGroup !== groupId ? `${state.groups[groupId]?.name}には利用者がいないので、` : ""}
+                {residentGroup ? state.groups[residentGroup]?.name : ""}の方ごとの枠です。何人かが対象の枠（「n人の枠」）は、その方々の列に同じ 1 枚が出ます（担当の追加と「終わった」の印は、押して開く詳細で。印は枠に 1 つです）。対象の方が決まっていない枠（見守り・共通・休憩など）は［グループごと］で見ます。
+                {overflowX && <strong className="ml-1 whitespace-nowrap">→ 右に続き（横にスクロール）</strong>}
               </p>
             )}
             <div ref={scroller} className="min-h-0 flex-1 overflow-auto" data-testid="board-scroller">
@@ -521,8 +542,8 @@ export function Board({ date: dateParam }: { date?: string }) {
                 <div className="sticky left-0 z-10 bg-white px-2 py-2.5 text-[13px] text-[var(--cn-muted)]">時刻</div>
 
                 {columns.map((c) => (
-                  <h2 key={c.id} className="border-l border-[var(--cn-grid)] px-3 py-2.5 font-bold">
-                    <span>{c.name}</span> {c.sub && <span className="text-[14px] font-normal text-[var(--cn-muted)]">{c.sub}</span>}
+                  <h2 key={c.id} id={`col-${c.id}`} className="border-l border-[var(--cn-grid)] px-3 py-2.5 font-bold" title={view === "resident" ? c.sub : undefined}>
+                    <span>{c.name}</span> {view !== "resident" && c.sub && <span className="text-[14px] font-normal text-[var(--cn-muted)]">{c.sub}</span>}
                   </h2>
                 ))}
               </div>
@@ -544,7 +565,7 @@ export function Board({ date: dateParam }: { date?: string }) {
                   ))}
                 </div>
                 {columns.map((c) => (
-                  <div key={c.id} className="relative border-l border-[var(--cn-grid)]">
+                  <div key={c.id} className="relative border-l border-[var(--cn-grid)]" role={view === "resident" ? "group" : undefined} aria-labelledby={view === "resident" ? `col-${c.id}` : undefined}>
                     {c.cards.map(({ task, lane, lanes, rail }) => {
                       const top = (task.startMin - VIEW_START) * PX_PER_MIN;
                       // 15分の業務でも「＋」(44px) が収まる高さを確保する
@@ -556,7 +577,20 @@ export function Board({ date: dateParam }: { date?: string }) {
                       const width = areaWidth / lanes;
                       return (
                         <DropZone key={task.id} id={view === "resident" ? `task:${task.id}:${c.id}` : `task:${task.id}`} data={{ kind: "task", taskId: task.id }} className="absolute p-[3px]" style={{ top, height, left: `${left}%`, width: `${width}%` }}>
-                          <TaskCard state={state} task={task} now={now} variant={rail ? "rail" : height < 84 ? "mini" : height < 150 ? "compact" : "normal"} onOpen={openDetail} onAdd={openAssign} instanceKey={view === "resident" ? c.id : undefined} />
+                          {view === "resident" && (state.targets[task.id] ?? []).length > 1 ? (
+                            <SharedTaskCard state={state} task={task} onOpen={openDetail} columnName={c.name} />
+                          ) : (
+                            <TaskCard
+                              state={state}
+                              task={task}
+                              now={now}
+                              // 利用者ごとの列は細いので、1 行に詰める形（compact）を使わず、業務名と担当を 2 段に分ける
+                              variant={rail ? "rail" : height < 84 ? "mini" : height < 150 && view !== "resident" ? "compact" : "normal"}
+                              onOpen={openDetail}
+                              onAdd={openAssign}
+                              instanceKey={view === "resident" ? c.id : undefined}
+                            />
+                          )}
                         </DropZone>
                       );
                     })}

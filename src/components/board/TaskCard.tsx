@@ -90,11 +90,7 @@ export function TaskCard({
     >
       <span className={`block truncate text-[15px] font-bold leading-6 ${isBreak ? "text-[var(--cn-break-ink)]" : done ? "text-[var(--cn-muted)]" : ""}`}>
         {/* 2 行のカードは 2 行目に「✓ 終わった」と文字で。1 行のカードは ✓ と読み上げ用の文字 */}
-        {done && mini && (
-          <span className="text-[var(--cn-accent)]">
-            ✓<span className="sr-only">終わった</span>{" "}
-          </span>
-        )}
+        {done && mini && <span className="text-[var(--cn-accent)]">✓ 終わった ・ </span>}
         {title}
       </span>
       {!mini && (
@@ -211,5 +207,42 @@ function StaffChip({
         {firstTimer && <span className="rounded border border-[var(--cn-card-line)] bg-white px-1 text-[13px] text-[var(--cn-ink)]">初回</span>}
       </span>
     </button>
+  );
+}
+
+/**
+ * 横軸［利用者］で、何人かが対象の枠を方ごとの列に出すときの写し（決定記録 0017、ループ 14）。
+ * - 押すと同じ詳細が開く（担当の追加・「終わった」の印はそこで）。担当は文字だけ、＋は出さない（Tab が列の数だけ増えないように）。
+ * - 「終わった」の印は枠に 1 つ。この方の分が終わったとは限らないので、地は灰色にせず「✓ 枠に印（n人の枠）」と文字で。
+ */
+export function SharedTaskCard({ state, task, onOpen, columnName }: { state: State; task: TaskInstance; onOpen?: (taskId: string) => void; columnName: string }) {
+  const status = headcountStatus(state, task.id);
+  const n = (state.targets[task.id] ?? []).length;
+  const names = Object.values(state.assignments)
+    .filter((a) => a.taskId === task.id)
+    .map((a) => state.staff[a.staffId]?.surname)
+    .filter(Boolean)
+    .join("・");
+  const short = status.level === "unassigned" || status.level === "short";
+  return (
+    <article
+      aria-label={`${task.name} ${fmtRange(task.startMin, task.endMin)}、${n}人の枠（${columnName}を含む）${short ? ` ${status.label}` : ""}${task.done ? " 枠に終わったの印" : ""}`}
+      data-task-id={task.id}
+      data-shared=""
+      data-level={status.level}
+      data-badge={short ? status.label : undefined}
+      className={`h-full overflow-hidden rounded-[10px] border bg-white px-2 py-1 ${short ? "border-dashed border-[var(--cn-alert-line)]" : "border-[var(--cn-card-line)]"}`}
+    >
+      <button type="button" onClick={() => onOpen?.(task.id)} data-card-title="" title={`${task.name} ${fmtRange(task.startMin, task.endMin)}`} className="block min-h-[44px] w-full text-left hover:underline">
+        <span className="line-clamp-2 break-words text-[14px] font-bold leading-5">{task.name}</span>
+        <span className="block text-[13px] leading-5 text-[var(--cn-ink-soft)]">
+          {fmtRange(task.startMin, task.endMin)} ・ {n}人の枠
+        </span>
+        <span className="block text-[13px] leading-5">
+          {task.done ? <span className="font-bold text-[var(--cn-accent)]">✓ 枠に印 </span> : null}
+          {short ? <span className="font-bold text-[var(--cn-unassigned-ink)]">{status.label}</span> : <span className="text-[var(--cn-accent)]">{names}</span>}
+        </span>
+      </button>
+    </article>
   );
 }

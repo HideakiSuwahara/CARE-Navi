@@ -123,22 +123,26 @@ export function residentColumns(state: State, date: string, groupId: ID, label: 
   const residents = Object.values(state.residents)
     .filter((r) => r.groupId === groupId)
     .sort((a, b) => a.room.localeCompare(b.room, "ja", { numeric: true }) || a.displayName.localeCompare(b.displayName, "ja"));
-  const tasks = tasksForDate(state, date).filter((t) => t.kind !== "break" && !isWatchTask(t));
+  // 休憩・見守り・共通の枠は出さない（決定記録 0017 §3）
+  const tasks = tasksForDate(state, date).filter((t) => t.kind !== "break" && !isWatchTask(t) && !(t.groupId && state.groups[t.groupId]?.kind === "common"));
   return residents.map((r) => {
     const mine = tasks.filter((t) => (state.targets[t.id] ?? []).includes(r.id));
     const { cards, hasRail, maxLanes } = layoutGroupColumn(mine, minVisualMin);
-    return { id: r.id, name: `${label(r)} 様`, sub: "", cards, hasRail, maxLanes };
+    return { id: r.id, name: `${label(r)}様`, sub: r.displayName, cards, hasRail, maxLanes };
   });
 }
 
-/** 横軸［利用者］で、既定で選ぶグループ（選んでいるグループに利用者がいなければ、利用者のいる最初のグループ） */
+/**
+ * 横軸［利用者］で、既定で選ぶグループ。選んでいるグループに利用者がいればそれ、
+ * なければ利用者のいる最初のユニット（利用者ごとに見たいのはユニットが多い）、なければ利用者のいる最初のグループ。
+ */
 export function residentViewGroup(state: State, groupId?: ID): ID | undefined {
   const has = (gid: ID) => Object.values(state.residents).some((r) => r.groupId === gid);
   if (groupId && state.groups[groupId] && has(groupId)) return groupId;
-  return Object.values(state.groups)
-    .filter((g) => g.kind !== "common")
-    .sort((a, b) => a.sortOrder - b.sortOrder)
-    .find((g) => has(g.id))?.id;
+  const list = Object.values(state.groups)
+    .filter((g) => g.kind !== "common" && has(g.id))
+    .sort((a, b) => a.sortOrder - b.sortOrder);
+  return (list.find((g) => g.kind === "unit") ?? list[0])?.id;
 }
 
 // ---------------------------------------------------------------------------
@@ -237,14 +241,20 @@ export interface WatchLine {
 
 export function staffViewRows(state: State, date: string, groupId?: ID): StaffViewRow[] {
   const all = paletteRows(state, date).working;
-  // 見るグループ（決定記録 0017）: そのグループに所属するか、そのグループの枠を担当している出勤者だけ
-  const working = groupId
-    ? all.filter(
-        (r) =>
-          state.staff[r.staffId]?.homeGroupId === groupId ||
-          Object.values(state.assignments).some((a) => a.staffId === r.staffId && state.tasks[a.taskId]?.date === date && state.tasks[a.taskId]?.groupId === groupId),
-      )
-    : all;
+  // 見るグループ（決定記録 0017）: そのグループに所属する人、その日の番がそのグループの人、そのグループの枠を担当している人、
+  // 所属の無い人（介護助手・看護・応援など。共通の列と同じく、どのグループにも出す）
+  const inGroup = (r: PaletteRow) => {
+    const st = state.staff[r.staffId];
+    if (!st) return false;
+    if (!st.homeGroupId || st.homeGroupId === groupId) return true;
+    const entry = Object.values(state.roster).find((e) => e.date === date && e.staffId === r.staffId && !e.absent);
+    if (entry?.slotId && state.roleSlots[entry.slotId]?.groupId === groupId) return true;
+    return Object.values(state.assignments).some((a) => {
+      const t = state.tasks[a.taskId];
+      return a.staffId === r.staffId && t?.date === date && t.status === "planned" && t.groupId === groupId;
+    });
+  };
+  const working = groupId ? all.filter(inGroup) : all;
   const tasks = tasksForDate(state, date);
   const byId = new Map(tasks.map((t) => [t.id, t]));
   const mine = new Map<ID, TaskInstance[]>();
