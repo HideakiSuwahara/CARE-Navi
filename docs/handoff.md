@@ -4,7 +4,7 @@
 
 ## いまの状態
 
-- ループ 18（ダークモードと見た目のレビュー）まで済み。作業ブランチで 4 つのチェック（lint・typecheck・test 143・wording）と E2E 129 件が通る。11/6 に `main` へ取り込み済み（早送り。`main` と作業ブランチは同じ）。
+- ループ 18（ダークモードと見た目のレビュー）まで済み。作業ブランチで 4 つのチェック（lint・typecheck・test 143・wording）と E2E 151 件が通る。11/6 に `main` へ取り込み済み（早送り。`main` と作業ブランチは同じ）。
 - 全体工程は `npm run progress`。
 - 公開版の URL が分かったら `E2E_BASE_URL=<URL> npx playwright test` を回し、`docs/submission.md` の URL 欄を埋める。
 
