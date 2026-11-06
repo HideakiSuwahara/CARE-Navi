@@ -50,8 +50,9 @@ test.describe("受け入れ: スマホ", () => {
     // 人が「終わった」を付けた行だけが薄くなる（印を付けると「（時刻を過ぎた予定）」は消えるので、行は ID で追う）
     const target = flow.locator(`[data-flow-task="${await past.first().getAttribute("data-flow-task")}"]`);
     await target.locator("..").getByRole("button", { name: "終わったら押す" }).click();
-    await expect(target).toContainText("✓ 終わった");
-    expect(await target.evaluate((e) => getComputedStyle(e).color)).not.toBe(colorNow);
+    // 「✓ 終わった」は行の右のボタンに 1 か所だけ（ループ 21）
+    await expect(target.locator("..").getByRole("button", { name: /終わった$/ })).toHaveAttribute("aria-pressed", "true");
+    await expect.poll(() => target.evaluate((e) => getComputedStyle(e).color)).not.toBe(colorNow);
   });
 
   test("L46 業務詳細にも、充足バッジ・仕組みの言葉・完了の語が出ない", async ({ page }) => {

@@ -322,8 +322,8 @@ test.describe("元に戻すの履歴（決定記録 0021）", () => {
     const hist = page.getByRole("region", { name: "元に戻すの履歴" });
     await expect(hist.getByRole("listitem")).toHaveCount(2);
     await hist.getByRole("button", { name: "ここまで戻す（2 件）" }).click();
-    await expect(hist).toContainText("2 件を戻します");
-    await hist.getByRole("button", { name: "戻す", exact: true }).click();
+    await expect(hist).toContainText("新しい方から 2 件");
+    await hist.getByRole("button", { name: "2 件を戻す" }).click();
     await expect(page.locator('[data-badge="担当未定"]')).toHaveCount(before);
     await expect(page.locator("#board-toast")).toContainText("元に戻しました（2 件");
   });
@@ -426,8 +426,9 @@ test.describe("やった人を変える（決定記録 0022）", () => {
     const dialog = page.getByRole("dialog");
     await dialog.getByRole("button", { name: "やった人を変える…" }).click();
     const box = dialog.getByRole("region", { name: "やった人を選ぶ" });
+    // 人を選ぶ段は見出しへ（1 回の Enter で決まらないように）
+    await expect(box.getByRole("heading", { name: "やった人を選ぶ" })).toBeFocused();
     const first = box.getByRole("listitem").first().getByRole("button");
-    await expect(first).toBeFocused();
     const who = (await first.locator("span").first().innerText()).replace("さん", "");
     await first.click();
     await expect(page.locator("#board-toast")).toContainText(`${who}さんがやった`);

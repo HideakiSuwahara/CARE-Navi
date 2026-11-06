@@ -201,6 +201,7 @@ export function TaskDetail({
                 type="button"
                 data-doer-open
                 aria-expanded={doerOpen}
+                aria-controls={doerOpen ? "doer-box" : undefined}
                 onClick={() => setDoerOpen((v) => !v)}
                 className="h-[44px] rounded-lg border border-[var(--cn-control-line)] px-3 text-[15px]"
               >
@@ -452,8 +453,10 @@ function DoerBox({ state, taskId, onDecide, onCancel }: { state: State; taskId: 
   const on = choices.filter((c) => !c.off);
   const off = choices.filter((c) => c.off);
   const boxRef = useRef<HTMLDivElement>(null);
+  // 誰の代わりかを選ぶ段は先頭のボタンへ。人を選ぶ段は見出しへ（1 回の Enter で決まらないように。ループ 21）
   useEffect(() => {
-    boxRef.current?.querySelector<HTMLElement>("button")?.focus();
+    if (needWho) boxRef.current?.querySelector<HTMLElement>("button")?.focus();
+    else boxRef.current?.querySelector<HTMLElement>("#doer-title")?.focus();
   }, [needWho]);
   const who = replaced ? boardName(state, replaced) : undefined;
   const title = needWho ? "代わりにやったか、一緒にやったか" : who ? `${who}さんの代わりにやった人` : assignees.length > 0 ? "一緒にやった人を足す" : "やった人を選ぶ";
@@ -480,6 +483,7 @@ function DoerBox({ state, taskId, onDecide, onCancel }: { state: State; taskId: 
   return (
     <section
       ref={boxRef}
+      id="doer-box"
       aria-labelledby="doer-title"
       className="flex flex-col gap-2 rounded-xl border border-[var(--cn-border)] p-3"
       onKeyDown={(e) => {
@@ -489,7 +493,7 @@ function DoerBox({ state, taskId, onDecide, onCancel }: { state: State; taskId: 
         }
       }}
     >
-      <h3 id="doer-title" className="text-[15px] font-bold">
+      <h3 id="doer-title" tabIndex={-1} className="text-[15px] font-bold outline-none focus-visible:ring-2 focus-visible:ring-[var(--cn-accent)]">
         {title}
       </h3>
       <p className="text-[14px] text-[var(--cn-ink-soft)]">選ぶと、その人を担当にして「終わった」の印を付けます（元に戻せます）。</p>

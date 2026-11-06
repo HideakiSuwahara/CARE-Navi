@@ -31,7 +31,7 @@ test.describe("「終わった」の印（スマホ）", () => {
     await expect(first).toHaveAttribute("aria-pressed", "true");
     expect(await marked()).toBe(before + 1);
     // 行の中には「✓ 終わった」を重ねて書かない（ボタンだけ。ループ 18 #23）
-    await expect(first.locator("xpath=ancestor::li[1]").getByText("✓ 終わった", { exact: true })).toHaveCount(0);
+    await expect(first.locator("xpath=ancestor::li[1]").getByText("✓ 終わった", { exact: true })).toBeHidden();
     const status = page.getByRole("status").filter({ hasText: "に「終わった」の印を付けました" });
     await expect(status).toBeVisible();
     await status.getByRole("button", { name: "元に戻す" }).click();
