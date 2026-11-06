@@ -233,7 +233,8 @@ export function AllView({ state, date, me, now, clock, tabs }: { state: State; d
           </span>
         </div>
         {groups.length > 0 || unfinished > 0 ? (
-          <div className="mt-2 flex flex-wrap gap-2">
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            {groups.length > 0 && <span className="text-[14px] text-[var(--cn-ink-soft)]">これからの分:</span>}
             {groups.map((g) => (
               <button
                 key={g.label}
@@ -259,7 +260,7 @@ export function AllView({ state, date, me, now, clock, tabs }: { state: State; d
             )}
           </div>
         ) : (
-          rows.length > 0 && <p className="mt-1 text-[16px] text-[var(--cn-ink-soft)]">きょうの業務で、担当未定はありません。</p>
+          rows.length > 0 && <p className="mt-1 text-[16px] text-[var(--cn-ink-soft)]">これからの業務で、担当未定はありません。</p>
         )}
       </header>
 
@@ -280,7 +281,7 @@ export function AllView({ state, date, me, now, clock, tabs }: { state: State; d
                   {r.unfinished && <span className="text-[14px]">（時刻を過ぎました）</span>}
                 </p>
                 <p className="flex flex-wrap items-center gap-x-2 text-[16px] text-[var(--cn-ink-soft)]">
-                  {r.isBreak ? "休憩" : "担当"}: {r.assignees.length > 0 ? r.assignees.map((x) => x.surname).join("・") : r.past ? "なし" : "まだいません"}
+                  {r.isBreak ? "休憩" : "担当"}: {r.assignees.length > 0 ? r.assignees.map((x) => x.surname).join("・") : "決まっていません"}
                   <Badge row={r} />
                 </p>
               </li>
@@ -406,7 +407,7 @@ function Row({ row, flash, onMenu, onAdd }: { row: AllRow; flash: boolean; onMen
         {!noNeed && (
           <p id={`${id}-sub`} className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[16px]">
             <span className={row.done || row.cancelled ? "" : "text-[var(--cn-ink-soft)]"} aria-hidden={row.assignees.length === 0 && row.unfilled ? true : undefined}>
-              {row.isBreak ? "休憩" : "担当"}: {row.assignees.length > 0 ? row.assignees.map((s) => s.surname).join("・") : row.past ? "なし" : "まだいません"}
+              {row.isBreak ? "休憩" : "担当"}: {row.assignees.length > 0 ? row.assignees.map((s) => s.surname).join("・") : "決まっていません"}
             </span>
             <Badge row={row} />
             {flash && <span className="text-[14px] font-bold text-[var(--cn-ink)]">変わりました</span>}

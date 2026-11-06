@@ -68,3 +68,25 @@ test.describe("審査員の最初の 10 分（サンプルデータ）", () => {
     await expect(nightUnassigned).toHaveCount(0);
   });
 });
+
+test.describe("ループ 16 の持ち越し", () => {
+  test("［利用者ごと］に切り替えた直後も、現在時刻の 1 時間前に寄っている", async ({ page }) => {
+    await page.goto("/board?now=10:12");
+    await page.evaluate(() => localStorage.clear());
+    await page.goto("/board?now=10:12");
+    await expect(page.locator("[data-task-id]").first()).toBeVisible();
+    await page.getByRole("button", { name: "利用者ごと", exact: true }).click();
+    await expect(page.getByTestId("board-scroller").getByText("10:12", { exact: true })).toBeInViewport();
+  });
+
+  test("ⓘ の説明はツールバーの下に出て、札は折れない", async ({ page }) => {
+    await page.goto("/board?now=10:12");
+    await page.evaluate(() => localStorage.clear());
+    await page.goto("/board?now=10:12");
+    const chip = page.getByRole("button", { name: /^担当未定 \d+件/ });
+    const h = (await chip.boundingBox())!.height;
+    await page.getByRole("button", { name: "この数字について" }).click();
+    await expect(page.locator("#board-note")).toBeVisible();
+    expect((await chip.boundingBox())!.height).toBe(h);
+  });
+});

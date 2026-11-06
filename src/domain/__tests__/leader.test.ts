@@ -149,3 +149,9 @@ test("夜勤明け: 朝のリーダーには、前日の夜勤帯の業務を全
   // 9:30 でも夜勤帯の枠は見える（朝のリーダーが夜の分を確かめる）が、前日の日中の枠は残らない
   assert.equal(overnightRows(s, "2026-11-04", toMin(9, 30)).filter((r) => !r.isBreak && r.task.startMin < 1440).length, 0);
 });
+
+test("付き添いの既定: 夜に開いたら深夜の受診にせず、翌 9:00 から", () => {
+  assert.equal(defaultEscortRange(toMin(23, 10)).startMin, 33 * 60);
+  assert.equal(defaultEscortRange(28 * 60 + 5).startMin, 33 * 60);
+  assert.equal(defaultEscortRange(toMin(10, 12)).startMin, toMin(10, 15));
+});

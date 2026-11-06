@@ -4,7 +4,7 @@
 
 ## いまの状態
 
-- ループ 16（素人の審査員の目線、0018）まで済み。作業ブランチで 4 つのチェック（lint・typecheck・test 142・wording）と E2E 120 件が通る。`main` への取り込みはまだ。
+- ループ 16（素人の審査員の目線、0018）まで済み。作業ブランチで 4 つのチェック（lint・typecheck・test 143・wording）と E2E 122 件が通る。`main` への取り込みはまだ。
 - 全体工程は `npm run progress`。
 - 公開版の URL が分かったら `E2E_BASE_URL=<URL> npx playwright test` を回し、`docs/submission.md` の URL 欄を埋める。
 

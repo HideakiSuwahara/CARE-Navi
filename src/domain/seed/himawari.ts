@@ -1047,6 +1047,7 @@ const roster: RosterEntry[] = [
   ros(D1, STF_NOGUCHI, SLOT_YAKIN_SAKURA),
   ros(D1, STF_WATANABE, SLOT_JOSHU, { absent: true }),
   // 11/4（水）平日。介護助手が出勤、スポットなし。11/3 の夜勤（斉藤・野口）は明けで休み。夜勤は木村・山本
+  // この日は遅番を置かない（東の 11–13 時・17–18 時の見守りが「担当未定」で見える日。勤務表の穴がボードでどう見えるかの例）
   ros(D2, STF_SATO, SLOT_HAYABAN_A),
   ros(D2, STF_TAKAHASHI, SLOT_HAYABAN_B),
   ros(D2, STF_SUZUKI, SLOT_NIKKIN_A),
@@ -1319,7 +1320,7 @@ const sheets: ResidentSheet[] = [
       rhythm: "朝食はしっかり食べる。ご飯はおかわりしたい",
       preference: "漬物があるとうれしい",
       canDo: "ご自身で食べられる。食器の片付けも手伝える",
-      support: "食器を運ぶときは、ふらつきに気を配る",
+      support: "立ち上がりと歩き始めにふらつきがある。食器を運ぶときはそばに付く（入浴は浴槽をまたぐので 2 人介助）",
     }),
     rr("205", "rt-snack-sakura", {
       rhythm: "おやつの後に、居間で将棋の本を読む",
@@ -1331,7 +1332,7 @@ const sheets: ResidentSheet[] = [
       rhythm: "夜は8時ごろ部屋に戻り、すぐに休む",
       preference: "窓のカーテンはきっちり閉めたい",
       canDo: "上着を脱ぐ・寝衣を着るはご自身で",
-      support: "ベッドに座るまでそばにいて、手すりを持ってもらう",
+      support: "ベッドに座るまでそばにいて、手すりを持ってもらう。夜間はご自身で寝返りを打ちにくいので、巡視のときに体の向きを変える",
     }),
   ]),
   sheet("res-206-miura", [

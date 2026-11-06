@@ -116,7 +116,7 @@ export function TaskDetail({
                 )}
               </span>
             ))}
-            {assignees.length === 0 && <span className="text-[15px] text-[var(--cn-ink-soft)]">まだいません</span>}
+            {assignees.length === 0 && <span className="text-[15px] text-[var(--cn-ink-soft)]">決まっていません</span>}
             {short && (
               <span
                 className={`inline-flex h-[32px] items-center rounded-md px-2.5 text-[14px] font-bold ${

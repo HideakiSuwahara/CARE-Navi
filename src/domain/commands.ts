@@ -131,7 +131,8 @@ function ceil15(min: Minutes): Minutes {
 
 /** 付き添いの既定の時間帯: 今から（15分単位に切り上げ）90分 */
 export function defaultEscortRange(nowMin: Minutes, durationMin: Minutes = 90): { startMin: Minutes; endMin: Minutes } {
-  const startMin = ceil15(nowMin);
+  // 夜（22:00〜翌 9:00 の前）に開いたときは、深夜の受診にしない。翌 9:00 を既定にする（ループ 16）
+  const startMin = nowMin >= 22 * 60 && nowMin < 33 * 60 ? 33 * 60 : ceil15(nowMin);
   return { startMin, endMin: startMin + durationMin };
 }
 

@@ -161,14 +161,20 @@ export function Board({ date: dateParam }: { date?: string }) {
   // 時間割があるか（絞り込みや［利用者］で列が空でも、朝の帯は出さない）
   const hasTasks = ready && Object.values(state.tasks).some((t) => t.date === date && t.status === "planned");
 
-  // 開いたとき、現在時刻の1時間前へ寄せる（時間の切替ボタンは置かない）。グループ表示に戻ったときも寄せ直す
+  // 開いたとき、現在時刻の1時間前へ寄せる（時間の切替ボタンは置かない）。横に並べるもの・見るグループを変えたときも寄せ直す
+  // （［利用者ごと］に切り替えた直後に 6:00 からの空白が出ないように。ループ 16）
   const scrolled = useRef(false);
+  const viewKey = `${view}:${groupId ?? ""}`;
+  const lastViewKey = useRef(viewKey);
   useEffect(() => {
-    if (view === "staff") scrolled.current = false;
+    if (lastViewKey.current !== viewKey) {
+      lastViewKey.current = viewKey;
+      scrolled.current = false;
+    }
     if (!ready || now === null || scrolled.current || !scroller.current) return;
     scroller.current.scrollTop = Math.max(0, (now - 60 - VIEW_START) * PX_PER_MIN);
     scrolled.current = true;
-  }, [ready, now, view]);
+  }, [ready, now, viewKey]);
 
   // 見出しの「担当未定 n件」を押すと、該当するカードへ順に移動する（押すたびに次へ）
   const jumpIndex = useRef<Record<string, number>>({});
@@ -437,13 +443,14 @@ export function Board({ date: dateParam }: { date?: string }) {
             <button
               type="button"
               aria-expanded={noteOpen}
+              aria-controls="board-note"
               aria-label="この数字について"
               onClick={() => setNoteOpen((v) => !v)}
               className="inline-flex h-[44px] w-[44px] items-center justify-center rounded-full text-[16px] text-[var(--cn-muted)] hover:bg-white"
             >
               ⓘ
             </button>
-            {noteOpen && <span className="text-[14px] text-[var(--cn-ink-soft)]">担当未定・担当あと n 人: 決めた人数にあと何人足りないか、です。終わっていない: 終わりの時刻を過ぎて「終わった」の印が無い枠の数です。どちらもケアができていない数ではありません。</span>}
+
           </div>
         )}
         {hasTasks && (
@@ -506,6 +513,11 @@ export function Board({ date: dateParam }: { date?: string }) {
         </div>
       )}
 
+      {noteOpen && hasTasks && (
+        <p id="board-note" className="mx-5 mb-2 rounded-lg border border-[var(--cn-control-line)] bg-white px-3 py-2 text-[14px] text-[var(--cn-ink-soft)]">
+          担当未定・担当あと n 人: 決めた人数にあと何人足りないか、です。終わっていない: 終わりの時刻を過ぎて「終わった」の印が無い枠の数です。どちらもケアができていない数ではありません。
+        </p>
+      )}
       {/* 本体 */}
       <BoardDnd engine={engine} onNotice={showNotice}>
       <main className="flex min-h-0 flex-1 gap-4 px-5 pb-5">
