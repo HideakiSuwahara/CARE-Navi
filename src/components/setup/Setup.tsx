@@ -1154,7 +1154,7 @@ function ThemeSection({ choiceClass }: { choiceClass: (on: boolean) => string })
       <h3 id="s-theme" className="mb-1 text-[16px] font-bold">
         画面の明るさ
       </h3>
-      <p className="mb-2 text-[14px] text-[var(--cn-ink-soft)]">夜の詰所でまぶしいときは「暗い」に。この端末だけの設定です（ほかの端末は変わりません）。印刷はいつも明るい色です。</p>
+      <p className="mb-2 text-[14px] text-[var(--cn-ink-soft)]">夜の詰所でまぶしいときは「暗い」に。この端末を使う全員が同じ明るさになります（人ごとではありません。ほかの端末は変わりません）。共有の端末で夜だけ暗くしたいときは「端末に合わせる」にして、端末の側で夜に暗くなるよう設定してください。印刷はいつも明るい色です。</p>
       <div role="group" aria-labelledby="s-theme" className="flex flex-wrap gap-2">
         {options.map((o) => (
           <button

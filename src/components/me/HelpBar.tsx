@@ -35,7 +35,7 @@ export function contactText(c: LeaderContact | undefined, me: ID): string {
 export function HelpBar({ state, date, me, now }: { state: State; date: string; me: ID; now: number }) {
   const c = leaderContact(state, date, now);
   return (
-    <p className="sticky top-0 z-20 border-b border-[var(--cn-control-line)] bg-[var(--cn-accent-soft)] px-4 py-2.5 text-[16px] print:hidden" role="note">
+    <p className="sticky top-0 z-20 border-b-[3px] border-[var(--cn-help-line)] bg-[var(--cn-help-bg)] px-4 py-2.5 text-[16px] print:hidden" role="note">
       <span className="font-bold">困ったら</span> <span className="font-bold">{contactText(c, me)}</span>
     </p>
   );

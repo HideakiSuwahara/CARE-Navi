@@ -173,7 +173,7 @@ export function MyDayView({
             {day.upcoming && (
               <>
                 <h2 className="mb-2 mt-4 text-[18px] font-bold">つぎ</h2>
-                <FocusCard item={day.upcoming} open={firstTimer} now={now} />
+                <FocusCard item={day.upcoming} open={firstTimer} now={now} upcoming />
               </>
             )}
           </section>
@@ -270,13 +270,18 @@ function FlowRow({ item, now }: { item: MyItem; now: number }) {
   );
 }
 
-function FocusCard({ item, open, now }: { item: MyItem; open: boolean; now: number }) {
+function FocusCard({ item, open, now, upcoming }: { item: MyItem; open: boolean; now: number; upcoming?: boolean }) {
   const t = item.task;
   const id = `fc-${t.id}`;
   // 読み上げ名は Link の中の文字そのまま（時刻・業務名・中身・「くわしく見る」）。名前と見える文字がずれないように（2.5.3）
   return (
     // いまの時間の予定は左に紺の太い帯（決定記録 0019）。終わった印のあとは薄い枠に戻す
-    <div className={`rounded-xl border-2 bg-white ${item.done ? "border-[var(--cn-card-line)]" : "border-[var(--cn-accent)] border-l-[10px] shadow-[0_2px_8px_rgba(29,92,138,0.15)]"}`}>
+    // 「つぎ」には帯と影を付けない（いまの予定より控えめに。ループ 18）
+    <div
+      className={`rounded-xl border-2 bg-white ${
+        item.done ? "border-[var(--cn-card-line)]" : upcoming ? "border-[var(--cn-control-line)]" : "border-[var(--cn-accent)] border-l-[10px] shadow-[0_2px_8px_rgba(29,92,138,0.15)]"
+      }`}
+    >
     <Link href={meHref(t.id)} className="block p-4">
       <p id={`${id}-time`} className="text-[16px] font-bold">
         {fmtRange(t.startMin, t.endMin)}

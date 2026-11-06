@@ -54,18 +54,18 @@ export default function Home() {
         <figure className="relative pb-10 pr-10 sm:pb-14 sm:pr-16">
           <Image
             src="/shots/board.png"
-            alt="ボード: 縦が時間、横がフロアとユニット。入浴介助に「担当あと1人」、担当の決まっていない枠に「担当未定」が出ている"
-            width={1440}
-            height={900}
+            alt="ボード: 縦が時間、横がフロアとユニット。入浴介助に「担当あと1人」、担当の決まっていない枠に「担当未定」の札が出ている"
+            width={1920}
+            height={1000}
             priority
-            className="w-full rounded-xl border border-[var(--cn-border)] shadow-[0_12px_32px_rgba(28,31,35,0.18)]"
+            className="cn-shot w-full rounded-xl border border-[var(--cn-border)] shadow-[0_12px_32px_rgba(28,31,35,0.18)]"
           />
           <Image
             src="/shots/me.png"
             alt="スマホの自分の予定: 困ったらの相談先、いまの時間の予定、お願いすること・しないこと"
             width={824}
             height={1678}
-            className="absolute bottom-0 right-0 w-[26%] min-w-[110px] rounded-[18px] border-4 border-[var(--cn-ink)] shadow-[0_12px_28px_rgba(28,31,35,0.3)]"
+            className="cn-shot absolute bottom-0 right-0 w-[26%] min-w-[110px] rounded-[18px] border-4 border-[var(--cn-ink)] shadow-[0_12px_28px_rgba(28,31,35,0.3)]"
           />
           <figcaption className="sr-only">ケアナビのボードとスマホの画面（架空の施設「ひまわり苑」）</figcaption>
         </figure>
