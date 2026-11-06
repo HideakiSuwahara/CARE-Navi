@@ -114,27 +114,27 @@ test.describe("設定", () => {
     await expect(form.getByRole("alert")).toContainText("すでに登録されています");
     await form.getByRole("button", { name: "閉じる" }).click();
     // 直す: PHS
-    await list.getByRole("button", { name: /^野村さんを直す/ }).click();
+    await list.getByRole("button", { name: /^野村 ?さんを直す/ }).click();
     const edit = page.getByRole("form", { name: "野村さんを直す" });
     await edit.getByLabel("PHS（任意）").fill("812");
     await edit.getByRole("button", { name: "この内容で直す" }).click();
     await expect(page.getByRole("status").filter({ hasText: "野村さんを直しました" })).toBeVisible();
     // 退職 → 一覧から消える → 元に戻す
-    await list.getByRole("button", { name: /^野村さんを直す/ }).click();
+    await list.getByRole("button", { name: /^野村 ?さんを直す/ }).click();
     await edit.getByRole("button", { name: "退職にする…" }).click();
     await expect(edit).toContainText("今日以降の担当はありません");
     await edit.getByRole("button", { name: "外す（元に戻せます）" }).click();
     await expect(page.getByRole("status").filter({ hasText: "野村さんを退職にしました" })).toBeVisible();
-    await expect(list.getByRole("button", { name: /^野村さんを直す/ })).toHaveCount(0);
+    await expect(list.getByRole("button", { name: /^野村 ?さんを直す/ })).toHaveCount(0);
     await page.getByRole("button", { name: "元に戻す" }).first().click();
-    await expect(list.getByRole("button", { name: /^野村さんを直す/ })).toBeVisible();
+    await expect(list.getByRole("button", { name: /^野村 ?さんを直す/ })).toBeVisible();
   });
 
   test("退職: 今日以降の担当がある人は、件数を知らせてから外す。出勤者から消え、元に戻すで戻る", async ({ page }) => {
     await page.getByRole("button", { name: "サンプル施設で試す" }).click();
     await page.goto("/setup");
     const list = page.getByRole("list", { name: "職員ごとの担当条件" });
-    await list.getByRole("button", { name: /^高橋さんを直す/ }).click();
+    await list.getByRole("button", { name: /^高橋 ?さんを直す/ }).click();
     const edit = page.getByRole("form", { name: "高橋さんを直す" });
     await edit.getByRole("button", { name: "退職にする…" }).click();
     await expect(edit).toContainText(/今日以降の担当 \d+件からも外れます/);
@@ -208,7 +208,7 @@ test.describe("設定", () => {
     await groupList.getByRole("button", { name: "東フロアを外す" }).click();
     await expect(page.getByRole("region", { name: "グループ（ユニット・フロア）" }).getByRole("alert")).toContainText("所属しています");
     // 番の時刻を直す: 早番A を 7:30 に。11/3 の佐藤の出勤は 7:00 のまま
-    await page.getByRole("button", { name: "番「早番A」を直す" }).click();
+    await page.getByRole("button", { name: /^早番A ?を直す/ }).click();
     await page.getByRole("form", { name: "番「早番A」の編集" }).getByLabel(/^開始/).fill("7:30");
     await page.getByRole("button", { name: "この内容で直す" }).click();
     await expect(page.getByRole("status").filter({ hasText: "番「早番A」を直しました（入れてある勤務表の時刻はそのままです）" })).toBeVisible();
@@ -245,7 +245,7 @@ test.describe("設定", () => {
     await expect(page.getByRole("button", { name: "＋ 番を足す" })).toBeFocused();
     // 職員の所属を直す: 高橋さんを すみれ へ
     const staffList = page.getByRole("list", { name: "職員ごとの担当条件" });
-    await staffList.getByRole("button", { name: /^高橋さんを直す/ }).click();
+    await staffList.getByRole("button", { name: /^高橋 ?さんを直す/ }).click();
     const edit = page.getByRole("form", { name: "高橋さんを直す" });
     await edit.getByLabel("所属（グループ）").selectOption({ label: "すみれ" });
     await edit.getByRole("button", { name: "この内容で直す" }).click();

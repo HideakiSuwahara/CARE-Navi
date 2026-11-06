@@ -298,13 +298,13 @@ export function MasterEditor({ state, today, onDone }: { state: State; today: st
                   data-slot-btn={sl.id}
                   aria-expanded={slotOpen === sl.id}
                   aria-controls={slotOpen === sl.id ? `slot-form-${sl.id}` : undefined}
-                  aria-label={`番「${sl.name}」を直す`}
-                  aria-describedby={`slot-meta-${sl.id}`}
                   onClick={() => (slotOpen === sl.id ? closeSlot() : openSlot(sl.id))}
                   className="inline-flex min-h-[44px] w-[300px] max-w-full shrink-0 flex-col items-start justify-center rounded-lg px-2 py-1.5 text-left hover:bg-[var(--cn-ground)]"
                 >
                   <span>
                     <span className="font-bold underline decoration-[var(--cn-control-line)] underline-offset-4">{sl.name}</span>
+                    {/* 読み上げの名前は見えている文字から（WCAG 2.5.3）。「を直す」は読み上げだけ足す */}
+                    <span className="sr-only">を直す、</span>
                   </span>
                   <span id={`slot-meta-${sl.id}`} className="text-[13px] text-[var(--cn-muted)]">
                     {fmtMin(sl.defaultStartMin)}–{fmtMin(sl.defaultEndMin)} ・ {sl.groupId ? state.groups[sl.groupId]?.name : "グループなし"}

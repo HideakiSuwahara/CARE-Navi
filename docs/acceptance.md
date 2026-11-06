@@ -10,7 +10,7 @@
 - [x] はじめて開いた設定画面はボタン2つだけ（「サンプル施設で試す」「自分の施設で始める」）。同期が使える環境では「施設コードで参加」を加えて 3 つ（0009）。
 - [x] 「サンプル施設で試す」を押すと、入力なしでボードが開く（架空の「ひまわり苑」）。
 - [x] 自分の施設は、施設名＋グループ・利用者の貼り付け・職員の貼り付け（PHS は任意）で登録できる。失敗行は行番号と理由が出る。
-- [x] ふだんの設定は2項目（手元画面の利用者名、初回の方の警告）と施設コード。
+- [x] ふだんの設定は、画面の明るさ（0020）、手元画面の利用者名、初回の方の警告、施設コード、データの備え（0014）。
 
 ### ボード（時間割と配置）
 - [x] 個別（対象1名）・一括（対象複数）・共通（対象なし）・休憩が同じボードに出る。（D1）
@@ -174,3 +174,119 @@
 
 - [x] 上部バーの「使い方」から、毎朝・途中で変わったら・直したいとき・間違えたら・データの備えを引ける。各行からその画面を開ける。
 - [x] 設定の「データの備え」で書き出し・読み込みができる。読み込みは置き換えることを確かめてから。同期中は読み込めない。
+
+## 検証結果（2026-11-06、提出前の通し）
+
+対象は main（28da4f5）＋今回足した `e2e/acceptance-final.spec.ts`（19 件）。開発サーバー http://localhost:3000（同期の環境変数あり）、Playwright は環境の版（Chromium 1243）。条件の行番号は 2026-11-06 時点の本ファイルの行。既存のチェック（[x]）は書き換えず、結果はこの表に書く。
+
+- 集計（条件 86 件）: 満たす 82・満たさない 2・未確認 2。必ず入る確認（8 件）: 満たす 6・満たさない 1・未確認 1。
+- 実行: `npm run lint`／`typecheck`／`check:wording`（154 ファイル エラー 0）通過。`npm test` 143／143。E2E 148 件中 146 通過・2 失敗（下の #12・#68）。Lighthouse 13（作業用の場所に入れ、環境の Chromium で headless）アクセシビリティ: ボード 100・自分の予定 100。
+
+| # | 条件（短く） | 確かめ方 | 結果 | 備考 |
+|---|---|---|---|---|
+| 1 | L10 はじめの設定はボタン 2 つ（同期で 3 つ） | e2e/setup.spec.ts:13 | 満たす | 同期の環境なので 3 つで確認 |
+| 2 | L11 サンプルは入力なしでボード | e2e/setup.spec.ts:13、e2e/judge.spec.ts:10 | 満たす | |
+| 3 | L12 自分の施設の登録・失敗行の行番号と理由 | e2e/setup.spec.ts:21、setup.test.ts:10 | 満たす | |
+| 4 | L13 ふだんの設定は 2 項目と施設コード | e2e/setup.spec.ts:47、今回の画面（/setup の見出し） | 未確認（条件の文が古い） | 利用者名・初回の職員の警告・施設コードはある。ほかに「画面の明るさ」（0020）「データの備え」（0014）も並ぶ（CLAUDE.md §1 はこの 5 つ）。条件の文を決定記録に合わせるかの判断が要る |
+| 5 | L16 個別・一括・共通・休憩が同じボード | e2e/board.spec.ts:15、layout.test.ts:57 | 満たす | |
+| 6 | L17 2 時間以上の見守りは左のレール | layout.test.ts:91、今回の画面（見守り 9:00–11:00 が列の左） | 満たす | |
+| 7 | L18 一括の対象者一覧を開ける | e2e/board.spec.ts:51、e2e/me.phone.spec.ts:76 | 満たす | |
+| 8 | L19 未充足だけに文字のバッジ・休憩に無し | e2e/board.spec.ts:23、domain.test.ts:69 | 満たす | |
+| 9 | L20 見出しに文言ごとの件数 | e2e/board.spec.ts:116、layout.test.ts:105、acceptance-final「L20」 | 満たす | 10:12 で「担当未定 3件」「担当あと1人 1件」 |
+| 10 | L21 全カードに 44px の＋ | e2e/board.spec.ts:43 | 満たす | |
+| 11 | L22 右上に「更新 hh:mm」（時刻のみ） | acceptance-final「L22」 | 満たす | 自分の施設で「更新 h:mm」のみ。サンプルは決定記録 0018 により「サンプル施設の一日」 |
+| 12 | L23 暗い画面（紺・端末が覚える・印刷は明るい・全画面で axe 0） | e2e/judge.spec.ts:153、acceptance-final「L23」2 件 | 満たさない | 紺・覚える・印刷は満たす。axe（WCAG 2.0〜2.2 A/AA）で /setup に label-content-name-mismatch（2.5.3）27 件。明るい画面でも同じ。再現: サンプル → /setup で axe。見当: `src/components/setup/MasterEditor.tsx:301` の `aria-label="番「…」を直す"` が見えている文字（時刻・グループ）を含まない。ほかに best-practice の region（ボードの飛び先リンク、利用者の見出し）が出る |
+| 13 | L24 終わった枠の灰色・見るグループ・利用者ごと | e2e/board-view.spec.ts:14・23・37、boardView.test.ts 6 件、acceptance-final「L24」 | 満たす | 印のある一括の写し（n人の枠）は白のまま、見守り・休憩・共通は出ないことを今回確認 |
+| 14 | L25 現在時刻ライン | e2e/board.spec.ts:137 | 満たす | |
+| 15 | L26 出勤者に数字なし・休みの人は番の枠の件数だけ | e2e/board.spec.ts:31・175、layout.test.ts:72、acceptance-final「L26」 | 満たす | 文言は「渡辺さんの分 3件（担当未定 2・担当あと1人 1）」 |
+| 16 | L27 スマホ幅のボードは案内 1 文と 1 ボタン | e2e/board.spec.ts:199、e2e/acceptance.phone.spec.ts:18 | 満たす | |
+| 17 | L28 D&D 1 操作・＋→追加 2 操作 | e2e/board.spec.ts:92・64 | 満たす | |
+| 18 | L29 パネルは問題なしだけ開き、ほかは畳む・理由一文 | e2e/acceptance.spec.ts:34、domain.test.ts:260 | 満たす | |
+| 19 | L30 注意は警告して許可・二重登録はできない | e2e/acceptance.spec.ts:54・79・101、domain.test.ts:156・165・200・231 | 満たす | |
+| 20 | L31 トーストと常設の元に戻す（10 手） | e2e/acceptance.spec.ts:127 | 満たす | |
+| 21 | L32 カードの詳細・時刻のドラッグなし | e2e/acceptance.spec.ts:149 | 満たす | |
+| 22 | L33 職員表示で重なり・勤務外・休憩・見守りの空き | e2e/acceptance.spec.ts:171、e2e/staff.spec.ts:16・62、layout.test.ts:124 | 満たす | |
+| 23 | L36 空の日に「今日の時間割を作る」 | e2e/board.spec.ts:143 | 満たす | |
+| 24 | L37 先週の番・曜日の業務表・初回と休みを引き継がない | e2e/acceptance.spec.ts:290、domain.test.ts:418 | 満たす | |
+| 25 | L38 1 タップで作り、1 回で戻る | e2e/board.spec.ts:143、e2e/acceptance.spec.ts:299 | 満たす | |
+| 26 | L39 介護助手を休みにすると担当未定 | e2e/acceptance.spec.ts:307、e2e/board.spec.ts:163 | 満たす | |
+| 27 | L40 作り直しを ⋯ に置かない | e2e/acceptance.spec.ts:192 | 満たす | |
+| 28 | L41 今日を業務表として保存（人は保存しない） | e2e/staff.spec.ts:102、domain.test.ts:469、routine.test.ts:149 | 満たす | |
+| 29 | L42 急かす表示がない | e2e/acceptance.spec.ts:314 | 満たす | |
+| 30 | L43 端末の今日・サンプルは 11/3・前の日／次の日／今日へ | acceptance-final「L43」、today.test.ts:5 | 満たす | |
+| 31 | L44 いちばん近い前の日・夜勤明けは休み | domain.test.ts:503、master.test.ts:161 | 満たす | |
+| 32 | L45 番なしで休みだった人は休みのまま | domain.test.ts:418（後半） | 満たす | |
+| 33 | L46 作ったあとの「＋ 今日来る人を足す」・1 回で戻る | acceptance-final「L46」、domain.test.ts:524・536 | 満たす | |
+| 34 | L47 ツールバーの欠勤・早退／付き添い・外出、トーストに件数と「＋ から埋められます」 | acceptance-final「L47」2 件 | 満たす | |
+| 35 | L48 ボードを開いたとき前の操作のトーストが出ない | acceptance-final「L48」 | 満たす | |
+| 36 | L51 別タブの自分の予定に反映 | e2e/me.phone.spec.ts:56 | 満たす | |
+| 37 | L52 施設コードの同期・届かないとき | e2e/sync.spec.ts:13・71（実際の Supabase で通過）、syncstore.test.ts:63 | 満たす | |
+| 38 | L53 見出し「いまの時間の予定」／最初の予定・つぎ | e2e/me.phone.spec.ts:23・33、e2e/acceptance.phone.spec.ts:25 | 満たす | |
+| 39 | L54 その語が無い・時刻が過ぎても自動で終わった扱いにしない | e2e/acceptance.phone.spec.ts:38、e2e/done.spec.ts:46、seed.test.ts:61、check:wording | 満たす | |
+| 40 | L55 「終わった」の印の付け外し | e2e/done.phone.spec.ts:16・47 | 満たす | |
+| 41 | L56 対象の方は物品の次・手順より上 | e2e/done.phone.spec.ts:47 | 満たす | |
+| 42 | L57 職員の画面にバッジ・仕組みの言葉なし | e2e/me.phone.spec.ts:23、e2e/acceptance.phone.spec.ts:57 | 満たす | |
+| 43 | L58 上部に常に「困ったら」・休憩中は代わり | e2e/me.phone.spec.ts:23、e2e/acceptance.phone.spec.ts:68、myday.test.ts:26 | 満たす | |
+| 44 | L59 業務詳細の各項目 | e2e/me.phone.spec.ts:41、e2e/acceptance.phone.spec.ts:73 | 満たす | |
+| 45 | L60 手元の利用者名は設定どおり・ボードはフルネーム | e2e/acceptance.phone.spec.ts:81、e2e/acceptance.spec.ts:249 | 満たす | |
+| 46 | L61 共有端末で名前を選び、端末が覚える | e2e/me.phone.spec.ts:14 | 満たす | |
+| 47 | L64 全体の各行に ⋯（終わった・中止・ずらす・担当を外す）、未充足に＋ | e2e/all.phone.spec.ts:25、acceptance-final「L64」 | 満たす | |
+| 48 | L65 「終わっていない n 件」・サンプル 10:12 で 2 件 | e2e/done.phone.spec.ts:66、e2e/done.spec.ts:16、done.test.ts:36・65、acceptance-final「L65」2 件 | 満たす | |
+| 49 | L66 クイック操作と元に戻すが画面の下 | e2e/all.phone.spec.ts:25 | 満たす | |
+| 50 | L67 付き添いは 3 タップ（既定つき） | e2e/all.phone.spec.ts:43、leader.test.ts:53 | 満たす | |
+| 51 | L68 重なる休憩は外さず後ろへずらす | e2e/all.phone.spec.ts:59、domain.test.ts:301 | 満たす | |
+| 52 | L69 欠勤・早退は 3 タップ（勤務中は今の時刻で早退） | e2e/all.phone.spec.ts:108・86、domain.test.ts:408、acceptance-final「L47」（10:12 に「10:15 まで勤務」） | 満たす | |
+| 53 | L72 見直しの前提が常時・今週のみ | e2e/review.spec.ts:14 | 満たす | |
+| 54 | L73 区分×時間帯の図と数値の表・勤務帯・枠一覧（個人別なし） | e2e/review.spec.ts:21、review.test.ts:40 | 満たす | |
+| 55 | L74 枠一覧に判断の言葉がない | e2e/review.spec.ts:21 | 満たす | |
+| 56 | L75 分担表（A4 横 2 枚）と自分の予定（A4 縦）の印刷 | e2e/staff.spec.ts:86、e2e/me.phone.spec.ts:93 | 満たす | |
+| 57 | L78 禁止の語が UI に無い | `npm run check:wording`、e2e/board.spec.ts:38 | 満たす | |
+| 58 | L79 実在の名前を含まない・架空データのみ | check:wording、サンプルデータの目視 | 未確認（機械で決められない） | 個人名の照合に使う `.wordcheck.local.txt` がこの環境に無い。サンプルの名前はありふれた姓と架空の施設名だけ |
+| 59 | L80 業務日と夜勤の制限が README に | README.md「MVP の制限」 | 満たす | |
+| 60 | L81 追加・変更（グループ・名前・番・施設名・元に戻す） | e2e/setup.spec.ts:180、master.test.ts | 満たす | |
+| 61 | L82 種類の選択・外せない理由とリンク・所属・外した番の写し・翌9:00・フォーカス | e2e/setup.spec.ts:219、master.test.ts:99・126・139・147 | 満たす | |
+| 62 | L83 職員を 1 人ずつ・退職・同名は足せない | e2e/setup.spec.ts:95・133、people.test.ts:13・38 | 満たす | |
+| 63 | L84 月の勤務表の貼り付け | e2e/setup.spec.ts:149、rosterPaste.test.ts 7 件 | 満たす | |
+| 64 | L85 利用者を 1 人ずつ・退所・元に戻す | e2e/residents.spec.ts:238、people.test.ts:67 | 満たす | |
+| 65 | L86 職員の条件の付け外しが候補の理由に効く | e2e/setup.spec.ts:61、setup.test.ts:166 | 満たす | |
+| 66 | L87 保存方式・サンプルに戻す・認証は本番要件（README）、動く | README.md「保存と同期」「本番の要件」、acceptance-final「再読み込み…サンプルに戻す」、e2e/board.spec.ts:233 | 満たす | |
+| 67 | L88 外部 AI の呼び出しが無い | package.json の依存、src の検索、使う環境変数は Supabase の 2 つだけ | 満たす | |
+| 68 | L91 lint／typecheck／test／e2e／check:wording が通る | 今回の全件実行 | 満たさない | E2E 148 件中 2 失敗。#12 の axe と、e2e/judge.spec.ts:10（全件の並列実行で 1 回落ちた。単独 5／5・3 ファイル並列で通る。負荷で「担当あと1人」が画面に入る前に判定している見込み） |
+| 69 | L92 Lighthouse アクセシビリティ 90 以上 | lighthouse 13（/board?now=10:12 デスクトップ、/me?now=10:12 モバイル） | 満たす | 100・100。/me は名前一覧の状態 |
+| 70 | L93 押せる領域 44px・コントラスト 4.5:1 | e2e/acceptance.spec.ts:198・239、e2e/acceptance.phone.spec.ts:121、e2e/board.spec.ts:207 | 満たす | |
+| 71 | L94 キーボードだけで割当・取消・飛び先 | e2e/acceptance.spec.ts:258、e2e/staff.spec.ts:34 | 満たす | |
+| 72 | L150 名簿を貼るだけで標準どおり | e2e/acceptance.spec.ts:358、e2e/residents.spec.ts:139 | 満たす | |
+| 73 | L151 標準と違うマスだけ文字で目立つ | e2e/residents.spec.ts:40・75 | 満たす | |
+| 74 | L152 枠の中は一括のまま・枠の外は別の枠 | e2e/acceptance.spec.ts:368、routine.test.ts:56 | 満たす | |
+| 75 | L153 まとめて変えて 1 回で戻す | e2e/acceptance.spec.ts:402、e2e/residents.spec.ts:57 | 満たす | |
+| 76 | L154 一つの日課につき一つの枠 | routine.test.ts:56・87、seed.test.ts:74 | 満たす | |
+| 77 | L155 24時間シートが書けて残る | e2e/acceptance.spec.ts:420、e2e/residents.spec.ts:87 | 満たす | |
+| 78 | L156 この方だけの行 | e2e/acceptance.spec.ts:448、routine.test.ts:100 | 満たす | |
+| 79 | L157 シートの印刷・CSV | e2e/acceptance.spec.ts:477、e2e/residents.spec.ts:123、residentsIO.test.ts:55・61 | 満たす | |
+| 80 | L158 サポートの 1 行は担当の人にだけ | e2e/acceptance.phone.spec.ts:102、myday.test.ts:69 | 満たす | |
+| 81 | L159 ノンコアも業務表から番に束ねる | e2e/acceptance.spec.ts:319 | 満たす | |
+| 82 | L160 日課を足すとき今日の時間割にも入れる | acceptance-final「L160」、routine.test.ts:234 | 満たす | 体位変換 13:30 を足すと東フロアの一括の枠が 1 枚でき、元に戻すで消える |
+| 83 | L161 自分の施設にも入浴・2 つ目のフロアの休憩・リーダーの番 | setup.test.ts:121 | 満たす | |
+| 84 | L162 一覧の「＋ 日課を足す」・標準の変更・外す | routine.test.ts:184 | 満たす | |
+| 85 | L175 使い方から引け、各行からその画面へ | acceptance-final「L175」 | 満たす | 「いまの操作を取り消す」「バッジの意味」の 2 行は説明だけでリンクなし（開く画面が一つに決まらない） |
+| 86 | L176 データの備え（書き出し・置き換えを確かめて読み込み・同期中は読めない） | acceptance-final「L176」2 件 | 満たす | 書き出しのファイル名は headless では確かめられない（中身で確認）。`Setup.tsx` は書き出し直後に URL を消している（利用者の CSV は 1 秒待つ） |
+| 必1 | 時間が過ぎた予定が自動で終わった扱いにならない | e2e/acceptance.phone.spec.ts:38、e2e/done.phone.spec.ts:16、seed.test.ts:61 | 満たす | |
+| 必2 | 一括の対象者一覧が開け、人数だけの保存でない | e2e/board.spec.ts:51、domain.test.ts:113、acceptance-final「L160」 | 満たす | |
+| 必3 | 二重登録はできず、重複・勤務外・休憩・条件は警告して許可 | domain.test.ts:156・165、e2e/acceptance.spec.ts:54・101 | 満たす | |
+| 必4 | まとまった操作も 1 回で元に戻る | e2e/board.spec.ts:143、e2e/all.phone.spec.ts:43、engine.test.ts:46、acceptance-final「L46」「L47」 | 満たす | |
+| 必5 | 再読み込みで残り、「サンプルに戻す」で初期化 | acceptance-final「再読み込み…サンプルに戻す」、e2e/board.spec.ts:233 | 満たす | |
+| 必6 | 深夜をまたぐ扱い（翌 6:00 まで・24:00 超えの分）が README に | README.md「MVP の制限」 | 満たさない | 24:00 超えの分・夜勤の業務日はあるが、ボードが翌 6:00 まで（それより後に終わる業務があれば伸ばす）の記述が README に無い（docs/screens.md:86 にはある）。見当: README の「MVP の制限」の業務日の行に 1 文 |
+| 必7 | 見直しに「予定時間ベース」「評価には使わない」・個人の内訳なし | e2e/review.spec.ts:14・21、review.test.ts:40 | 満たす | |
+| 必8 | 実在の情報・他プロジェクト名・個人名が入っていない | check:wording、`git grep` | 未確認（照合の一覧が無い） | `.wordcheck.local.txt` がこの環境に無く、個人名・他プロジェクト名の機械照合を回せていない。見つかったのは LICENSE と docs/submission.md のリポジトリ自身の URL（アカウント名を含む）だけ |
+
+### 通しのあとの対応（同日）
+
+| # | 対応 | 結果 |
+|---|---|---|
+| 12（L23） | 設定の番の行と職員の行のボタンの読み上げ名を、見えている文字（＋読み上げだけの「を直す」「さんを直す」）に直した（`MasterEditor.tsx`・`Setup.tsx`。WCAG 2.5.3） | 満たす（acceptance-final「L23」通過） |
+| 68（L91） | e2e/judge.spec.ts の「10:12 から進む」で、寄せるのを待つ時間を 15 秒に（負荷が高いときに先に判定していた） | 満たす（E2E 148 件 通過、lint・typecheck・単体 143・wording 通過） |
+| 必6 | README の「MVP の制限」に、ボードは翌 6:00 まで出し、それより後に終わる業務があれば軸を伸ばす、を足した | 満たす |
+| 4（L13） | 条件の文を今の「ふだんの設定」（画面の明るさ・利用者名・初回の警告・施設コード・データの備え）に合わせた | 満たす（設定の画面で確認） |
+| 58・必8 | 実在の名前の機械照合は `.wordcheck.local.txt`（git 管理外）が要る。作者の手元で `npm run check:wording` を回すと照合される | 未確認のまま（この環境では照合の一覧が無い） |
+
+集計（対応のあと）: 条件 86 件のうち満たす 85・未確認 1。必ず入る確認 8 件のうち満たす 7・未確認 1。

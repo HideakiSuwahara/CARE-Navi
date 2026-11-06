@@ -15,7 +15,8 @@ test.describe("審査員の最初の 10 分（サンプル施設）", () => {
     await expect(page.locator("[data-task-id]").first()).toBeVisible();
     await expect(page.getByTestId("board-scroller").getByText("10:12", { exact: true })).toBeVisible();
     await expect(page.getByText("サンプル施設の一日")).toBeVisible();
-    await expect(page.locator('[data-badge="担当あと1人"]').first()).toBeInViewport();
+    // 負荷が高いときは寄せるのが遅れるので待つ（全件を並列で回したときに 1 回落ちた）
+    await expect(page.locator('[data-badge="担当あと1人"]').first()).toBeInViewport({ timeout: 15_000 });
     await page.clock.fastForward("03:00");
     await expect(page.getByTestId("board-scroller").getByText("10:15", { exact: true })).toBeVisible();
   });

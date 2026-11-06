@@ -595,12 +595,13 @@ function Everyday({ onOwn, onSample }: { onOwn: () => void; onSample: () => void
                     <button
                       type="button"
                       aria-expanded={editing === st.id}
-                      aria-label={`${shown(st)}さんを直す（${st.role}${st.phone ? `、PHS ${st.phone}` : ""}）`}
                       onClick={() => setEditing(editing === st.id ? null : st.id)}
                       className="inline-flex h-[44px] w-[200px] shrink-0 flex-col items-start justify-center rounded-lg px-2 text-left hover:bg-[var(--cn-ground)]"
                     >
                       <span>
-                        <span className="font-bold underline decoration-[var(--cn-control-line)] underline-offset-4">{shown(st)}</span>{" "}
+                        <span className="font-bold underline decoration-[var(--cn-control-line)] underline-offset-4">{shown(st)}</span>
+                        {/* 読み上げの名前は見えている文字から（WCAG 2.5.3）。「さんを直す」は読み上げだけ足す */}
+                        <span className="sr-only">さんを直す、</span>{" "}
                         <span className="text-[14px] text-[var(--cn-ink-soft)]">{st.role}</span>
                       </span>
                       <span className="text-[13px] text-[var(--cn-muted)]">{st.phone ? `PHS ${st.phone}` : "PHS なし"}</span>
