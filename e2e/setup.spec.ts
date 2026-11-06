@@ -176,4 +176,43 @@ test.describe("設定", () => {
     await page.goto("/board?date=2026-12-02&now=7:00");
     await expect(page.getByText(/勤務表どおり（12\/2）に並べました/)).toHaveCount(0);
   });
+
+  test("追加・変更: グループを足すと番と日課が入り次の日のボードに出る。名前を変える。所属が残る間は外せない。番の時刻を直しても入れてある勤務表は変わらない", async ({ page }) => {
+    await page.getByRole("button", { name: "サンプル施設で試す" }).click();
+    await page.goto("/setup");
+    await expect(page.getByRole("heading", { name: "追加・変更" })).toBeVisible();
+    // 施設の名前
+    await page.getByLabel("名前（上部バーに出ます）").fill("ひまわり苑 本館");
+    await page.getByRole("button", { name: "この名前にする" }).click();
+    await expect(page.getByRole("status").filter({ hasText: "施設の名前を「ひまわり苑 本館」にしました" })).toBeVisible();
+    // グループを足す
+    await page.getByLabel(/^グループを足す/).fill("3階");
+    await page.getByRole("button", { name: "＋ グループを足す" }).click();
+    await expect(page.getByRole("status").filter({ hasText: /グループ「3階」を足しました（番 \d+・業務表の枠 \d+/ })).toBeVisible();
+    const groupList = page.getByRole("list", { name: "グループの一覧" });
+    await expect(groupList).toContainText("3階");
+    await expect(page.getByRole("list", { name: "番の一覧" })).toContainText("3階");
+    // 時間割がまだない日（11/5）のボードに 3階 の列と枠が出る（朝の帯 → この内容で作る）
+    await page.goto("/board?date=2026-11-05&now=7:00");
+    await page.getByRole("button", { name: "この内容で作る" }).click();
+    await expect(page.getByLabel("時間割").getByText("3階", { exact: true })).toBeVisible();
+    expect(await page.locator("[data-task-id]").count()).toBeGreaterThan(0);
+    // 名前を変える → ボードの見出しも変わる
+    await page.goto("/setup");
+    const row = groupList.getByRole("listitem").filter({ hasText: "3階" });
+    await row.getByRole("button", { name: "名前を変える" }).click();
+    await page.getByLabel("3階の新しい名前").fill("4階");
+    await row.getByRole("button", { name: "この名前にする" }).click();
+    await expect(page.getByRole("status").filter({ hasText: "グループ「3階」を「4階」にしました" })).toBeVisible();
+    // 所属が残るグループ（東フロア）は外せない
+    await groupList.getByRole("button", { name: "東フロアを外す" }).click();
+    await expect(page.getByRole("region", { name: "グループ（ユニット・フロア）" }).getByRole("alert")).toContainText("所属しています");
+    // 番の時刻を直す: 早番A を 7:30 に。11/3 の佐藤の出勤は 7:00 のまま
+    await page.getByRole("button", { name: "番「早番A」を直す" }).click();
+    await page.getByRole("form", { name: "番「早番A」を直す" }).getByLabel("開始").fill("7:30");
+    await page.getByRole("button", { name: "この内容で直す" }).click();
+    await expect(page.getByRole("status").filter({ hasText: "番「早番A」を直しました（入れてある勤務表の時刻はそのままです）" })).toBeVisible();
+    await page.goto("/board?now=10:12");
+    await expect(page.getByLabel("きょうの出勤者")).toContainText("7:00–16:00");
+  });
 });

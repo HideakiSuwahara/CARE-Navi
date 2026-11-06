@@ -10,6 +10,7 @@ import { buildOwnFacility, conditionTags, parseStaffPaste, setStaffTagEvents, se
 import type { ResidentDisplayMode } from "@/domain/types";
 import { useAppState, useDefaultDate, useEngine, useSyncStatus } from "@/store/react";
 import { StaffEditor } from "./StaffEditor";
+import { MasterEditor } from "./MasterEditor";
 import { RosterPaste } from "./RosterPaste";
 import { SETUP_NOTE_KEY } from "./setupNote";
 import { sampleEvents } from "@/store/sample";
@@ -517,50 +518,12 @@ function Everyday({ onOwn, onSample }: { onOwn: () => void; onSample: () => void
         </span>
       </div>
 
-      <section aria-labelledby="s-code" className="rounded-xl border border-[var(--cn-border)] bg-white p-4">
-        <h3 id="s-code" className="mb-1 text-[16px] font-bold">
-          ほかの端末からも見る（施設コード）
-        </h3>
-        <SyncSection facilityName={f.name} />
-      </section>
+      <h2 id="s-add" className="mt-2 text-[18px] font-bold">
+        追加・変更
+      </h2>
+      <p className="-mt-3 text-[14px] text-[var(--cn-ink-soft)]">施設の名前・グループ・番・職員・勤務表はここで。利用者と日課は利用者の画面、業務表はボードの ⋯ で直します（下の「ほかの画面で直すもの」）。</p>
 
-      <section aria-labelledby="s-name" className="rounded-xl border border-[var(--cn-border)] bg-white p-4">
-        <h3 id="s-name" className="mb-1 text-[16px] font-bold">
-          手元画面（自分の予定）の利用者名
-        </h3>
-        <p className="mb-2 text-[14px] text-[var(--cn-ink-soft)]">スマホの画面での出し方です。ボード（施設の PC）は、いつもフルネームで出します。</p>
-        <div role="group" aria-labelledby="s-name" className="flex flex-wrap gap-2">
-          {modes.map((m) => (
-            <button
-              key={m.mode}
-              type="button"
-              aria-pressed={settings.residentDisplayMode === m.mode}
-              onClick={() => set({ residentDisplayMode: m.mode }, `手元画面の利用者名を「${m.label}」にしました`)}
-              className={choice(settings.residentDisplayMode === m.mode)}
-            >
-              {m.label}
-              {example && <span className="ml-1.5 text-[14px] font-normal">（例: {residentLabel(example, m.mode)}様）</span>}
-            </button>
-          ))}
-        </div>
-      </section>
-
-      <section aria-labelledby="s-first" className="rounded-xl border border-[var(--cn-border)] bg-white p-4">
-        <h3 id="s-first" className="mb-1 text-[16px] font-bold">
-          初回の職員の警告
-        </h3>
-        <p className="mb-2 text-[14px] text-[var(--cn-ink-soft)]">
-          応援・スポットで初めて来た職員（ボードで「初回」の印が付く人）だけが担当になる枠に、「初回の方だけの配置になります」と注意を出します（止めません）。
-        </p>
-        <div role="group" aria-labelledby="s-first" className="flex flex-wrap gap-2">
-          <button type="button" aria-pressed={settings.firstTimerOnlyWarning} onClick={() => set({ firstTimerOnlyWarning: true }, "初回の職員の警告を「する」にしました")} className={choice(settings.firstTimerOnlyWarning)}>
-            する
-          </button>
-          <button type="button" aria-pressed={!settings.firstTimerOnlyWarning} onClick={() => set({ firstTimerOnlyWarning: false }, "初回の職員の警告を「しない」にしました")} className={choice(!settings.firstTimerOnlyWarning)}>
-            しない
-          </button>
-        </div>
-      </section>
+      <MasterEditor state={state} today={today} onDone={setToast} />
 
       <section aria-labelledby="s-tags" className="rounded-xl border border-[var(--cn-border)] bg-white p-4">
         <h3 id="s-tags" className="mb-1 text-[16px] font-bold">
@@ -693,8 +656,6 @@ function Everyday({ onOwn, onSample }: { onOwn: () => void; onSample: () => void
         </form>
       </section>
 
-      <BackupSection onToast={setToast} />
-
       <section aria-labelledby="s-paste" className="rounded-xl border border-[var(--cn-border)] bg-white p-4">
         <h3 id="s-paste" className="mb-1 text-[16px] font-bold">
           名簿の貼り付け
@@ -717,6 +678,56 @@ function Everyday({ onOwn, onSample }: { onOwn: () => void; onSample: () => void
       </section>
 
       <RosterPaste state={state} today={today} onDone={setToast} />
+
+      <h2 id="s-everyday" className="mt-2 text-[18px] font-bold">
+        ふだんの設定
+      </h2>
+      <section aria-labelledby="s-name" className="rounded-xl border border-[var(--cn-border)] bg-white p-4">
+        <h3 id="s-name" className="mb-1 text-[16px] font-bold">
+          手元画面（自分の予定）の利用者名
+        </h3>
+        <p className="mb-2 text-[14px] text-[var(--cn-ink-soft)]">スマホの画面での出し方です。ボード（施設の PC）は、いつもフルネームで出します。</p>
+        <div role="group" aria-labelledby="s-name" className="flex flex-wrap gap-2">
+          {modes.map((m) => (
+            <button
+              key={m.mode}
+              type="button"
+              aria-pressed={settings.residentDisplayMode === m.mode}
+              onClick={() => set({ residentDisplayMode: m.mode }, `手元画面の利用者名を「${m.label}」にしました`)}
+              className={choice(settings.residentDisplayMode === m.mode)}
+            >
+              {m.label}
+              {example && <span className="ml-1.5 text-[14px] font-normal">（例: {residentLabel(example, m.mode)}様）</span>}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section aria-labelledby="s-first" className="rounded-xl border border-[var(--cn-border)] bg-white p-4">
+        <h3 id="s-first" className="mb-1 text-[16px] font-bold">
+          初回の職員の警告
+        </h3>
+        <p className="mb-2 text-[14px] text-[var(--cn-ink-soft)]">
+          応援・スポットで初めて来た職員（ボードで「初回」の印が付く人）だけが担当になる枠に、「初回の方だけの配置になります」と注意を出します（止めません）。
+        </p>
+        <div role="group" aria-labelledby="s-first" className="flex flex-wrap gap-2">
+          <button type="button" aria-pressed={settings.firstTimerOnlyWarning} onClick={() => set({ firstTimerOnlyWarning: true }, "初回の職員の警告を「する」にしました")} className={choice(settings.firstTimerOnlyWarning)}>
+            する
+          </button>
+          <button type="button" aria-pressed={!settings.firstTimerOnlyWarning} onClick={() => set({ firstTimerOnlyWarning: false }, "初回の職員の警告を「しない」にしました")} className={choice(!settings.firstTimerOnlyWarning)}>
+            しない
+          </button>
+        </div>
+      </section>
+
+      <section aria-labelledby="s-code" className="rounded-xl border border-[var(--cn-border)] bg-white p-4">
+        <h3 id="s-code" className="mb-1 text-[16px] font-bold">
+          ほかの端末からも見る（施設コード）
+        </h3>
+        <SyncSection facilityName={f.name} />
+      </section>
+
+      <BackupSection onToast={setToast} />
 
       <section aria-labelledby="s-start" className="rounded-xl border border-dashed border-[var(--cn-control-line)] p-4">
         <h3 id="s-start" className="mb-2 text-[16px] font-bold">

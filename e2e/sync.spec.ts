@@ -76,7 +76,7 @@ test.describe("同期（別端末）", () => {
     await expect(page.getByText("この施設コードの内容は届いていません")).toBeVisible({ timeout: 30_000 });
     await page.getByRole("button", { name: "この端末だけにする（同期をやめる）" }).click();
     await page.waitForURL(/\/setup/);
-    await expect(page.getByRole("heading", { name: "設定" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "設定", exact: true })).toBeVisible();
     await phone.close();
   });
 });
