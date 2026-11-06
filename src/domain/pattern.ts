@@ -320,6 +320,10 @@ export function morningDraft(state: State, date: DateKey, newId: () => ID): Morn
     return { date, patternId, entries, source: "none" };
   }
   const listed = new Set<ID>();
+  // 前の日に夜勤（翌日にかかる勤務）だった人は、今日は明けなので休みで並べる（先週を写すときも。ループ 16）
+  const afterNightIds = rosterForDate(state, addDays(date, -1))
+    .filter((e) => !e.absent && e.endMin > 24 * 60)
+    .map((e) => e.staffId);
   const entries: RosterEntry[] = prev
     .filter((e) => {
       const staff = state.staff[e.staffId];
@@ -338,7 +342,7 @@ export function morningDraft(state: State, date: DateKey, newId: () => ID): Morn
         endMin: slot?.defaultEndMin ?? e.endMin,
         firstTimer: false,
         // 休みの印は引き継がない（受け入れ L35）。ただし番のない人は休みのまま（番のない出勤を作らない。グリル U1）
-        absent: !slot,
+        absent: !slot || afterNightIds.includes(e.staffId),
         carriedFrom: lastWeek,
       };
     });
@@ -357,7 +361,8 @@ export function morningDraft(state: State, date: DateKey, newId: () => ID): Morn
       absent: true,
     });
   }
-  return { date, patternId, entries, source: "lastWeek", fromDate: lastWeek };
+  const afterNight = afterNightIds.filter((id) => entries.some((x) => x.staffId === id && x.slotId));
+  return { date, patternId, entries, source: "lastWeek", fromDate: lastWeek, ...(afterNight.length > 0 ? { afterNight } : {}) };
 }
 
 /**

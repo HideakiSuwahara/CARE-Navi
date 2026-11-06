@@ -157,3 +157,19 @@ test("外した番は先週の写しで休みに並び、番を選び直す", ()
   assert.equal(e.slotId, undefined);
   assert.equal(e.absent, true);
 });
+
+test("先週の番を写すときも、前の日に夜勤だった人は明けなので休みで並べる", () => {
+  const s = stateFromSeed(himawariSeed, ctx("s"));
+  // 11/9 に夜勤だった人を探し、11/10（先週 11/3 を写す日。勤務表が無いとき）を見る
+  const nightOn = (d: string) => Object.values(s.roster).filter((e) => e.date === d && !e.absent && e.endMin > 1440).map((e) => e.staffId);
+  const days = [...new Set(Object.values(s.roster).map((e) => e.date))].sort();
+  const last = days.at(-1)!;
+  const next = new Date(`${last}T00:00:00Z`);
+  next.setUTCDate(next.getUTCDate() + 1);
+  const date = next.toISOString().slice(0, 10);
+  const draft = morningDraft(s, date, () => "x");
+  for (const id of nightOn(last)) {
+    const e = draft.entries.find((x) => x.staffId === id);
+    if (e) assert.equal(e.absent, true, `${id} は明け`);
+  }
+});

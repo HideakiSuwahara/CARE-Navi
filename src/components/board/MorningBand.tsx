@@ -79,6 +79,7 @@ export function MorningBand({ state, date }: { state: State; date: DateKey }) {
         {draft.source === "lastWeek" && (
           <p className="mt-1 text-[15px] text-[var(--cn-ink-soft)]">
             先週の同じ曜日（{shortDate(draft.fromDate ?? date)}）と同じ番で並べました。違うところだけ直してください。
+            {draft.afterNight && draft.afterNight.length > 0 && "前の日に夜勤だった人は明けなので休みにしています。"}
           </p>
         )}
         {draft.source === "recent" && (
