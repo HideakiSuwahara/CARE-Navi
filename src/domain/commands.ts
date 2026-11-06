@@ -363,7 +363,7 @@ export function absencePreview(
     events.push(ev);
     lines.push({
       kind: "move",
-      text: leaveAtMin === undefined ? `${name} を本日「欠勤」にする` : `${name} の勤務を ${fmtRange(entry.startMin, leaveAtMin)} にする（早退）`,
+      text: leaveAtMin === undefined ? `${name}さんを本日「欠勤」にする` : `${name}さんの勤務を ${fmtRange(entry.startMin, leaveAtMin)} にする（早退）`,
       eventIds: [ev.eventId],
       optional: false,
     });

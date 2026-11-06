@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { Engine, type UndoEntry } from "../engine.ts";
 import { MemoryStore } from "../datastore.ts";
 import { seedToEvents, deterministicContext } from "../../domain/loadSeed.ts";
-import { assignEvents, escortPreview } from "../../domain/commands.ts";
+import { assignEvents, escortPreview, setDoneEvents } from "../../domain/commands.ts";
 import { headcountStatus } from "../../domain/checks.ts";
 import { toMin } from "../../domain/time.ts";
 import { DATE, findTask, miniSeed } from "../../domain/__tests__/fixture.ts";
@@ -111,4 +111,23 @@ test("「元に戻す」の一覧を残しておくと、作り直した Engine 
   assert.ok(done);
   assert.equal(headcountStatus(e2.state, bath.id).assigned, 2);
   assert.equal(saved.log.length, 0);
+});
+
+test("元に戻すは操作が触った日と「終わった」の印だけかを覚え、見ている日の操作だけを選べる（ループ 19）", async () => {
+  const { engine } = makeEngine();
+  await engine.start();
+  const bath = findTask(engine.state, "入浴介助");
+  await engine.dispatch(assignEvents(bath.id, "s-kato", engine.context()), "割り当て");
+  assert.deepEqual(engine.lastUndo?.dates, [DATE]);
+  assert.equal(engine.lastUndo?.doneOnly, undefined);
+  await engine.dispatch(setDoneEvents(bath.id, true, engine.context()), "終わった");
+  assert.equal(engine.lastUndo?.doneOnly, true);
+  // 別の日を見ているときは、この日の操作は選ばれない
+  assert.equal(engine.lastUndoWhere((u) => !u.dates || u.dates.includes("2026-11-05")), null);
+  // 自分の予定は「終わった」の印だけ
+  assert.equal(engine.lastUndoWhere((u) => Boolean(u.doneOnly))?.label, "終わった");
+  // 見ている日の割り当てだけを戻す（印は残る）
+  const assign = engine.lastUndoWhere((u) => !u.doneOnly)!;
+  await engine.undo(assign.batchId);
+  assert.equal(engine.lastUndo?.label, "終わった");
 });

@@ -385,6 +385,9 @@ function Everyday({ onOwn, onSample }: { onOwn: () => void; onSample: () => void
   const [tagStatus, setTagStatus] = useState("");
   // 職員を 1 人ずつ足す・直す（開いている欄: "new" か職員の ID）
   const [editing, setEditing] = useState<string | null>(null);
+  // 職員の欄を閉じたら、開いた名前のボタンへフォーカスを戻す（退職で行が消えたときは「＋ 1 人ずつ足す」へ。ループ 19、WCAG 2.4.3）
+  const backToStaff = (id: string) =>
+    requestAnimationFrame(() => (document.querySelector<HTMLElement>(`[data-staff-btn="${id}"]`) ?? document.querySelector<HTMLElement>("[data-staff-add]"))?.focus());
   const today = useDefaultDate(state, "business") ?? "";
   useEffect(() => {
     const note = readSetupNote();
@@ -534,6 +537,7 @@ function Everyday({ onOwn, onSample }: { onOwn: () => void; onSample: () => void
         <div className="mb-2 flex flex-wrap items-center gap-2">
           <button
             type="button"
+            data-staff-add=""
             aria-expanded={editing === "new"}
             onClick={() => setEditing(editing === "new" ? null : "new")}
             className="h-[44px] rounded-lg border border-[var(--cn-control-line)] bg-white px-4 text-[15px] font-bold"
@@ -594,7 +598,9 @@ function Everyday({ onOwn, onSample }: { onOwn: () => void; onSample: () => void
                   <li key={st.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2">
                     <button
                       type="button"
+                      data-staff-btn={st.id}
                       aria-expanded={editing === st.id}
+                      aria-controls={editing === st.id ? `staff-form-${st.id}` : undefined}
                       onClick={() => setEditing(editing === st.id ? null : st.id)}
                       className="inline-flex h-[44px] w-[200px] shrink-0 flex-col items-start justify-center rounded-lg px-2 text-left hover:bg-[var(--cn-ground)]"
                     >
@@ -604,6 +610,7 @@ function Everyday({ onOwn, onSample }: { onOwn: () => void; onSample: () => void
                         <span className="sr-only">さんを直す、</span>{" "}
                         <span className="text-[14px] text-[var(--cn-ink-soft)]">{st.role}</span>
                       </span>
+                      <span className="sr-only">、</span>
                       <span className="text-[13px] text-[var(--cn-muted)]">{st.phone ? `PHS ${st.phone}` : "PHS なし"}</span>
                     </button>
                     <span role="group" aria-label={`${st.surname}さんの担当条件（← → で移動）`} onKeyDown={rowKeys} className="flex flex-wrap items-center gap-1.5">
@@ -612,7 +619,7 @@ function Everyday({ onOwn, onSample }: { onOwn: () => void; onSample: () => void
                       {otherTags.map((t, idx) => btn(t, usedTags.length + idx, true))}
                     </span>
                     {editing === st.id && (
-                      <div className="basis-full">
+                      <div className="basis-full" id={`staff-form-${st.id}`}>
                         <StaffEditor
                           state={state}
                           staffId={st.id}
@@ -621,8 +628,12 @@ function Everyday({ onOwn, onSample }: { onOwn: () => void; onSample: () => void
                           onDone={(label) => {
                             setEditing(null);
                             setToast(label);
+                            backToStaff(st.id);
                           }}
-                          onClose={() => setEditing(null)}
+                          onClose={() => {
+                            setEditing(null);
+                            backToStaff(st.id);
+                          }}
                         />
                       </div>
                     )}

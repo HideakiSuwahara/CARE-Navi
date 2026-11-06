@@ -252,16 +252,17 @@ export function RoutineGrid({ state, groupId, flash = [], onEdit }: { state: Sta
                     {onEdit ? (
                       <button
                         type="button"
+                        data-resident-btn={r.id}
                         onClick={() => onEdit(r.id)}
                         className="inline-flex min-h-[44px] items-center text-left hover:underline"
                       >
-                        <span className="mr-2 text-[14px] text-[var(--cn-muted)]">{r.room}</span>
+                        <span className="mr-2 text-[14px] text-[var(--cn-ink-soft)]">{r.room}</span>
                         <span className="font-bold underline decoration-[var(--cn-control-line)] underline-offset-4">{r.displayName}</span>様
                         <span className="sr-only">（直す）</span>
                       </button>
                     ) : (
                       <>
-                        <span className="mr-2 text-[14px] text-[var(--cn-muted)]">{r.room}</span>
+                        <span className="mr-2 text-[14px] text-[var(--cn-ink-soft)]">{r.room}</span>
                         <span className="font-bold">{r.displayName}</span>様
                       </>
                     )}

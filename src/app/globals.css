@@ -179,7 +179,7 @@ body {
 }
 
 /* 読み上げの移動先として見出しなどへ送るフォーカス（tabindex="-1"）には枠を出さない。押せるものではないため（決定記録 0019） */
-[tabindex="-1"]:focus-visible {
+[tabindex="-1"]:not(button):not(a):not(input):not(select):not(textarea):focus-visible {
   outline: none;
 }
 
@@ -207,6 +207,14 @@ body {
   [aria-pressed="true"] {
     outline: 3px solid Highlight;
     outline-offset: -3px;
+  }
+  [aria-disabled="true"],
+  button:disabled {
+    color: GrayText;
+    border-color: GrayText;
+  }
+  button.border-dashed {
+    border-style: dashed;
   }
   [class*="cn-unassigned-bg"],
   [class*="cn-short-bg"],

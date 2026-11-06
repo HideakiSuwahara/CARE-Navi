@@ -231,3 +231,36 @@ test.describe("ループ 12・13・18 の持ち越し", () => {
     await expect(page.getByTestId("board-scroller").getByText("利用者がまだいません（利用者の画面で足せます）")).toBeVisible();
   });
 });
+
+test.describe("ループ 19（元に戻すの範囲・まだ来ていない日）", () => {
+  test("ほかの日（11/5）で作った時間割は、11/3 のボードの「元に戻す」に出ない。まだ来ていない日に現在時刻の線を出さない", async ({ page }) => {
+    await page.goto("/board?now=10:12");
+    await page.evaluate(() => localStorage.clear());
+    await page.goto("/board?date=2026-11-05&now=7:00");
+    await page.getByRole("button", { name: "この内容で作る" }).click();
+    await expect(page.locator("[data-task-id]").first()).toBeVisible();
+    // 11/5 は 11/3（サンプルの今日）より先の日: 線も「終わっていない」も出さない
+    await expect(page.locator(".cn-now-label")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /^終わっていない/ })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /^元に戻す ?（今日の時間割を作りました）/ })).toBeVisible();
+    await page.goto("/board?now=10:12");
+    await expect(page.locator("[data-task-id]").first()).toBeVisible();
+    await expect(page.getByRole("button", { name: /^元に戻す ?（今日の時間割を作りました）/ })).toHaveCount(0);
+  });
+});
+
+test.describe("ループ 19（スマホの元に戻す）", () => {
+  test("自分の予定の「元に戻す」は、リーダーの操作（時間割を作る）を出さない", async ({ page }) => {
+    // リーダーが PC で 11/5 の時間割を作る
+    await page.goto("/board?now=10:12");
+    await page.evaluate(() => localStorage.clear());
+    await page.goto("/board?date=2026-11-05&now=7:00");
+    await page.getByRole("button", { name: "この内容で作る" }).click();
+    await expect(page.locator("[data-task-id]").first()).toBeVisible();
+    // 同じ端末をスマホの幅で、応援の人が開く
+    await page.setViewportSize({ width: 412, height: 915 });
+    await page.goto("/me?now=10:12");
+    await page.getByRole("list", { name: "きょうの出勤者" }).getByRole("button", { name: /^加藤 / }).click();
+    await expect(page.getByRole("button", { name: /今日の時間割を作りました/ })).toHaveCount(0);
+  });
+});

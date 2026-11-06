@@ -868,7 +868,8 @@ const dayCommon = (bathDay: boolean): ItemSpec[] => [
   { id: "linen", tpl: TPL_LINEN, start: t(9, 30), end: t(10), group: GRP_COMMON, slots: [SLOT_JOSHU], hc: 1 },
   bathDay
     ? { id: "diaper-east-am", tpl: TPL_DIAPER, start: t(10), end: t(10, 30), group: GRP_EAST, slots: [SLOT_NIKKIN_A, SLOT_NIKKIN_C], hc: 2, rt: "rt-diaper-east-am" }
-    : { id: "diaper-east-am", tpl: TPL_DIAPER, start: t(10), end: t(10, 30), group: GRP_EAST, slots: [SLOT_NIKKIN_A, SLOT_NIKKIN_B, SLOT_NIKKIN_C], hc: 3, rt: "rt-diaper-east-am" },
+    : // 入浴のない日は早番Bも入る（9:00〜11:00 に予定が無くならないように。ループ 19）
+      { id: "diaper-east-am", tpl: TPL_DIAPER, start: t(10), end: t(10, 30), group: GRP_EAST, slots: [SLOT_HAYABAN_B, SLOT_NIKKIN_A, SLOT_NIKKIN_B, SLOT_NIKKIN_C], hc: 4, rt: "rt-diaper-east-am" },
   bathDay
     ? { id: "break-1", tpl: TPL_BREAK_1, start: t(11), end: t(12), group: GRP_COMMON, slots: [SLOT_NIKKIN_B], hc: 1 }
     : { id: "break-1", tpl: TPL_BREAK_1, start: t(11), end: t(12), group: GRP_COMMON, slots: [SLOT_HAYABAN_B, SLOT_NIKKIN_B], hc: 2 },
@@ -889,7 +890,8 @@ const dayCommon = (bathDay: boolean): ItemSpec[] => [
   { id: "snack-east", tpl: TPL_SNACK, start: t(15), end: t(15, 30), group: GRP_EAST, slots: [SLOT_HAYABAN_A, SLOT_HAYABAN_B, SLOT_SPOT_PM], hc: 3, rt: "rt-snack-east" },
   { id: "snack-sakura", tpl: TPL_SNACK, start: t(15), end: t(15, 30), group: GRP_SAKURA, slots: [SLOT_NIKKIN_SAKURA], hc: 1, rt: "rt-snack-sakura" },
   { id: "hydration-east", tpl: TPL_HYDRATION, start: t(15, 30), end: t(16), group: GRP_EAST, slots: [SLOT_SPOT_PM, SLOT_HAYABAN_B], hc: 2, rt: "rt-hydration-east" },
-  { id: "diaper-east-pm", tpl: TPL_DIAPER, start: t(16), end: t(16, 30), group: GRP_EAST, slots: [SLOT_OSOBAN, SLOT_SPOT_PM], hc: 2, rt: "rt-diaper-east-pm" },
+  // 夕方のおむつ交換は遅番と日勤C（日勤C の 15:00〜17:00 が空かないように。スポットは物品補充と水分補給。ループ 19）
+  { id: "diaper-east-pm", tpl: TPL_DIAPER, start: t(16), end: t(16, 30), group: GRP_EAST, slots: [SLOT_OSOBAN, SLOT_NIKKIN_C], hc: 2, rt: "rt-diaper-east-pm" },
   { id: "restock-pm", tpl: TPL_RESTOCK, start: t(16, 30), end: t(17), group: GRP_COMMON, slots: [SLOT_OSOBAN, SLOT_SPOT_PM], hc: 2 },
   { id: "toilet-tanaka-pm", tpl: TPL_TOILET, start: t(16), end: t(16, 30), group: GRP_SAKURA, slots: [SLOT_NIKKIN_B], hc: 1, residents: [RES_TANAKA] },
   // 日勤→夜勤の申し送りと、その間の見守り

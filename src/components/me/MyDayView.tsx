@@ -45,12 +45,14 @@ export function MyDayView({
   const engine = useEngine();
   const lastUndo = useSyncExternalStore(
     (cb) => (engine ? engine.subscribe(cb) : () => {}),
-    () => engine?.lastUndo ?? null,
+    // 自分の予定で戻せるのは、この日の「終わった」の印だけ（リーダーの操作をここから戻さない。ループ 19）
+    () => engine?.lastUndoWhere((u) => Boolean(u.doneOnly) && Boolean(u.dates?.includes(date))) ?? null,
     () => null,
   );
   const undoLast = async () => {
     if (!engine) return;
-    const done = await engine.undo();
+    if (!lastUndo) return;
+    const done = await engine.undo(lastUndo.batchId);
     if (!done) return;
     window.dispatchEvent(new CustomEvent<DoneNotice>(DONE_EVENT, { detail: { label: `元に戻しました（取り消した操作: ${done.label}）`, batchId: null, taskId: "" } }));
     titleRef.current?.focus({ preventScroll: true });

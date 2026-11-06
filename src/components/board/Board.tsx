@@ -75,10 +75,21 @@ export function Board({ date: dateParam }: { date?: string }) {
     () => engine?.lastUndo ?? null,
     () => null,
   );
+  // ツールバーの「元に戻す」は、見ている日に触れた操作（と日に依らない操作）だけ。ほかの日の操作を黙って戻さない（ループ 19）
+  const viewUndo = useSyncExternalStore(
+    (cb) => (engine ? engine.subscribe(cb) : () => {}),
+    () => engine?.lastUndoWhere((u) => !u.dates || u.dates.includes(date)) ?? null,
+    () => null,
+  );
   const clockNow = useNowMinutes();
   // 前の日の業務日を 6:00 より前に見ているとき（夜勤帯）は、現在時刻を「翌」の分にする
-  const now =
-    clockNow !== null && clockNow < 6 * 60 && date === addDays(calendarDateOf(new Date()), -1) ? clockNow + 24 * 60 : clockNow;
+  // まだ来ていない日は「いま」を持たない（現在時刻の線と「終わっていない n 件」を出さない。ループ 19）
+  const future = defaultDate !== null && date > defaultDate;
+  const now = future
+    ? null
+    : clockNow !== null && clockNow < 6 * 60 && date === addDays(calendarDateOf(new Date()), -1)
+      ? clockNow + 24 * 60
+      : clockNow;
   const [noteOpen, setNoteOpen] = useState(false);
   // ボードを開いて施設（サンプルを含む）を見たら、設定は「はじめに」ではなく追加・変更を出す（ループ 16）
   useEffect(() => {
@@ -513,18 +524,18 @@ export function Board({ date: dateParam }: { date?: string }) {
           </div>
         )}
         <div className="order-2 ml-auto flex items-center gap-2">
-        {lastUndo && (
+        {viewUndo && (
           <button
             type="button"
             onClick={async () => {
-              const done = await engine?.undo();
+              const done = await engine?.undo(viewUndo.batchId);
               // 戻した結果は「元に戻す」の無いお知らせで（戻した直後にまた元に戻すを出さない。ループ 18）
               setToast(null);
-              if (done) showNotice(`元に戻しました（取り消した操作: ${done.label}）`);
+              if (done) showNotice(`元に戻しました（取り消した操作: ${done.label.replace(/。いま .*$/, "")}）`);
             }}
             className="inline-flex h-[44px] items-center gap-2 rounded-lg border border-[var(--cn-card-line)] bg-white px-4 text-[14px]"
           >
-            元に戻す<span className="text-[13px] text-[var(--cn-muted)]">（{lastUndo.label}）</span>
+            元に戻す<span className="text-[13px] text-[var(--cn-muted)]">（{viewUndo.label}）</span>
           </button>
         )}
         {hasTasks && <BoardMenu state={state} engine={engine} date={date} dateShort={`${Number(date.slice(5, 7))}/${Number(date.slice(8))}`} onPrint={printSheet} onNotice={showNotice} />}
@@ -819,6 +830,13 @@ function DateNav({ date, today }: { date: string; today: string | null }) {
   const next = addDays(date, 1);
   const router = useRouter();
   const picker = useRef<HTMLInputElement>(null);
+  // カレンダーを開けないブラウザでは、見える日付の欄を出す（隠した欄へフォーカスを送らない。ループ 19）
+  const [fallback, setFallback] = useState(false);
+  const go = (v: string) => {
+    if (!v) return;
+    setFallback(false);
+    router.push(href(v));
+  };
   return (
     <nav aria-label="日付" className="flex items-center gap-1">
       <Link href={href(prev)} className={link} aria-label={`前の日（${shortDateOf(prev)}）`}>
@@ -828,15 +846,15 @@ function DateNav({ date, today }: { date: string; today: string | null }) {
       <span className="relative">
         <button
           type="button"
-          aria-current="date"
-          aria-label={`${weekdayLabel(date)}。押すと日付を選べます`}
+          aria-current={date === today ? "date" : undefined}
+          aria-label={`${weekdayLabel(date)}${today && date !== today ? "（今日ではありません）" : ""}。押すと日付を選べます`}
           onClick={() => {
             const el = picker.current;
             if (!el) return;
             try {
               el.showPicker();
             } catch {
-              el.focus();
+              setFallback(true);
             }
           }}
           className="inline-flex h-[44px] items-center rounded-lg px-2 text-[16px] font-bold underline decoration-dotted underline-offset-4 hover:bg-[var(--cn-ground)]"
@@ -849,10 +867,20 @@ function DateNav({ date, today }: { date: string; today: string | null }) {
           tabIndex={-1}
           aria-hidden="true"
           value={date}
-          onChange={(e) => e.target.value && router.push(href(e.target.value))}
+          onChange={(e) => go(e.target.value)}
           className="pointer-events-none absolute bottom-0 left-0 h-px w-px opacity-0"
         />
       </span>
+      {fallback && (
+        <input
+          type="date"
+          aria-label="日付を選ぶ"
+          autoFocus
+          defaultValue={date}
+          onChange={(e) => go(e.target.value)}
+          className="h-[44px] rounded-lg border border-[var(--cn-control-line)] bg-white px-2 text-[16px]"
+        />
+      )}
       <Link href={href(next)} className={link} aria-label={`次の日（${shortDateOf(next)}）`}>
         次の日 ›
       </Link>

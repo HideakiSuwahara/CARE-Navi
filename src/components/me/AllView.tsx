@@ -75,7 +75,8 @@ export function AllView({ state, date, me, now, clock, tabs }: { state: State; d
   const engine = useEngine();
   const lastUndo = useSyncExternalStore(
     (cb) => (engine ? engine.subscribe(cb) : () => {}),
-    () => engine?.lastUndo ?? null,
+    // リーダーの全体でも、その日に触れた操作（と日に依らない操作）だけを戻す（ループ 19）
+    () => engine?.lastUndoWhere((u) => !u.dates || u.dates.includes(date)) ?? null,
     () => null,
   );
   const rows = useMemo(() => allRows(state, date, now), [state, date, now]);
@@ -179,8 +180,9 @@ export function AllView({ state, date, me, now, clock, tabs }: { state: State; d
 
   const undo = async () => {
     if (!engine) return;
-    const done = await engine.undo();
-    if (done) setToast(`元に戻しました（取り消した操作: ${done.label}）`);
+    if (!lastUndo) return;
+    const done = await engine.undo(lastUndo.batchId);
+    if (done) setToast(`元に戻しました（取り消した操作: ${done.label.replace(/。いま .*$/, "")}）`);
   };
 
   const jumpTo = (label: string) => {

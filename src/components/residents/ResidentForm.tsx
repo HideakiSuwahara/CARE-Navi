@@ -100,7 +100,7 @@ export function ResidentForm({
           ))}
         </select>
       </label>
-      <form
+      <form id="resident-form"
         aria-label={title}
         className="mt-3 flex flex-col gap-3"
         onSubmit={(e) => {
@@ -150,7 +150,7 @@ export function ResidentForm({
           <div className="flex flex-wrap items-center gap-2 rounded-lg border border-[var(--cn-control-line)] p-3 text-[15px]">
             <span>
               {prev.surname}様を一覧から外します。{future > 0 ? `今日以降の時間割 ${future}枠（朝食介助など）の対象から外れます。` : ""}
-              入院など戻ってくる方は、ここでは外さないでください（対象のままで構いません）。元に戻せます（24時間シートも戻ります）。
+              入院など戻ってくる方は、ここでは外さないでください。入院中も対象の一覧に名前が残ります（気になるときは、24時間シートでその日課を「この方はなし」にできます）。元に戻せます（24時間シートも戻ります）。
             </span>
             <button type="button" onClick={leave} className="h-[44px] rounded-lg border-2 border-[var(--cn-alert-line)] bg-white px-4 font-bold">
               外す（元に戻せます）

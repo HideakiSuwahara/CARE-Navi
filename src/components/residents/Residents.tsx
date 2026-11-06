@@ -34,6 +34,11 @@ export function Residents() {
     setFormOpen(true);
     window.scrollTo({ top: 0 });
   };
+  // 一覧の名前から開いた欄を閉じたら、その名前へフォーカスを戻す（長い表のどこにいたか分かるように。ループ 19、WCAG 2.4.3）
+  const backToResident = (id?: ID) => {
+    if (!id) return;
+    requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-resident-btn="${id}"]`)?.focus());
+  };
   const today = useDefaultDate(state, "business") ?? "";
   // 貼り付けで足した方（一覧でその行までスクロールし、2秒ほど目立たせる）
   const [flash, setFlash] = useState<ID[]>([]);
@@ -196,7 +201,7 @@ export function Residents() {
         ) : (
           <>
             {pasteOpen && <PastePanel state={state} groupId={groupId} onClose={() => setPasteOpen(false)} onAdded={afterPaste} />}
-            {formOpen && <ResidentForm key={formFor ?? "new"} state={state} groupId={groupId} today={today} initialId={formFor} onClose={() => { setFormOpen(false); setFormFor(undefined); }} onDone={(...a) => { setFormFor(undefined); afterForm(...a); }} />}
+            {formOpen && <ResidentForm key={formFor ?? "new"} state={state} groupId={groupId} today={today} initialId={formFor} onClose={() => { setFormOpen(false); setFormFor(undefined); backToResident(formFor); }} onDone={(...a) => { setFormFor(undefined); afterForm(...a); backToResident(formFor); }} />}
             {groupId && (tab === "grid" ? <RoutineGrid key={groupId} state={state} groupId={groupId} flash={flash} onEdit={editResident} /> : <SheetView key={groupId} state={state} groupId={groupId} />)}
           </>
         )}

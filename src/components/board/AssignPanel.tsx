@@ -100,7 +100,8 @@ export function AssignPanel({
         <div className="min-w-0 flex-1">
           <p className="text-[14px] text-[var(--cn-muted)]">担当を追加</p>
           <h2 id="assign-title" className="text-[18px] font-bold">
-            {task.name}
+            {/* カードと同じ名前（「面会対応 松本様」「見守り（東フロア）」。ループ 19） */}
+            {taskLabel(state, task)}
           </h2>
           <p className="flex flex-wrap items-center gap-2 text-[15px] text-[var(--cn-ink-soft)]">
             {fmtRange(task.startMin, task.endMin)}

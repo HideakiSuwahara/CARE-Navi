@@ -91,7 +91,7 @@ test.describe("全体（リーダーのスマホ）", () => {
     await expect(dialog.getByRole("heading", { name: "高橋さん 早退" })).toBeVisible();
     await dialog.getByRole("button", { name: "欠勤（来ていない）" }).click();
     await expect(dialog.getByRole("heading", { name: "高橋さん 欠勤" })).toBeVisible();
-    await expect(dialog).toContainText("高橋 を本日「欠勤」にする");
+    await expect(dialog).toContainText("高橋さんを本日「欠勤」にする");
   });
 
   test("開くと、いまの時間の行へ寄る。シートを開いている間は Tab がシートの外へ出ない", async ({ page }) => {
@@ -111,7 +111,7 @@ test.describe("全体（リーダーのスマホ）", () => {
     await page.getByRole("dialog").getByRole("button", { name: /木村/ }).click();
     const dialog = page.getByRole("dialog");
     await expect(dialog.getByRole("heading", { name: "欠勤" })).toBeVisible();
-    await expect(dialog).toContainText("木村 を本日「欠勤」にする");
+    await expect(dialog).toContainText("木村さんを本日「欠勤」にする");
     await dialog.getByRole("button", { name: /この内容で決定/ }).click();
     await expect(page.getByRole("status")).toContainText("木村さんを欠勤にしました");
     const text = await page.getByRole("list", { name: "きょうの業務（時間順）" }).innerText();

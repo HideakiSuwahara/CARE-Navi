@@ -23,6 +23,35 @@ export interface UndoEntry {
   /** トーストに出す文。例: 「山本さんを「入浴介助 10:30」に割り当てました」 */
   label: string;
   at: string;
+  /** その操作が触った業務日（ボードの「元に戻す」は見ている日の操作だけを出す。ループ 19） */
+  dates?: string[];
+  /** 「終わった」の印の付け外しだけの操作か（自分の予定の「元に戻す」はこれだけを出す） */
+  doneOnly?: boolean;
+}
+
+/** イベントが触る業務日（業務・担当・勤務表・日の記録）。設定・名簿など日に依らない操作は空 */
+export function eventDates(before: State, after: State, ev: Event): string[] {
+  const e = ev as unknown as Record<string, unknown>;
+  const out: string[] = [];
+  const add = (d: unknown) => {
+    if (typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d)) out.push(d);
+  };
+  add(e.date);
+  const task = e.task as { date?: string } | undefined;
+  add(task?.date);
+  const entry = e.entry as { date?: string } | undefined;
+  add(entry?.date);
+  const taskDate = (id: unknown) => (typeof id === "string" ? (after.tasks[id]?.date ?? before.tasks[id]?.date) : undefined);
+  add(taskDate((e.assignment as { taskId?: string } | undefined)?.taskId));
+  add(taskDate(e.taskId));
+  if (typeof e.id === "string") {
+    const id = e.id;
+    add(taskDate(id));
+    // 担当を外す・勤務表の行を外すは、外す前の状態から日を引く
+    add(taskDate(before.assignments[id]?.taskId));
+    add(before.roster[id]?.date ?? after.roster[id]?.date);
+  }
+  return out;
 }
 
 /** 「元に戻す」の一覧を端末に残す（読み込み直しても戻せる）。保存は batchId と label だけ。打ち消しに要る状態は起動時にイベント列から作り直す */
@@ -166,7 +195,9 @@ export class Engine {
     this._state = s;
     if (label) {
       this.history.push(...items);
-      this.undoStack.push({ batchId: events[0].batchId, label, at: events[0].ts });
+      const dates = [...new Set(items.flatMap((it, i) => eventDates(it.before, items[i + 1]?.before ?? s, it.event)))];
+      const doneOnly = events.every((ev) => ev.type === "task.done");
+      this.undoStack.push({ batchId: events[0].batchId, label, at: events[0].ts, ...(dates.length ? { dates } : {}), ...(doneOnly ? { doneOnly } : {}) });
       this.trimHistory();
       this.undoLog?.save(this.undoStack);
     }
@@ -199,6 +230,12 @@ export class Engine {
 
   get lastUndo(): UndoEntry | null {
     return this.undoStack[this.undoStack.length - 1] ?? null;
+  }
+
+  /** 条件に合ういちばん新しい「元に戻す」（見ている日の操作だけ・自分の印だけ など。ループ 19） */
+  lastUndoWhere(pred: (u: UndoEntry) => boolean): UndoEntry | null {
+    for (let i = this.undoStack.length - 1; i >= 0; i--) if (pred(this.undoStack[i])) return this.undoStack[i];
+    return null;
   }
 
   /** 書き出し（グリル U9）: 保存しているイベント列をそのまま返す */
