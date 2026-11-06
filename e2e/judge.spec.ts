@@ -148,3 +148,25 @@ test.describe("見た目（決定記録 0019）", () => {
     await expect(page.locator("[data-task-id]").filter({ hasText: "9:30〜" }).first()).toBeVisible();
   });
 });
+
+test.describe("ダークモード（決定記録 0020）", () => {
+  test("端末が暗い設定なら紺の画面。設定で「明るい」にすると明るく、読み込み直しても同じ。印刷は明るい", async ({ page }) => {
+    await page.emulateMedia({ colorScheme: "dark" });
+    await page.goto("/board?now=10:12");
+    await page.evaluate(() => localStorage.clear());
+    await page.goto("/board?now=10:12");
+    await expect(page.locator("[data-task-id]").first()).toBeVisible();
+    const bg = () => page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+    expect(await bg()).toBe("rgb(15, 27, 45)");
+    await page.goto("/setup");
+    await page.getByRole("group", { name: "画面の明るさ" }).getByRole("button", { name: "明るい" }).click();
+    expect(await bg()).toBe("rgb(243, 243, 239)");
+    await page.reload();
+    expect(await bg()).toBe("rgb(243, 243, 239)");
+    await page.getByRole("group", { name: "画面の明るさ" }).getByRole("button", { name: "暗い（紺）" }).click();
+    await page.emulateMedia({ colorScheme: "light" });
+    expect(await bg()).toBe("rgb(15, 27, 45)");
+    await page.emulateMedia({ media: "print" });
+    expect(await bg()).toBe("rgb(255, 255, 255)");
+  });
+});

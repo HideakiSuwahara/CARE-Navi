@@ -1,5 +1,6 @@
 "use client";
 
+import { readTheme, writeTheme, type ThemeChoice } from "@/components/theme";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
@@ -665,6 +666,8 @@ function Everyday({ onOwn, onSample }: { onOwn: () => void; onSample: () => void
       <h2 id="s-everyday" className="mt-2 text-[18px] font-bold">
         ふだんの設定
       </h2>
+      <ThemeSection choiceClass={choice} />
+
       <section aria-labelledby="s-name" className="rounded-xl border border-[var(--cn-border)] bg-white p-4">
         <h3 id="s-name" className="mb-1 text-[16px] font-bold">
           手元画面（自分の予定）の利用者名
@@ -1133,6 +1136,41 @@ function BackupSection({ onToast }: { onToast: (text: string) => void }) {
           </div>
         </div>
       )}
+    </section>
+  );
+}
+
+/** 画面の明るさ（決定記録 0020）。その端末のブラウザで覚える */
+function ThemeSection({ choiceClass }: { choiceClass: (on: boolean) => string }) {
+  const [theme, setTheme] = useState<ThemeChoice>("auto");
+  useEffect(() => setTheme(readTheme()), []);
+  const options: { v: ThemeChoice; label: string }[] = [
+    { v: "auto", label: "端末に合わせる" },
+    { v: "light", label: "明るい" },
+    { v: "dark", label: "暗い（紺）" },
+  ];
+  return (
+    <section aria-labelledby="s-theme" className="rounded-xl border border-[var(--cn-border)] bg-white p-4">
+      <h3 id="s-theme" className="mb-1 text-[16px] font-bold">
+        画面の明るさ
+      </h3>
+      <p className="mb-2 text-[14px] text-[var(--cn-ink-soft)]">夜の詰所でまぶしいときは「暗い」に。この端末だけの設定です（ほかの端末は変わりません）。印刷はいつも明るい色です。</p>
+      <div role="group" aria-labelledby="s-theme" className="flex flex-wrap gap-2">
+        {options.map((o) => (
+          <button
+            key={o.v}
+            type="button"
+            aria-pressed={theme === o.v}
+            onClick={() => {
+              writeTheme(o.v);
+              setTheme(o.v);
+            }}
+            className={choiceClass(theme === o.v)}
+          >
+            {o.label}
+          </button>
+        ))}
+      </div>
     </section>
   );
 }

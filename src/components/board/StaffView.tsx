@@ -95,7 +95,7 @@ export function StaffView({
   const gridLines = (
     <div aria-hidden="true" className="pointer-events-none absolute inset-0">
       {hours.map((m) => (
-        <div key={m} className="absolute inset-y-0 border-l border-[#c9cac4]" style={{ left: sc.pct(m) }} />
+        <div key={m} className="absolute inset-y-0 border-l border-[var(--cn-card-line)] print:border-[#c9cac4]" style={{ left: sc.pct(m) }} />
       ))}
     </div>
   );

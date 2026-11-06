@@ -36,6 +36,99 @@
   --cn-group-3: #3f8f8a;
   --cn-group-4: #a98446;
   --cn-group-common: #9aa0a6;
+  /* 強調の色・時刻の札・トーストの上に置く文字（暗い画面では濃い紺に変わる） */
+  --cn-on-accent: #ffffff;
+  color-scheme: light;
+}
+
+/* ダークモード（紺の暗い画面。決定記録 0020）。文字 4.5:1・枠線 3:1 を明るい画面と同じに保つ。
+   既定は端末の設定に合わせる。設定で「明るい」「暗い」を選ぶと <html data-theme> で決まる */
+@media screen and (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+  --cn-ground: #0f1b2d;
+    --cn-surface: #16263d;
+    --cn-border: #263a55;
+    --cn-grid: #1d3049;
+    --cn-card-line: #2f4664;
+    --cn-control-line: #8396ad;
+    --cn-ink: #e9eff7;
+    --cn-ink-soft: #c5d2e1;
+    --cn-muted: #a3b3c6;
+    --cn-accent: #8cc4f2;
+    --cn-accent-soft: #1d3a5c;
+    --cn-unassigned-bg: #4a2a14;
+    --cn-unassigned-ink: #ffcfa6;
+    --cn-short-bg: #3f3512;
+    --cn-short-ink: #ffe48a;
+    --cn-break-bg: #262642;
+    --cn-break-ink: #d6d1f5;
+    --cn-break-line: #9e96cc;
+    --cn-rail-bg: #132439;
+    --cn-alert-line: #e8954a;
+    --cn-now: #ff8a5b;
+    --cn-core: #6fb0ea;
+    --cn-noncore: #e0a95a;
+    --cn-band-bg: #1f2c3f;
+    --cn-band-line: #9ba3b0;
+    --cn-group-1: #6f9fd0;
+    --cn-group-2: #7fbf8b;
+    --cn-group-3: #63b5ae;
+    --cn-group-4: #d2aa66;
+    --cn-group-common: #8a97a8;
+    --cn-on-accent: #0b1626;
+    color-scheme: dark;
+  }
+}
+@media screen {
+  :root[data-theme="dark"] {
+    --cn-ground: #0f1b2d;
+    --cn-surface: #16263d;
+    --cn-border: #263a55;
+    --cn-grid: #1d3049;
+    --cn-card-line: #2f4664;
+    --cn-control-line: #8396ad;
+    --cn-ink: #e9eff7;
+    --cn-ink-soft: #c5d2e1;
+    --cn-muted: #a3b3c6;
+    --cn-accent: #8cc4f2;
+    --cn-accent-soft: #1d3a5c;
+    --cn-unassigned-bg: #4a2a14;
+    --cn-unassigned-ink: #ffcfa6;
+    --cn-short-bg: #3f3512;
+    --cn-short-ink: #ffe48a;
+    --cn-break-bg: #262642;
+    --cn-break-ink: #d6d1f5;
+    --cn-break-line: #9e96cc;
+    --cn-rail-bg: #132439;
+    --cn-alert-line: #e8954a;
+    --cn-now: #ff8a5b;
+    --cn-core: #6fb0ea;
+    --cn-noncore: #e0a95a;
+    --cn-band-bg: #1f2c3f;
+    --cn-band-line: #9ba3b0;
+    --cn-group-1: #6f9fd0;
+    --cn-group-2: #7fbf8b;
+    --cn-group-3: #63b5ae;
+    --cn-group-4: #d2aa66;
+    --cn-group-common: #8a97a8;
+    --cn-on-accent: #0b1626;
+    color-scheme: dark;
+  }
+}
+/* 白地・白文字の指定（bg-white など）を、暗い画面ではトークンに置き換える */
+@media screen {
+  :root[data-theme="dark"] .bg-white,
+  :root[data-theme="dark"] .bg-white\/95 { background-color: var(--cn-surface); }
+  :root[data-theme="dark"] .text-white { color: var(--cn-on-accent); }
+  :root[data-theme="dark"] .border-white,
+  :root[data-theme="dark"] .border-white\/40 { border-color: var(--cn-on-accent); }
+}
+@media screen and (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .bg-white,
+  :root:not([data-theme="light"]) .bg-white\/95 { background-color: var(--cn-surface); }
+  :root:not([data-theme="light"]) .text-white { color: var(--cn-on-accent); }
+  :root:not([data-theme="light"]) .border-white,
+  :root:not([data-theme="light"]) .border-white\/40 { border-color: var(--cn-on-accent); }
 }
 
 html,
