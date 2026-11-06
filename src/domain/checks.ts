@@ -334,3 +334,19 @@ export function shortageSummary(state: State, date: string): { unassigned: numbe
   }
   return { unassigned, short };
 }
+
+/**
+ * 続けて埋める（決定記録 0021）: いまの枠の次に、担当が決まっていない（担当未定・担当あと n 人）枠。
+ * 見ているグループの中で、時刻の順にいまの枠の後ろ。最後まで行ったら最初へ。いまの枠しか無ければ無し。
+ */
+export function nextUnfilledTask(state: State, date: string, currentId: ID, groupId?: ID): TaskInstance | undefined {
+  const list = tasksForDate(state, date).filter((t) => {
+    if (t.id === currentId || t.kind === "break" || !inGroupView(state, t, groupId)) return false;
+    const l = headcountStatus(state, t.id).level;
+    return l === "unassigned" || l === "short";
+  });
+  if (list.length === 0) return undefined;
+  const cur = state.tasks[currentId];
+  const after = cur ? list.find((t) => t.startMin > cur.startMin || (t.startMin === cur.startMin && t.id > cur.id)) : undefined;
+  return after ?? list[0];
+}

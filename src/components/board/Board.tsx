@@ -10,7 +10,7 @@ import { SyncEmpty } from "@/components/setup/Setup";
 import { SyncBadge } from "@/components/SyncBadge";
 import { SAMPLE_DATE } from "@/store/sample";
 import { boardColumns, paletteRows, residentColumns, residentViewGroup } from "@/domain/layout";
-import { headcountStatus, shortageGroups, tasksForDate, unfinishedTasks } from "@/domain/checks";
+import { headcountStatus, nextUnfilledTask, shortageGroups, tasksForDate, unfinishedTasks } from "@/domain/checks";
 import { calendarDateOf, fmtMin, fmtRange } from "@/domain/time";
 import { updatedAtLabel } from "@/domain/display";
 import { addDays, addTodayPersonEvents, isFirstTimeDefault } from "@/domain/pattern";
@@ -810,7 +810,19 @@ export function Board({ date: dateParam }: { date?: string }) {
         <EscortFlow state={state} engine={engine} date={date} now={businessMinutes(clockNow ?? 9 * 60)} onClose={() => setFlow(null)} onApply={applyFlow} />
       )}
       {panel?.mode === "detail" && <TaskDetail key={panel.taskId} state={state} engine={engine} taskId={panel.taskId} onClose={closePanel} onAdd={openAssign} />}
-      {panel?.mode === "assign" && <AssignPanel key={panel.taskId} state={state} engine={engine} taskId={panel.taskId} onClose={closePanel} onDetail={openDetail} />}
+      {panel?.mode === "assign" && (
+        <AssignPanel
+          key={panel.taskId}
+          state={state}
+          engine={engine}
+          taskId={panel.taskId}
+          onClose={closePanel}
+          onDetail={openDetail}
+          // 続けて埋める（決定記録 0021）: 見ているグループの中で次の担当が決まっていない枠へ
+          nextOf={(id) => nextUnfilledTask(state, date, id, filterGroup)?.id}
+          onNext={(id) => openAssign(id)}
+        />
+      )}
       <div id="board-toast" role="status" aria-live="polite" className="pointer-events-none fixed bottom-5 left-1/2 z-40 -translate-x-1/2">
         {notice && !toast && (
           <div className="pointer-events-auto rounded-[10px] bg-[var(--cn-toast-bg)] text-[var(--cn-toast-ink)] border border-[var(--cn-toast-line)] px-4 py-3 text-[15px] shadow-lg">{notice}</div>

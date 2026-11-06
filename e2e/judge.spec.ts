@@ -326,3 +326,23 @@ test.describe("元に戻すの履歴（決定記録 0021）", () => {
     await expect(page.locator("#board-toast")).toContainText("元に戻しました（2 件");
   });
 });
+
+test.describe("続けて埋める（決定記録 0021）", () => {
+  test("担当がそろったら、パネルを閉じずに「次の担当が決まっていない枠へ」で次の枠を開ける", async ({ page }) => {
+    await page.goto("/board?now=10:12");
+    await page.evaluate(() => localStorage.clear());
+    await page.goto("/board?now=10:12");
+    const first = page.locator('[data-badge="担当未定"]').first();
+    await expect(first).toBeVisible();
+    await first.getByRole("button", { name: /に担当を追加$/ }).click();
+    const panel = page.getByRole("dialog");
+    const title1 = await panel.locator("#assign-title").innerText();
+    const others = panel.getByRole("button", { name: /^ほかの人/ });
+    if ((await others.count()) > 0 && (await others.getAttribute("aria-expanded")) !== "true") await others.click();
+    await panel.getByRole("button", { name: "追加" }).first().click();
+    const next = panel.getByRole("button", { name: "次の担当が決まっていない枠へ →" });
+    await expect(next).toBeFocused();
+    await next.click();
+    await expect(page.getByRole("dialog").locator("#assign-title")).not.toHaveText(title1);
+  });
+});

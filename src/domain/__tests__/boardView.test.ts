@@ -79,3 +79,19 @@ test("横軸［利用者］に共通の枠は出ない", () => {
   const cards = residentColumns(s, DATE, gid, (r) => r.surname).flatMap((c) => c.cards.map((x) => x.task));
   assert.ok(cards.every((t) => !t.groupId || s.groups[t.groupId]?.kind !== "common"));
 });
+
+test("続けて埋める: 次の担当が決まっていない枠は、見ているグループの中で時刻の順にいまの枠の後ろ（最後まで行ったら最初へ）", async () => {
+  const { nextUnfilledTask, headcountStatus } = await import("../checks.ts");
+  const s = state();
+  const unfilled = tasksForDate(s, DATE).filter((t) => t.kind !== "break" && ["unassigned", "short"].includes(headcountStatus(s, t.id).level));
+  assert.ok(unfilled.length >= 2);
+  const first = unfilled[0];
+  const next = nextUnfilledTask(s, DATE, first.id)!;
+  assert.notEqual(next.id, first.id);
+  assert.ok(next.startMin >= first.startMin);
+  const last = unfilled[unfilled.length - 1];
+  assert.equal(nextUnfilledTask(s, DATE, last.id)?.id, first.id, "最後まで行ったら最初へ");
+  const sakura = Object.values(s.groups).find((g) => g.name.includes("さくら"))!;
+  const inSakura = nextUnfilledTask(s, DATE, first.id, sakura.id);
+  if (inSakura) assert.ok(inGroupView(s, inSakura, sakura.id));
+});

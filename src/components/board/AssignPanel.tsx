@@ -20,17 +20,25 @@ export function AssignPanel({
   taskId,
   onClose,
   onDetail,
+  nextOf,
+  onNext,
 }: {
   state: State;
   engine: Engine | null;
   taskId: ID;
   onClose: () => void;
   onDetail?: (taskId: ID) => void;
+  /** 続けて埋める（決定記録 0021）: 次の担当が決まっていない枠の ID。無ければ undefined */
+  nextOf?: (taskId: ID) => ID | undefined;
+  onNext?: (taskId: ID) => void;
 }) {
   const task = state.tasks[taskId];
   // 「空いている人」が 0 人なら、ほかの人を最初から開いておく（押す回数を増やさない）
   const [showOthers, setShowOthers] = useState(() => splitCandidates(rankCandidates(state, taskId)).open.length === 0);
   const closeRef = useRef<HTMLButtonElement>(null);
+  // 満たしたあと、次の担当が決まっていない枠があれば閉じずに案内する
+  const [filled, setFilled] = useState<string | null>(null);
+  const nextRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     closeRef.current?.focus();
@@ -52,8 +60,13 @@ export function AssignPanel({
     const before = headcountStatus(engine.state, task.id);
     await engine.dispatch(assignEvents(task.id, c.staff.id, engine.context()), `${c.staff.surname}さんを「${taskLabel(engine.state, task)}」の担当にしました`);
     const after = headcountStatus(engine.state, task.id);
-    // 満たした（または元から満たしていた）ら閉じる
-    if (after.level === "ok" || after.level === "over" || (before.level !== "unassigned" && before.level !== "short")) onClose();
+    // 満たした（または元から満たしていた）ら閉じる。次の担当が決まっていない枠があれば、閉じずに「次へ」を出す
+    if (after.level === "ok" || after.level === "over" || (before.level !== "unassigned" && before.level !== "short")) {
+      if (nextOf && onNext && nextOf(task.id)) {
+        setFilled(`${c.staff.surname}さんを付けました`);
+        requestAnimationFrame(() => nextRef.current?.focus());
+      } else onClose();
+    }
   };
 
   const slotName = (c: Candidate) => (c.entry?.slotId ? state.roleSlots[c.entry.slotId]?.name : undefined);
@@ -128,6 +141,30 @@ export function AssignPanel({
       </div>
 
       <div className="flex flex-1 flex-col gap-3 overflow-auto p-4">
+        {filled && nextOf && onNext && (
+          <div role="status" className="flex flex-col gap-2 rounded-xl border-2 border-[var(--cn-accent)] bg-[var(--cn-accent-soft)] p-3 text-[15px]">
+            <span>
+              {filled}。この枠の担当はそろいました。
+            </span>
+            <div className="flex flex-wrap gap-2">
+              <button
+                ref={nextRef}
+                type="button"
+                onClick={() => {
+                  const id = nextOf(task.id);
+                  if (id) onNext(id);
+                  else onClose();
+                }}
+                className="inline-flex h-[44px] items-center rounded-lg bg-[var(--cn-accent)] px-4 font-bold text-white"
+              >
+                次の担当が決まっていない枠へ →
+              </button>
+              <button type="button" onClick={onClose} className="inline-flex h-[44px] items-center rounded-lg border border-[var(--cn-control-line)] bg-white px-3">
+                閉じる
+              </button>
+            </div>
+          </div>
+        )}
         <section aria-labelledby="ok-title">
           <h3 id="ok-title" className="mb-1.5 text-[14px] font-bold text-[var(--cn-muted)]">
             空いている人 {open.length}人
