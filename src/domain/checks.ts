@@ -286,8 +286,19 @@ export const UNFINISHED_GRACE_MIN = 15;
  * 終わっていない枠（決定記録 0010）: 終わりの時刻から 15 分過ぎて、「終わった」の印が無い業務。休憩・中止・見守りは除く。
  * 「担当未定」とは別に数える。時刻順。
  */
-export function unfinishedTasks(state: State, date: string, now: number): TaskInstance[] {
-  return tasksForDate(state, date).filter((t) => canMarkDone(t) && !t.done && t.endMin + UNFINISHED_GRACE_MIN <= now);
+export function unfinishedTasks(state: State, date: string, now: number, groupId?: ID): TaskInstance[] {
+  return tasksForDate(state, date).filter((t) => inGroupView(state, t, groupId) && canMarkDone(t) && !t.done && t.endMin + UNFINISHED_GRACE_MIN <= now);
+}
+
+/**
+ * ボードの「見るグループ」に入る枠か（決定記録 0017）。groupId が無ければすべて。
+ * 選んだグループの枠と、共通（グループの無い枠・共通のグループ）の枠が入る。
+ */
+export function inGroupView(state: State, task: TaskInstance, groupId?: ID): boolean {
+  if (!groupId) return true;
+  if (task.groupId === groupId) return true;
+  const g = task.groupId ? state.groups[task.groupId] : undefined;
+  return !g || g.kind === "common";
 }
 
 /** 見出しの文「終わっていない n 件」。0 件なら空 */
@@ -299,9 +310,10 @@ export function unfinishedLabel(count: number): string {
  * 見出し用のまとめ。ラベルごとの件数（例: [{label:"担当未定",count:2},{label:"担当あと1人",count:1}]）。
  * 担当未定を先に、担当あと n 人は n の小さい順。
  */
-export function shortageGroups(state: State, date: string): { label: string; level: "unassigned" | "short"; count: number }[] {
+export function shortageGroups(state: State, date: string, groupId?: ID): { label: string; level: "unassigned" | "short"; count: number }[] {
   const map = new Map<string, { label: string; level: "unassigned" | "short"; count: number; gap: number }>();
   for (const t of tasksForDate(state, date)) {
+    if (!inGroupView(state, t, groupId)) continue;
     const s = headcountStatus(state, t.id);
     if (s.level !== "unassigned" && s.level !== "short") continue;
     const cur = map.get(s.label) ?? { label: s.label, level: s.level, count: 0, gap: s.level === "unassigned" ? -1 : s.gap };

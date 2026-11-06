@@ -5,7 +5,7 @@
  * - 長い継続業務（見守り）は左の段に寄るよう、開始が早く長いものから置く。
  */
 
-import type { ID, Minutes, State, TaskInstance } from "./types.ts";
+import type { ID, Minutes, Resident, State, TaskInstance } from "./types.ts";
 import { assigneesOf, headcountLabel, isWatchTask, taskLabel, tasksForDate } from "./checks.ts";
 
 export { isWatchTask };
@@ -87,8 +87,11 @@ export function layoutGroupColumn(tasks: TaskInstance[], minVisualMin = 0): { ca
 }
 
 /** ボードの列（グループ順）。共通（common）は最後。中止した業務は出さない */
-export function boardColumns(state: State, date: string, minVisualMin = 0): BoardColumn[] {
-  const groups = Object.values(state.groups).sort((a, b) => a.sortOrder - b.sortOrder);
+export function boardColumns(state: State, date: string, minVisualMin = 0, groupId?: ID): BoardColumn[] {
+  // 見るグループ（決定記録 0017）: 選んだグループと共通の列だけ
+  const groups = Object.values(state.groups)
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .filter((g) => !groupId || !state.groups[groupId] || g.id === groupId || g.kind === "common");
   const common = groups.find((g) => g.kind === "common");
   const tasks = tasksForDate(state, date);
   const byGroup = new Map<ID, TaskInstance[]>();
@@ -109,6 +112,33 @@ export function boardColumns(state: State, date: string, minVisualMin = 0): Boar
       maxLanes,
     };
   });
+}
+
+/**
+ * 横軸［利用者］（決定記録 0017）: 選んだグループの方を部屋の順に列にし、その方が対象の枠を置く。
+ * - 個別の枠と、その方が入っている一括の枠。一括の枠は方ごとの列に同じ 1 枚が出る（担当は枠に付く）。
+ * - 利用者に付いていない枠（見守り・共通・休憩）は出さない。
+ */
+export function residentColumns(state: State, date: string, groupId: ID, label: (r: Resident) => string, minVisualMin = 0): BoardColumn[] {
+  const residents = Object.values(state.residents)
+    .filter((r) => r.groupId === groupId)
+    .sort((a, b) => a.room.localeCompare(b.room, "ja", { numeric: true }) || a.displayName.localeCompare(b.displayName, "ja"));
+  const tasks = tasksForDate(state, date).filter((t) => t.kind !== "break" && !isWatchTask(t));
+  return residents.map((r) => {
+    const mine = tasks.filter((t) => (state.targets[t.id] ?? []).includes(r.id));
+    const { cards, hasRail, maxLanes } = layoutGroupColumn(mine, minVisualMin);
+    return { id: r.id, name: `${label(r)} 様`, sub: "", cards, hasRail, maxLanes };
+  });
+}
+
+/** 横軸［利用者］で、既定で選ぶグループ（選んでいるグループに利用者がいなければ、利用者のいる最初のグループ） */
+export function residentViewGroup(state: State, groupId?: ID): ID | undefined {
+  const has = (gid: ID) => Object.values(state.residents).some((r) => r.groupId === gid);
+  if (groupId && state.groups[groupId] && has(groupId)) return groupId;
+  return Object.values(state.groups)
+    .filter((g) => g.kind !== "common")
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .find((g) => has(g.id))?.id;
 }
 
 // ---------------------------------------------------------------------------
@@ -205,8 +235,16 @@ export interface WatchLine {
   segments: WatchSegment[];
 }
 
-export function staffViewRows(state: State, date: string): StaffViewRow[] {
-  const { working } = paletteRows(state, date);
+export function staffViewRows(state: State, date: string, groupId?: ID): StaffViewRow[] {
+  const all = paletteRows(state, date).working;
+  // 見るグループ（決定記録 0017）: そのグループに所属するか、そのグループの枠を担当している出勤者だけ
+  const working = groupId
+    ? all.filter(
+        (r) =>
+          state.staff[r.staffId]?.homeGroupId === groupId ||
+          Object.values(state.assignments).some((a) => a.staffId === r.staffId && state.tasks[a.taskId]?.date === date && state.tasks[a.taskId]?.groupId === groupId),
+      )
+    : all;
   const tasks = tasksForDate(state, date);
   const byId = new Map(tasks.map((t) => [t.id, t]));
   const mine = new Map<ID, TaskInstance[]>();

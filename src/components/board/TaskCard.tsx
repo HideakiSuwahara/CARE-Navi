@@ -21,9 +21,12 @@ export function TaskCard({
   onOpen,
   onAdd,
   now,
+  instanceKey,
 }: {
   state: State;
   task: TaskInstance;
+  /** 同じ枠を複数の列に出すとき（横軸［利用者］）の見分け。チップのドラッグ ID に使う */
+  instanceKey?: string;
   /** いまの時刻（分）。終わっていない枠の判定に使う。無ければ判定しない */
   now?: number | null;
   /** compact: 短い業務（1段に詰める）。rail: 見守りなど左の細い帯 */
@@ -47,9 +50,12 @@ export function TaskCard({
   const mini = variant === "mini";
   const rail = variant === "rail";
 
+  // 終わった印のある枠は灰色の地・点線の枠（決定記録 0017）。終わっていない白い枠が目立つ。状態は「✓ 終わった」の文字で
   const frame = isBreak
     ? "border border-dashed border-[var(--cn-break-line)] bg-[var(--cn-break-bg)]"
-    : short
+    : done
+      ? "border border-dashed border-[var(--cn-control-line)] bg-[var(--cn-ground)] shadow-none"
+      : short
       ? `border-2 ${status.level === "unassigned" ? "border-dashed" : ""} border-[var(--cn-alert-line)] bg-white`
       : "border border-[var(--cn-card-line)] bg-white";
 
@@ -64,7 +70,7 @@ export function TaskCard({
   ) : null;
 
   const chips = assignees.map(({ id, staff, firstTimer }) => (
-    <StaffChip key={id} taskId={task.id} staffId={staff!.id} surname={staff!.surname} firstTimer={firstTimer} onOpen={() => onOpen?.(task.id)} />
+    <StaffChip key={id} taskId={task.id} staffId={staff!.id} surname={staff!.surname} firstTimer={firstTimer} done={done} dragKey={instanceKey} onOpen={() => onOpen?.(task.id)} />
   ));
 
   const when = (
@@ -161,8 +167,24 @@ export function TaskCard({
 }
 
 /** 担当チップ。ドラッグで別のカードへ移す／パレットへ戻すと外す。押すと業務の詳細（外すボタンがある） */
-function StaffChip({ taskId, staffId, surname, firstTimer, onOpen }: { taskId: ID; staffId: ID; surname: string; firstTimer: boolean; onOpen: () => void }) {
-  const { dragProps, setNodeRef, style, isDragging } = useStaffDrag(`chip:${taskId}:${staffId}`, { kind: "chip", staffId, fromTaskId: taskId });
+function StaffChip({
+  taskId,
+  staffId,
+  surname,
+  firstTimer,
+  done,
+  dragKey,
+  onOpen,
+}: {
+  taskId: ID;
+  staffId: ID;
+  surname: string;
+  firstTimer: boolean;
+  done?: boolean;
+  dragKey?: string;
+  onOpen: () => void;
+}) {
+  const { dragProps, setNodeRef, style, isDragging } = useStaffDrag(`chip:${taskId}:${staffId}${dragKey ? `:${dragKey}` : ""}`, { kind: "chip", staffId, fromTaskId: taskId });
   return (
     <button
       ref={setNodeRef}
@@ -180,7 +202,11 @@ function StaffChip({ taskId, staffId, surname, firstTimer, onOpen }: { taskId: I
       aria-label={`${surname}${firstTimer ? "（初回）" : ""}`}
       aria-roledescription="ドラッグできる担当"
     >
-      <span className={`inline-flex h-[28px] items-center gap-1 rounded-full border border-[var(--cn-accent)] bg-[var(--cn-accent-soft)] px-2.5 text-[14px] text-[var(--cn-accent)] ${isDragging ? "shadow-lg" : ""}`}>
+      <span
+        className={`inline-flex h-[28px] items-center gap-1 rounded-full border px-2.5 text-[14px] ${
+          done ? "border-[var(--cn-control-line)] bg-white text-[var(--cn-ink-soft)]" : "border-[var(--cn-accent)] bg-[var(--cn-accent-soft)] text-[var(--cn-accent)]"
+        } ${isDragging ? "shadow-lg" : ""}`}
+      >
         {surname}
         {firstTimer && <span className="rounded border border-[var(--cn-card-line)] bg-white px-1 text-[13px] text-[var(--cn-ink)]">初回</span>}
       </span>

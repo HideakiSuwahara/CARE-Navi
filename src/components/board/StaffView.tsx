@@ -55,17 +55,20 @@ export function StaffView({
   print = false,
   range = { start: DAY_START, end: DAY_END },
   onOpen,
+  groupId,
 }: {
   state: State;
   date: string;
   now: number | null;
+  /** 見るグループ（決定記録 0017）。無ければ全員 */
+  groupId?: string;
   /** 印刷用（分担表）。紙の幅いっぱいに描き、ボタンにしない */
   print?: boolean;
   range?: Range;
   onOpen?: (taskId: string) => void;
 }) {
-  const allRows = useMemo(() => staffViewRows(state, date), [state, date]);
-  const watch = useMemo(() => watchLines(state, date), [state, date]);
+  const allRows = useMemo(() => staffViewRows(state, date, groupId), [state, date, groupId]);
+  const watch = useMemo(() => watchLines(state, date).filter((l) => !groupId || l.groupId === groupId), [state, date, groupId]);
   const sc = scale(range);
   // 印刷では、その範囲に勤務がある人だけを並べる
   const rows = print ? allRows.filter((r) => sc.inView(r.startMin, r.endMin)) : allRows;
@@ -257,7 +260,9 @@ function StaffRowView({
               ? "border-2 border-dashed border-[var(--cn-break-ink)] bg-[var(--cn-break-bg)]"
               : bar.overlap
                 ? "border-4 border-double border-[var(--cn-alert-line)] bg-white"
-                : "border border-[var(--cn-control-line)] bg-white"
+                : task.done && !print
+                  ? "border border-dashed border-[var(--cn-control-line)] bg-[var(--cn-ground)] text-[var(--cn-ink-soft)]"
+                  : "border border-[var(--cn-control-line)] bg-white"
           }`;
           const style = { ...EXACT, left: sc.pct(task.startMin), width: sc.widthPct(task.startMin, visualEnd), top, height: h };
           // 2行まで。切れるときは「…」
