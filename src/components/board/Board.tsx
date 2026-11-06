@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { TopBar } from "@/components/TopBar";
-import { SETUP_NOTE_KEY } from "@/components/setup/setupNote";
+import { SETUP_NOTE_KEY, writeChosen } from "@/components/setup/setupNote";
 import { useAppState, useDefaultDate, useEngine, useIncoming, useNowMinutes, useSyncStatus } from "@/store/react";
 import { SyncEmpty } from "@/components/setup/Setup";
 import { SyncBadge } from "@/components/SyncBadge";
@@ -79,6 +79,10 @@ export function Board({ date: dateParam }: { date?: string }) {
   const now =
     clockNow !== null && clockNow < 6 * 60 && date === addDays(calendarDateOf(new Date()), -1) ? clockNow + 24 * 60 : clockNow;
   const [noteOpen, setNoteOpen] = useState(false);
+  // ボードを開いて施設（サンプルを含む）を見たら、設定は「はじめに」ではなく追加・変更を出す（ループ 16）
+  useEffect(() => {
+    if (ready) writeChosen(true);
+  }, [ready]);
   // 横軸［グループ｜職員｜利用者］と「見るグループ」（決定記録 0017）。その端末のブラウザで覚える（同期しない）
   const [view, setViewRaw] = useState<BoardAxis>("group");
   const [viewGroup, setViewGroupRaw] = useState<string>("");

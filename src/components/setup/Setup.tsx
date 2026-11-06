@@ -12,7 +12,7 @@ import { useAppState, useDefaultDate, useEngine, useSyncStatus } from "@/store/r
 import { StaffEditor } from "./StaffEditor";
 import { MasterEditor } from "./MasterEditor";
 import { RosterPaste } from "./RosterPaste";
-import { SETUP_NOTE_KEY } from "./setupNote";
+import { readChosen, writeChosen, SETUP_NOTE_KEY } from "./setupNote";
 import { sampleEvents } from "@/store/sample";
 import { LocalStore } from "@/store/datastore";
 import { supabaseEnv, supabaseSyncClient } from "@/store/supabaseClient";
@@ -38,23 +38,6 @@ async function resetLocalAndReload(events: Event[], to: string) {
  * - 自分の施設で始める: 1画面。施設の名前とグループ → 利用者の貼り付け → 職員の貼り付け → 登録する
  * - ふだんの設定: 施設コード／手元画面の利用者名／初回の方の警告。職員の貼り付けもここから
  */
-const CHOSEN_KEY = "cn-setup-chosen";
-
-function readChosen(): boolean {
-  try {
-    return window.localStorage.getItem(CHOSEN_KEY) === "1";
-  } catch {
-    return false;
-  }
-}
-function writeChosen(on: boolean) {
-  try {
-    if (on) window.localStorage.setItem(CHOSEN_KEY, "1");
-    else window.localStorage.removeItem(CHOSEN_KEY);
-  } catch {
-    // 保存できない端末では、開いている間だけ覚える
-  }
-}
 
 export function Setup({ join }: { join?: string }) {
   const { state, ready, loaded } = useAppState();

@@ -252,3 +252,14 @@ test.describe("設定", () => {
     await expect(groupList.getByRole("listitem").filter({ hasText: "すみれ" })).toContainText("職員 1人");
   });
 });
+
+test("トップの「サンプル施設で試す」からボードを見たあと設定を開くと、「はじめに」ではなく追加・変更が出る（ループ 16）", async ({ page }) => {
+  await page.goto("/");
+  await page.evaluate(() => localStorage.clear());
+  await page.goto("/");
+  await page.getByRole("link", { name: "サンプル施設で試す" }).click();
+  await expect(page.locator("[data-task-id]").first()).toBeVisible();
+  await page.goto("/setup");
+  await expect(page.getByRole("heading", { name: "追加・変更" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "はじめに" })).toHaveCount(0);
+});

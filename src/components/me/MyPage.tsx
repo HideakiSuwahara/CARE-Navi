@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { writeChosen } from "@/components/setup/setupNote";
 import { rosterForDate } from "@/domain/checks";
 import { canSeeAll } from "@/domain/leader";
 import { viewerDay } from "@/domain/myday";
@@ -50,6 +51,10 @@ export function MyPage({ taskId, date: dateParam, view: viewKey }: { taskId?: st
     setMe(readMe());
     setLoaded(true);
   }, []);
+  // 施設（サンプルを含む）を見たら、設定は「はじめに」ではなく追加・変更を出す（ループ 16）
+  useEffect(() => {
+    if (ready) writeChosen(true);
+  }, [ready]);
 
   const choose = useCallback((id: ID | null) => {
     writeMe(id);
