@@ -66,9 +66,10 @@ test.describe("全体（リーダーのスマホ）", () => {
       const others = dialog.getByRole("button", { name: /^ほかの人/ });
       if ((await others.getAttribute("aria-expanded")) !== "true") await others.click();
     }
-    await dialog.getByRole("button", { name: "高橋さんを担当にする" }).click();
-    await expect(dialog).toContainText("→ 担当 高橋");
-    await expect(dialog).toContainText("ずらす: 高橋 の休憩");
+    // 伊藤: 10:30–11:00 の田中様の排泄介助と重なり、11:00–12:00 は休憩（入浴日の早番B＝高橋の休憩は 14:00 から）
+    await dialog.getByRole("button", { name: "伊藤さんを担当にする" }).click();
+    await expect(dialog).toContainText("→ 担当 伊藤");
+    await expect(dialog).toContainText("ずらす: 伊藤 の休憩");
   });
 
   test("付き添いの担当は「問題なし」の先頭の人を1タップで付けられる", async ({ page }) => {

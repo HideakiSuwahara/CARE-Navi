@@ -43,3 +43,28 @@ test.describe("審査員の最初の 10 分（スマホ）", () => {
     await expect(sato).toContainText("リーダー");
   });
 });
+
+test.describe("審査員の最初の 10 分（サンプルデータ）", () => {
+  test("入浴介助「担当あと1人」の「＋」で空いている人が出て、追加するとバッジが消える", async ({ page }) => {
+    await page.goto("/board?now=10:12");
+    await page.evaluate(() => localStorage.clear());
+    await page.goto("/board?now=10:12");
+    const bath = page.locator('[data-badge="担当あと1人"]').filter({ hasText: "入浴介助" }).first();
+    const id = await bath.getAttribute("data-task-id");
+    await bath.getByRole("button", { name: /に担当を追加$/ }).click();
+    const panel = page.getByRole("dialog");
+    await expect(panel.getByText(/空いている人 [1-9]/)).toBeVisible();
+    await panel.getByRole("button", { name: "追加" }).first().click();
+    await expect(page.locator(`[data-task-id="${id}"]`)).not.toHaveAttribute("data-badge", /.+/);
+  });
+
+  test("次の日（11/5）に「この内容で作る」を押しても、夜勤の枠は担当未定にならない", async ({ page }) => {
+    await page.goto("/board?date=2026-11-05&now=7:00");
+    await page.evaluate(() => localStorage.clear());
+    await page.goto("/board?date=2026-11-05&now=7:00");
+    await page.getByRole("button", { name: "この内容で作る" }).click();
+    await expect(page.locator("[data-task-id]").first()).toBeVisible();
+    const nightUnassigned = page.locator('[data-task-id][data-badge="担当未定"]').filter({ hasText: /夜勤|巡視/ });
+    await expect(nightUnassigned).toHaveCount(0);
+  });
+});
