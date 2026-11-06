@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { useMemo, useState } from "react";
 import { useEngine } from "@/store/react";
 import { createDayEvents, isFirstTimeDefault, morningDraft, suggestSlot } from "@/domain/pattern";
@@ -90,7 +92,15 @@ export function MorningBand({ state, date }: { state: State; date: DateKey }) {
             勤務表どおり（{shortDate(date)}）に並べました。違うところだけ直してください。
           </p>
         )}
-        {draft.source === "none" && (
+        {Object.keys(state.staff).length === 0 && (
+          <p role="status" className="mt-2 flex flex-wrap items-center gap-3 rounded-lg border-2 border-[var(--cn-alert-line)] bg-white px-3 py-2 text-[15px]">
+            職員がまだいません。設定の「＋ 1 人ずつ足す」か名簿の貼り付けで足すと、ここに並びます。
+            <Link href="/setup" className="inline-flex min-h-[44px] items-center font-bold text-[var(--cn-accent)] underline">
+              設定で職員を足す
+            </Link>
+          </p>
+        )}
+        {draft.source === "none" && Object.keys(state.staff).length > 0 && (
           <p className="mt-1 text-[15px] text-[var(--cn-ink-soft)]">
             はじめての日です。職員を全員「休み」で並べました。今日来る人の「出勤にする」を押し、番（早番A など、その日の役割）を選んでください。看護・介護助手・スポットの番は仮に入れています。業務表（その曜日の仕事の並び）は下で選べます。
           </p>

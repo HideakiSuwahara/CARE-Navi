@@ -188,7 +188,7 @@ test.describe("設定", () => {
     // グループを足す
     await page.getByLabel(/^グループを足す/).fill("3階");
     await page.getByRole("button", { name: "＋ グループを足す" }).click();
-    await expect(page.getByRole("status").filter({ hasText: /グループ「3階」を足しました（番 \d+・業務表の枠 \d+/ })).toBeVisible();
+    await expect(page.getByRole("status").filter({ hasText: /グループ「3階」をフロアとして足しました（番 \d+: .*・業務表の枠 \d+/ })).toBeVisible();
     const groupList = page.getByRole("list", { name: "グループの一覧" });
     await expect(groupList).toContainText("3階");
     await expect(page.getByRole("list", { name: "番の一覧" })).toContainText("3階");
@@ -209,10 +209,46 @@ test.describe("設定", () => {
     await expect(page.getByRole("region", { name: "グループ（ユニット・フロア）" }).getByRole("alert")).toContainText("所属しています");
     // 番の時刻を直す: 早番A を 7:30 に。11/3 の佐藤の出勤は 7:00 のまま
     await page.getByRole("button", { name: "番「早番A」を直す" }).click();
-    await page.getByRole("form", { name: "番「早番A」を直す" }).getByLabel("開始").fill("7:30");
+    await page.getByRole("form", { name: "番「早番A」の編集" }).getByLabel(/^開始/).fill("7:30");
     await page.getByRole("button", { name: "この内容で直す" }).click();
     await expect(page.getByRole("status").filter({ hasText: "番「早番A」を直しました（入れてある勤務表の時刻はそのままです）" })).toBeVisible();
     await page.goto("/board?now=10:12");
     await expect(page.getByLabel("きょうの出勤者")).toContainText("7:00–16:00");
+  });
+
+  test("追加・変更: 種類を選んでグループを足す。キーボードの人のフォーカスが迷わない。職員の所属を直せる", async ({ page }) => {
+    await page.getByRole("button", { name: "サンプル施設で試す" }).click();
+    await page.goto("/setup");
+    await page.getByLabel(/^グループを足す/).fill("すみれ");
+    await page.getByRole("button", { name: "ユニット", exact: true }).click();
+    await page.getByRole("button", { name: "＋ グループを足す" }).click();
+    await expect(page.getByRole("status").filter({ hasText: "グループ「すみれ」をユニットとして足しました" })).toBeVisible();
+    await expect(page.getByLabel(/^グループを足す/)).toBeFocused();
+    const groupList = page.getByRole("list", { name: "グループの一覧" });
+    await expect(groupList.getByRole("listitem").filter({ hasText: "すみれ" })).toContainText("ユニット");
+    // 名前を変えるを押すと、入力へフォーカス
+    await groupList.getByRole("listitem").filter({ hasText: "すみれ" }).getByRole("button", { name: "名前を変える" }).click();
+    await expect(page.getByLabel("すみれの新しい名前")).toBeFocused();
+    // 外せない理由はその行に出る
+    const east = groupList.getByRole("listitem").filter({ hasText: "東フロア" });
+    await east.getByRole("button", { name: "東フロアを外す" }).click();
+    await expect(east.getByRole("alert")).toContainText("所属しています");
+    await expect(east.getByRole("link", { name: "職員の欄へ" })).toBeVisible();
+    // ＋ 番を足す → 名前の欄へ。夜勤を 17:00／9:00 で入れても翌9:00
+    await page.getByRole("button", { name: "＋ 番を足す" }).click();
+    await expect(page.locator("#slot-name")).toBeFocused();
+    await page.locator("#slot-name").fill("夜勤X");
+    await page.locator("#slot-start").fill("17:00");
+    await page.locator("#slot-end").fill("9:00");
+    await page.getByRole("button", { name: "この内容で足す" }).click();
+    await expect(page.getByRole("status").filter({ hasText: "終わりを 翌9:00 として入れました" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "＋ 番を足す" })).toBeFocused();
+    // 職員の所属を直す: 高橋さんを すみれ へ
+    const staffList = page.getByRole("list", { name: "職員ごとの担当条件" });
+    await staffList.getByRole("button", { name: /^高橋さんを直す/ }).click();
+    const edit = page.getByRole("form", { name: "高橋さんを直す" });
+    await edit.getByLabel("所属（グループ）").selectOption({ label: "すみれ" });
+    await edit.getByRole("button", { name: "この内容で直す" }).click();
+    await expect(groupList.getByRole("listitem").filter({ hasText: "すみれ" })).toContainText("職員 1人");
   });
 });

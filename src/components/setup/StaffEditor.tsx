@@ -31,6 +31,10 @@ export function StaffEditor({
   const [name, setName] = useState(prev?.displayName ?? "");
   const [role, setRole] = useState(prev?.role ?? "");
   const [phone, setPhone] = useState(prev?.phone ?? "");
+  const [home, setHome] = useState<string>(prev?.homeGroupId ?? "");
+  const groupOptions = Object.values(state.groups)
+    .filter((g) => g.kind !== "common")
+    .sort((a, b) => a.sortOrder - b.sortOrder);
   const [picked, setPicked] = useState<string[]>(prev?.tags ?? []);
   // 職種が条件の名前と同じなら（看護師 など）、その条件を既定で付ける（外せる）
   const onRole = (v: string) => {
@@ -38,7 +42,9 @@ export function StaffEditor({
     const t = v.trim();
     if (!prev && t && tags.includes(t)) setPicked((p) => (p.includes(t) ? p : [...p, t]));
   };
-  const dirty = prev ? name !== prev.displayName || role !== prev.role || phone !== (prev.phone ?? "") : Boolean(name || role || phone);
+  const dirty = prev
+    ? name !== prev.displayName || role !== prev.role || phone !== (prev.phone ?? "") || home !== (prev.homeGroupId ?? "")
+    : Boolean(name || role || phone || home);
   const [error, setError] = useState("");
   const [confirmRetire, setConfirmRetire] = useState(false);
   const first = useRef<HTMLInputElement>(null);
@@ -48,7 +54,7 @@ export function StaffEditor({
   if (!engine) return null;
 
   const save = async () => {
-    const r = staffFormEvents(engine.state, { id: prev?.id, displayName: name, role, tags: prev ? prev.tags : picked, phone }, engine.context());
+    const r = staffFormEvents(engine.state, { id: prev?.id, displayName: name, role, tags: prev ? prev.tags : picked, phone, homeGroupId: home }, engine.context());
     if (r.error) {
       setError(r.error);
       return;
@@ -94,6 +100,19 @@ export function StaffEditor({
             ))}
           </datalist>
         </label>
+        {groupOptions.length > 0 && (
+          <label className="flex flex-col gap-1 text-[14px]">
+            所属（グループ）
+            <select value={home} onChange={(e) => setHome(e.target.value)} className={`${field} w-[180px]`}>
+              <option value="">決めていない</option>
+              {groupOptions.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <label className="flex flex-col gap-1 text-[14px]">
           PHS（任意）
           <input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="numeric" className={`${field} w-[120px]`} placeholder="例: 811" />

@@ -9,6 +9,7 @@
 
 import type { Event } from "./events.ts";
 import { metaOf, type EventContext } from "./pattern.ts";
+import { fmtMin } from "./time.ts";
 import type { DateKey, DayPatternItem, Group, ID, RoleSlot, SeedData, State } from "./types.ts";
 
 export interface MasterResult {
@@ -77,7 +78,8 @@ export function addGroupEvents(state: State, name: string, template: SeedData, c
   const newSlots: RoleSlot[] = [];
   for (const sl of template.roleSlots) {
     if (sl.groupId !== src.id) continue;
-    const renamed = token && sl.name.includes(token) ? sl.name.replace(token, ` ${n}`).trim() : `${sl.name}（${n}）`;
+    // 雛形の短い名前を含む番は置き換え（夜勤東 → 夜勤3階）、ほかは後ろに添える（早番A（3階））
+    const renamed = token && sl.name.includes(token) ? sl.name.replace(token, n) : `${sl.name}（${n}）`;
     const { leaderRank: _lr, ...rest } = sl;
     void _lr;
     const slot: RoleSlot = { ...rest, id: ctx.newId(), name: renamed, groupId: group.id, sortOrder: sl.sortOrder + sortOrder * 0.01 };
@@ -122,7 +124,8 @@ export function addGroupEvents(state: State, name: string, template: SeedData, c
     events.push({ ...metaOf(ctx), type: "pattern.upsert", pattern: { ...mine, items: [...mine.items, ...items] } });
   }
   const names = newSlots.map((x) => x.name).join("、");
-  const label = `グループ「${n}」を足しました（番 ${newSlots.length}${names ? `: ${names}` : ""}・業務表の枠 ${added}。次の日の時間割から出ます）`;
+  const kindWord = kind === "unit" ? "ユニット" : "フロア";
+  const label = `グループ「${n}」を${kindWord}として足しました（番 ${newSlots.length}${names ? `: ${names}` : ""}・業務表の枠 ${added}。まだ作っていない日の時間割から出ます。作ってある日は変わりません）`;
   return { events, label };
 }
 
@@ -157,7 +160,7 @@ export function removeGroupEvents(state: State, groupId: ID, ctx: EventContext):
   if (g.kind === "common") return { events: [], label: "", error: "「共通」は外せません" };
   const m = groupMembers(state, groupId);
   if (m.residents > 0 || m.staff > 0) {
-    return { events: [], label: "", error: `${g.name}には利用者 ${m.residents}人・職員 ${m.staff}人が所属しています。先に利用者の画面と職員の欄で所属を変えてください` };
+    return { events: [], label: "", error: `${g.name}には利用者 ${m.residents}人・職員 ${m.staff}人が所属しています。先に利用者の画面（「1 人ずつ足す・直す」）と、下の職員の欄（名前を押して「所属」）で所属を変えてください` };
   }
   const events: Event[] = [];
   for (const p of Object.values(state.patterns)) {
@@ -186,8 +189,8 @@ export function upsertRoleSlotEvents(state: State, input: RoleSlotInput, ctx: Ev
   const n = squash(input.name);
   if (!n) return { events: [], label: "", error: "番の名前を入れてください（早番A など）" };
   // 終わりが開始より前（17:00／9:00）なら翌日として受ける
-  const endMin = input.endMin <= input.startMin && input.endMin < 24 * 60 ? input.endMin + 24 * 60 : input.endMin;
-  input = { ...input, endMin };
+  const toNext = input.endMin <= input.startMin && input.endMin < 24 * 60;
+  input = { ...input, endMin: toNext ? input.endMin + 24 * 60 : input.endMin };
   if (!(input.startMin >= 0 && input.startMin < 24 * 60 && input.endMin > input.startMin && input.endMin <= 2879)) return { events: [], label: "", error: "時刻は 開始 < 終わり（翌日は 翌9:00 のように）で入れてください" };
   const prev = input.id ? state.roleSlots[input.id] : undefined;
   if (input.id && !prev) return { events: [], label: "", error: "その番は見つかりません" };
@@ -206,7 +209,9 @@ export function upsertRoleSlotEvents(state: State, input: RoleSlotInput, ctx: Ev
   else delete slot.groupId;
   if (input.leaderRank) slot.leaderRank = input.leaderRank;
   else delete slot.leaderRank;
-  const label = prev ? `番「${n}」を直しました（入れてある勤務表の時刻はそのままです）` : `番「${n}」を足しました`;
+  const hours = Math.round(((input.endMin - input.startMin) / 60) * 10) / 10;
+  const note = toNext ? `。終わりを ${fmtMin(input.endMin)} として入れました（${hours} 時間）` : hours > 16 ? `。${hours} 時間の番です。時刻を確かめてください` : "";
+  const label = prev ? `番「${n}」を直しました（入れてある勤務表の時刻はそのままです${note}）` : `番「${n}」を足しました${note ? `（${note.slice(1)}）` : ""}`;
   return { events: [{ ...metaOf(ctx), type: "roleSlot.upsert", roleSlot: slot }], label };
 }
 
@@ -218,7 +223,10 @@ export function removeRoleSlotEvents(state: State, slotId: ID, today: DateKey, c
   const patterns = Object.values(state.patterns).filter((p) => p.items.some((it) => it.slotIds.includes(slotId)));
   if (rosterDays > 0 || patterns.length > 0) {
     const why = [rosterDays > 0 ? `今日以降の勤務表 ${rosterDays}日` : "", patterns.length > 0 ? `業務表「${patterns.map((p) => p.name).join("・")}」` : ""].filter(Boolean).join("と");
-    const next = patterns.length > 0 ? "使わなくなった番は、名前を変えて残してください" : "先に勤務表のその日の番を選び直してください";
+    const next =
+      patterns.length > 0
+        ? "使わなくなった番は、名前を変えて残してください（業務表から外すには、ボードでその番の枠を外してから ⋯ →「今日を業務表として保存」）"
+        : "先に勤務表のその日の番を選び直してください";
     return { events: [], label: "", error: `番「${sl.name}」は${why}で使われているので外せません。${next}` };
   }
   return { events: [{ ...metaOf(ctx), type: "roleSlot.remove", id: slotId }], label: `番「${sl.name}」を外しました` };

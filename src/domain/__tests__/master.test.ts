@@ -43,7 +43,7 @@ test("グループを足すと、雛形の同じ種類の番と業務表の枠�
   assert.ok(items.length > 0, "業務表の枠が写る");
   assert.ok(items.every((it) => it.targetRule !== "residents"));
   assert.ok(items.every((it) => it.slotIds.every((sid) => s2.roleSlots[sid])), "枠の番は施設にある番");
-  assert.match(r.label, /グループ「3階」を足しました（番 \d+: .*3階.*・業務表の枠 \d+/);
+  assert.match(r.label, /グループ「3階」をフロアとして足しました（番 \d+: .*3階.*・業務表の枠 \d+/);
   // 業務表から作ると、3階の枠が出る
   const draft = morningDraft(s2, "2026-11-09", () => "x");
   const evs = applyPatternEvents(s2, "2026-11-09", draft.patternId!, ctx("p"));
@@ -99,6 +99,7 @@ test("番を足す・直す・外す。時刻を変えても入れてある勤�
   // 夜勤を「17:00／9:00」と入れても翌9:00 として受ける
   const night = upsertRoleSlotEvents(s, { name: "夜勤X", startMin: 17 * 60, endMin: 9 * 60 }, ctx("nx"));
   assert.equal(night.error, undefined);
+  assert.match(night.label, /終わりを 翌9:00 として入れました（16 時間）/);
   assert.equal(applyEvents(s, night.events).roleSlots[(night.events[0] as { roleSlot: { id: string } }).roleSlot.id].defaultEndMin, 33 * 60);
   assert.match(upsertRoleSlotEvents(s, { name: "早番A", startMin: 420, endMin: 960 }, ctx("a")).error ?? "", /もうあります/);
   const add = upsertRoleSlotEvents(s, { name: "A勤", startMin: 450, endMin: 990, groupId: Object.values(s.groups)[0].id, leaderRank: 2 }, ctx("b"));

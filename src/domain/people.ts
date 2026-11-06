@@ -16,6 +16,8 @@ export interface StaffInput {
   role: string;
   tags: string[];
   phone?: string;
+  /** 所属のグループ。undefined は今のまま、"" は所属なし（ループ 13: グループを外す前に所属を変えられるように） */
+  homeGroupId?: ID | "";
 }
 
 export interface ResidentInput {
@@ -47,6 +49,7 @@ export function staffFormEvents(state: State, input: StaffInput, ctx: EventConte
   if (dup) return { events: [], label: "", error: `${displayName}さんはすでに登録されています` };
   const prev = input.id ? state.staff[input.id] : undefined;
   if (input.id && !prev) return { events: [], label: "", error: "その職員は見つかりません" };
+  if (input.homeGroupId && !state.groups[input.homeGroupId]) return { events: [], label: "", error: "そのグループは見つかりません" };
   const surname = displayName.split(" ")[0];
   const tags = [...new Set(input.tags.map((t) => t.trim()).filter(Boolean))];
   const staff: Staff = {
@@ -59,6 +62,8 @@ export function staffFormEvents(state: State, input: StaffInput, ctx: EventConte
     ...(phone ? { phone } : {}),
   };
   if (!phone) delete (staff as { phone?: string }).phone;
+  if (input.homeGroupId) staff.homeGroupId = input.homeGroupId;
+  else if (input.homeGroupId === "") delete staff.homeGroupId;
   const label = prev ? `${surname}さんを直しました` : `${surname}さんを足しました（今日来るなら、ボードの右の「＋ 今日来る人を足す」から）`;
   return { events: [{ ...metaOf(ctx), type: "staff.upsert", staff }], label };
 }

@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { addGroupEvents, groupMembers, removeGroupEvents, removeRoleSlotEvents, renameFacilityEvents, renameGroupEvents, roleSlotUsage, upsertRoleSlotEvents } from "@/domain/master";
+import { useEffect, useRef, useState } from "react";
+import { addGroupEvents, groupKindOf, groupMembers, removeGroupEvents, removeRoleSlotEvents, renameFacilityEvents, renameGroupEvents, roleSlotUsage, upsertRoleSlotEvents } from "@/domain/master";
 import { himawariSeed } from "@/domain/seed";
 import { fmtMin, parseClockInput } from "@/domain/time";
-import type { ID, State } from "@/domain/types";
+import type { Group, ID, State } from "@/domain/types";
 import { useEngine } from "@/store/react";
 
 /**
@@ -18,6 +18,15 @@ export function MasterEditor({ state, today, onDone }: { state: State; today: st
   const engine = useEngine();
   const [facilityName, setFacilityName] = useState(state.facility?.name ?? "");
   const [groupName, setGroupName] = useState("");
+  // 種類は名前から推して既定にし、人が選び直せる（ループ 13）
+  const [groupKind, setGroupKind] = useState<Group["kind"] | null>(null);
+  const kindNow: Group["kind"] = groupKind ?? groupKindOf(groupName);
+  // 元に戻したとき・別のタブで変わったとき、入力欄も今の名前に合わせる
+  const currentName = state.facility?.name ?? "";
+  useEffect(() => setFacilityName(currentName), [currentName]);
+  const groupInput = useRef<HTMLInputElement>(null);
+  const addSlotBtn = useRef<HTMLButtonElement>(null);
+  const focusLater = (fn: () => HTMLElement | null | undefined) => requestAnimationFrame(() => fn()?.focus());
   const [editingGroup, setEditingGroup] = useState<ID | null>(null);
   const [groupEdit, setGroupEdit] = useState("");
   const [error, setError] = useState<Record<string, string>>({});
@@ -25,7 +34,7 @@ export function MasterEditor({ state, today, onDone }: { state: State; today: st
   const [slotForm, setSlotForm] = useState({ name: "", start: "", end: "", groupId: "", leader: "" });
   const groups = Object.values(state.groups).sort((a, b) => a.sortOrder - b.sortOrder);
   const slots = Object.values(state.roleSlots).sort((a, b) => a.sortOrder - b.sortOrder);
-  const field = "h-[44px] rounded-lg border border-[var(--cn-control-line)] px-2.5 text-[15px]";
+  const field = "h-[44px] rounded-lg border border-[var(--cn-control-line)] px-2.5 text-[15px] placeholder:text-[var(--cn-muted)]";
   const btn = "h-[44px] rounded-lg border border-[var(--cn-control-line)] bg-white px-3 text-[15px]";
   const primary = "h-[44px] rounded-lg bg-[var(--cn-accent)] px-4 font-bold text-white disabled:bg-[var(--cn-muted)]";
   if (!engine) return null;
@@ -52,13 +61,15 @@ export function MasterEditor({ state, today, onDone }: { state: State; today: st
       leader: sl?.leaderRank ? String(sl.leaderRank) : "",
     });
     setSlotOpen(id);
-    setError((e) => ({ ...e, slot: "" }));
+    setError((e) => ({ ...e, slot: "", slotField: "" }));
   };
   const saveSlot = async () => {
     const startMin = parseClockInput(slotForm.start);
     const endMin = parseClockInput(slotForm.end);
     if (startMin === null || endMin === null) {
-      setError((e) => ({ ...e, slot: "時刻は 7:00 や 翌9:00 のように入れてください" }));
+      const which = startMin === null ? "開始" : "終わり";
+      setError((e) => ({ ...e, slot: `${which}の時刻が読めません。7:00 や 翌9:00 のように入れてください`, slotField: startMin === null ? "start" : "end" }));
+      focusLater(() => document.getElementById(`slot-${startMin === null ? "start" : "end"}`));
       return;
     }
     const ok = await run(
@@ -76,12 +87,26 @@ export function MasterEditor({ state, today, onDone }: { state: State; today: st
         engine.context(),
       ),
     );
-    if (ok) setSlotOpen(null);
+    if (ok) closeSlot();
+  };
+  // フォームを閉じたら、開いたボタンへフォーカスを戻す（WCAG 2.4.3）
+  const closeSlot = (removedId?: ID) => {
+    const was = slotOpen;
+    setSlotOpen(null);
+    focusLater(() => {
+      if (was === "new" || !was) return addSlotBtn.current;
+      if (removedId) {
+        const i = slots.findIndex((x) => x.id === removedId);
+        const nextSlot = slots[i + 1] ?? slots[i - 1];
+        return nextSlot ? document.querySelector<HTMLElement>(`[data-slot-btn="${nextSlot.id}"]`) : addSlotBtn.current;
+      }
+      return document.querySelector<HTMLElement>(`[data-slot-btn="${was}"]`);
+    });
   };
 
-  const err = (key: string) =>
+  const err = (key: string, id?: string) =>
     error[key] ? (
-      <p role="alert" className="rounded-lg border-2 border-[var(--cn-alert-line)] px-3 py-2 text-[15px]">
+      <p id={id} role="alert" className="basis-full rounded-lg border-2 border-[var(--cn-alert-line)] px-3 py-2 text-[15px]">
         {error[key]}
       </p>
     ) : null;
@@ -103,9 +128,10 @@ export function MasterEditor({ state, today, onDone }: { state: State; today: st
             名前（上部バーに出ます）
             <input value={facilityName} onChange={(e) => setFacilityName(e.target.value)} className={`${field} w-[260px]`} />
           </label>
-          <button type="submit" disabled={facilityName.trim() === (state.facility?.name ?? "")} className={primary}>
+          <button type="submit" disabled={facilityName.trim() === currentName} className={primary}>
             この名前にする
           </button>
+          {facilityName.trim() === currentName && <span className="self-center text-[14px] text-[var(--cn-ink-soft)]">名前を書き換えると押せます</span>}
         </form>
         {err("facility")}
       </section>
@@ -115,8 +141,9 @@ export function MasterEditor({ state, today, onDone }: { state: State; today: st
           グループ（ユニット・フロア）
         </h3>
         <p className="mb-2 text-[14px] text-[var(--cn-ink-soft)]">
-          足すと、その種類（名前に「ユニット」があればユニット、ほかはフロア）の番と日課の枠が雛形から入り、次の日の時間割から出ます。要らない日課は利用者の画面で外せます。
-          利用者・職員の所属が残っている間は外せません。
+          足すと、選んだ種類（ユニット／フロア）の番と業務表の枠がサンプル施設から入り、まだ作っていない日の時間割から出ます（作ってある日は変わりません）。
+          先に利用者と職員をこのグループに移してから使い始めてください。必要人数はサンプルのままなので、ボードで直してから「⋯ → 今日を業務表として保存」。
+          日課の枠は利用者の画面で外せます。利用者・職員の所属が残っている間は外せません。
         </p>
         <ul role="list" aria-label="グループの一覧" className="flex flex-col divide-y divide-[var(--cn-card-line)]">
           {groups.map((g) => {
@@ -127,10 +154,12 @@ export function MasterEditor({ state, today, onDone }: { state: State; today: st
                 <span className="w-[220px] shrink-0">
                   <span className="font-bold">{g.name}</span>{" "}
                   <span className="text-[14px] text-[var(--cn-ink-soft)]">{g.kind === "common" ? "共通" : g.kind === "unit" ? "ユニット" : "フロア"}</span>
-                  {g.kind !== "common" && (
+                  {g.kind !== "common" ? (
                     <span className="block text-[13px] text-[var(--cn-muted)]">
                       利用者 {m.residents}人・職員 {m.staff}人
                     </span>
+                  ) : (
+                    <span className="block text-[13px] text-[var(--cn-muted)]">共通は名前を変えたり外したりできません</span>
                   )}
                 </span>
                 {g.kind !== "common" && !open && (
@@ -138,10 +167,12 @@ export function MasterEditor({ state, today, onDone }: { state: State; today: st
                     <button
                       type="button"
                       className={btn}
+                      data-group-edit={g.id}
                       onClick={() => {
                         setEditingGroup(g.id);
                         setGroupEdit(g.name);
-                        setError((e) => ({ ...e, group: "" }));
+                        setError((e) => ({ ...e, [`group:${g.id}`]: "" }));
+                        focusLater(() => document.getElementById(`group-name-${g.id}`));
                       }}
                     >
                       名前を変える
@@ -150,7 +181,15 @@ export function MasterEditor({ state, today, onDone }: { state: State; today: st
                       type="button"
                       className={btn}
                       aria-label={`${g.name}を外す`}
-                      onClick={() => void run("group", removeGroupEvents(engine.state, g.id, engine.context()))}
+                      aria-describedby={error[`group:${g.id}`] ? `err-group-${g.id}` : undefined}
+                      onClick={async () => {
+                        const i = groups.findIndex((x) => x.id === g.id);
+                        const r = removeGroupEvents(engine.state, g.id, engine.context());
+                        if (await run(`group:${g.id}`, r) && !r.error) {
+                          const nextG = groups.slice(i + 1).find((x) => x.kind !== "common") ?? groups.slice(0, i).reverse().find((x) => x.kind !== "common");
+                          focusLater(() => (nextG ? document.querySelector<HTMLElement>(`[data-group-edit="${nextG.id}"]`) : groupInput.current));
+                        }
+                      }}
                     >
                       外す
                     </button>
@@ -161,20 +200,41 @@ export function MasterEditor({ state, today, onDone }: { state: State; today: st
                     className="flex flex-wrap items-center gap-2"
                     onSubmit={async (e) => {
                       e.preventDefault();
-                      if (await run("group", renameGroupEvents(engine.state, g.id, groupEdit, engine.context()))) setEditingGroup(null);
+                      if (await run(`group:${g.id}`, renameGroupEvents(engine.state, g.id, groupEdit, engine.context()))) {
+                        setEditingGroup(null);
+                        focusLater(() => document.querySelector<HTMLElement>(`[data-group-edit="${g.id}"]`));
+                      }
                     }}
                   >
                     <label className="flex items-center gap-2 text-[14px]">
                       新しい名前
-                      <input value={groupEdit} onChange={(e) => setGroupEdit(e.target.value)} className={`${field} w-[200px]`} aria-label={`${g.name}の新しい名前`} />
+                      <input id={`group-name-${g.id}`} value={groupEdit} onChange={(e) => setGroupEdit(e.target.value)} className={`${field} w-[200px]`} aria-label={`${g.name}の新しい名前`} />
                     </label>
                     <button type="submit" className={primary}>
                       この名前にする
                     </button>
-                    <button type="button" onClick={() => setEditingGroup(null)} className="h-[44px] px-3 text-[15px] text-[var(--cn-ink-soft)] underline">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingGroup(null);
+                        focusLater(() => document.querySelector<HTMLElement>(`[data-group-edit="${g.id}"]`));
+                      }}
+                      className="h-[44px] px-3 text-[15px] text-[var(--cn-ink-soft)] underline"
+                    >
                       閉じる
                     </button>
                   </form>
+                )}
+                {err(`group:${g.id}`, `err-group-${g.id}`)}
+                {error[`group:${g.id}`] && /所属/.test(error[`group:${g.id}`]) && (
+                  <span className="flex basis-full flex-wrap gap-3 text-[15px]">
+                    <Link href="/residents" className="inline-flex min-h-[44px] items-center font-bold text-[var(--cn-accent)] underline">
+                      利用者の画面へ
+                    </Link>
+                    <a href="#s-tags" className="inline-flex min-h-[44px] items-center font-bold text-[var(--cn-accent)] underline">
+                      職員の欄へ
+                    </a>
+                  </span>
                 )}
               </li>
             );
@@ -184,16 +244,38 @@ export function MasterEditor({ state, today, onDone }: { state: State; today: st
           className="mt-3 flex flex-wrap items-end gap-2"
           onSubmit={async (e) => {
             e.preventDefault();
-            if (await run("group", addGroupEvents(engine.state, groupName, himawariSeed, engine.context()))) setGroupName("");
+            if (await run("group", addGroupEvents(engine.state, groupName, himawariSeed, engine.context(), kindNow))) {
+              setGroupName("");
+              setGroupKind(null);
+              focusLater(() => groupInput.current);
+            }
           }}
         >
           <label className="flex flex-col gap-1 text-[14px]">
-            グループを足す（例: 3階、すみれユニット）
-            <input value={groupName} onChange={(e) => setGroupName(e.target.value)} className={`${field} w-[240px]`} />
+            グループを足す（例: 3階、すみれ）
+            <input ref={groupInput} value={groupName} onChange={(e) => setGroupName(e.target.value)} className={`${field} w-[240px]`} />
           </label>
+          <fieldset className="flex flex-col gap-1">
+            <legend className="text-[14px]">種類</legend>
+            <div className="flex gap-1">
+              {(["unit", "floor"] as const).map((k) => (
+                <button
+                  key={k}
+                  type="button"
+                  aria-pressed={kindNow === k}
+                  onClick={() => setGroupKind(k)}
+                  className={`h-[44px] rounded-lg border px-3 text-[15px] ${kindNow === k ? "border-2 border-[var(--cn-accent)] bg-[var(--cn-accent-soft)] font-bold text-[var(--cn-accent)]" : "border-[var(--cn-control-line)] bg-white"}`}
+                >
+                  <span aria-hidden="true">{kindNow === k ? "✓ " : ""}</span>
+                  {k === "unit" ? "ユニット" : "フロア"}
+                </button>
+              ))}
+            </div>
+          </fieldset>
           <button type="submit" disabled={!groupName.trim()} className={primary}>
             ＋ グループを足す
           </button>
+          {!groupName.trim() && <span className="self-center text-[14px] text-[var(--cn-ink-soft)]">名前を入れると押せます</span>}
         </form>
         {err("group")}
       </section>
@@ -203,7 +285,7 @@ export function MasterEditor({ state, today, onDone }: { state: State; today: st
           番（早番A・遅番 など、その日の役割）
         </h3>
         <p className="mb-2 text-[14px] text-[var(--cn-ink-soft)]">
-          名前・時刻・グループ・リーダーの順を直せます。時刻を変えても、入れてある勤務表の時刻はそのままです（次に貼る勤務表と、朝の帯で選び直した日から）。
+          名前・時刻・グループ・リーダーの順を直せます。時刻を変えると、まだ番を入れていない日から効きます。入れてある日の時刻はそのままです（変えたい日は、勤務表を貼り直すか朝の帯で選び直す）。
           今日以降の勤務表か業務表で使われている番は外せません。
         </p>
         <ul role="list" aria-label="番の一覧" className="flex flex-col divide-y divide-[var(--cn-card-line)]">
@@ -213,25 +295,25 @@ export function MasterEditor({ state, today, onDone }: { state: State; today: st
               <li key={sl.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2">
                 <button
                   type="button"
+                  data-slot-btn={sl.id}
                   aria-expanded={slotOpen === sl.id}
+                  aria-controls={slotOpen === sl.id ? `slot-form-${sl.id}` : undefined}
                   aria-label={`番「${sl.name}」を直す`}
-                  onClick={() => (slotOpen === sl.id ? setSlotOpen(null) : openSlot(sl.id))}
-                  className="inline-flex h-[44px] w-[260px] shrink-0 flex-col items-start justify-center rounded-lg px-2 text-left hover:bg-[var(--cn-ground)]"
+                  aria-describedby={`slot-meta-${sl.id}`}
+                  onClick={() => (slotOpen === sl.id ? closeSlot() : openSlot(sl.id))}
+                  className="inline-flex min-h-[44px] w-[300px] max-w-full shrink-0 flex-col items-start justify-center rounded-lg px-2 py-1.5 text-left hover:bg-[var(--cn-ground)]"
                 >
                   <span>
-                    <span className="font-bold underline decoration-[var(--cn-control-line)] underline-offset-4">{sl.name}</span>{" "}
-                    <span className="text-[14px] text-[var(--cn-ink-soft)]">
-                      {fmtMin(sl.defaultStartMin)}–{fmtMin(sl.defaultEndMin)}
-                    </span>
+                    <span className="font-bold underline decoration-[var(--cn-control-line)] underline-offset-4">{sl.name}</span>
                   </span>
-                  <span className="text-[13px] text-[var(--cn-muted)]">
-                    {sl.groupId ? state.groups[sl.groupId]?.name : "グループなし"}
+                  <span id={`slot-meta-${sl.id}`} className="text-[13px] text-[var(--cn-muted)]">
+                    {fmtMin(sl.defaultStartMin)}–{fmtMin(sl.defaultEndMin)} ・ {sl.groupId ? state.groups[sl.groupId]?.name : "グループなし"}
                     {sl.leaderRank ? ` ・ リーダー ${sl.leaderRank}番目` : ""}
-                    {u.rosterDays > 0 || u.patterns > 0 ? ` ・ 勤務表 ${u.rosterDays}日・業務表 ${u.patterns}` : ""}
+                    {u.rosterDays > 0 || u.patterns > 0 ? ` ・ 使っている: 今日以降の勤務表 ${u.rosterDays}日・業務表 ${u.patterns}つ` : ""}
                   </span>
                 </button>
                 {slotOpen === sl.id && (
-                  <div className="basis-full">
+                  <div className="basis-full" id={`slot-form-${sl.id}`}>
                     <SlotForm
                       form={slotForm}
                       setForm={setSlotForm}
@@ -240,11 +322,12 @@ export function MasterEditor({ state, today, onDone }: { state: State; today: st
                       primary={primary}
                       submitLabel="この内容で直す"
                       onSubmit={saveSlot}
-                      onClose={() => setSlotOpen(null)}
+                      onClose={() => closeSlot()}
                       onRemove={async () => {
-                        if (await run("slot", removeRoleSlotEvents(engine.state, sl.id, today, engine.context()))) setSlotOpen(null);
+                        if (await run("slot", removeRoleSlotEvents(engine.state, sl.id, today, engine.context()))) closeSlot(sl.id);
                       }}
                       error={error.slot}
+                      errorField={error.slotField}
                     />
                   </div>
                 )}
@@ -262,11 +345,20 @@ export function MasterEditor({ state, today, onDone }: { state: State; today: st
               primary={primary}
               submitLabel="この内容で足す"
               onSubmit={saveSlot}
-              onClose={() => setSlotOpen(null)}
+              onClose={() => closeSlot()}
               error={error.slot}
+              errorField={error.slotField}
             />
           ) : (
-            <button type="button" className={`${btn} font-bold`} onClick={() => openSlot("new")}>
+            <button
+              ref={addSlotBtn}
+              type="button"
+              className={`${btn} font-bold`}
+              onClick={() => {
+                openSlot("new");
+                focusLater(() => document.getElementById("slot-name"));
+              }}
+            >
               ＋ 番を足す
             </button>
           )}
@@ -308,6 +400,7 @@ function SlotForm({
   onClose,
   onRemove,
   error,
+  errorField,
 }: {
   form: { name: string; start: string; end: string; groupId: string; leader: string };
   setForm: (f: { name: string; start: string; end: string; groupId: string; leader: string }) => void;
@@ -319,10 +412,12 @@ function SlotForm({
   onClose: () => void;
   onRemove?: () => void;
   error?: string;
+  errorField?: string;
 }) {
+  const bad = (k: string) => (error && errorField === k ? { "aria-invalid": true as const, "aria-describedby": "slot-err" } : {});
   return (
     <form
-      aria-label={submitLabel === "この内容で足す" ? "番を足す" : `番「${form.name}」を直す`}
+      aria-label={submitLabel === "この内容で足す" ? "番を足す" : `番「${form.name}」の編集`}
       className="mt-2 flex flex-col gap-3 rounded-xl border-2 border-[var(--cn-accent)] bg-white p-4"
       onSubmit={(e) => {
         e.preventDefault();
@@ -332,15 +427,15 @@ function SlotForm({
       <div className="flex flex-wrap gap-3">
         <label className="flex flex-col gap-1 text-[14px]">
           名前
-          <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className={`${field} w-[160px]`} placeholder="例: 早番A" />
+          <input id="slot-name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className={`${field} w-[160px]`} placeholder="例: 早番A" />
         </label>
         <label className="flex flex-col gap-1 text-[14px]">
-          開始
-          <input value={form.start} onChange={(e) => setForm({ ...form, start: e.target.value })} className={`${field} w-[110px]`} placeholder="例: 7:00" />
+          開始（例: 7:00）
+          <input id="slot-start" {...bad("start")} value={form.start} onChange={(e) => setForm({ ...form, start: e.target.value })} className={`${field} w-[110px]`} placeholder="7:00" />
         </label>
         <label className="flex flex-col gap-1 text-[14px]">
           終わり（翌日は 翌9:00）
-          <input value={form.end} onChange={(e) => setForm({ ...form, end: e.target.value })} className={`${field} w-[140px]`} placeholder="例: 16:00" />
+          <input id="slot-end" {...bad("end")} value={form.end} onChange={(e) => setForm({ ...form, end: e.target.value })} className={`${field} w-[140px]`} placeholder="16:00" />
         </label>
         <label className="flex flex-col gap-1 text-[14px]">
           グループ
@@ -360,11 +455,14 @@ function SlotForm({
             <option value="1">1 番目</option>
             <option value="2">2 番目</option>
             <option value="3">3 番目</option>
+            <option value="4">4 番目</option>
+            <option value="5">5 番目</option>
           </select>
         </label>
       </div>
+      <p className="text-[14px] text-[var(--cn-ink-soft)]">「困ったら」の相談先は、その時間に勤務している番のうち順のいちばん上の 1 人です（施設全体で 1 人。グループごとには分けません）。</p>
       {error && (
-        <p role="alert" className="rounded-lg border-2 border-[var(--cn-alert-line)] px-3 py-2 text-[15px]">
+        <p id="slot-err" role="alert" className="rounded-lg border-2 border-[var(--cn-alert-line)] px-3 py-2 text-[15px]">
           {error}
         </p>
       )}

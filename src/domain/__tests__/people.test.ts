@@ -92,3 +92,17 @@ test("利用者を 1 人ずつ足す・直す・退所。退所は対象から�
   assert.ok(s6.residents[tanaka.id]);
   assert.equal(residentFutureTargets(s6, tanaka.id, DATE), n);
 });
+
+test("職員の所属（グループ）を直せる。空にすると所属なし、入れなければ今のまま", () => {
+  const s = stateFromSeed(himawariSeed, deterministicContext("p", "2026-11-06T10:00:00+09:00", "p"));
+  const st = Object.values(s.staff).find((x) => x.homeGroupId)!;
+  const other = Object.values(s.groups).find((g) => g.kind !== "common" && g.id !== st.homeGroupId)!;
+  const c = (b: string) => deterministicContext(b, "2026-11-06T10:00:00+09:00", b);
+  const base = { id: st.id, displayName: st.displayName, role: st.role, tags: st.tags, phone: st.phone };
+  const s2 = applyEvents(s, staffFormEvents(s, { ...base, homeGroupId: other.id }, c("a")).events);
+  assert.equal(s2.staff[st.id].homeGroupId, other.id);
+  const s3 = applyEvents(s2, staffFormEvents(s2, base, c("b")).events);
+  assert.equal(s3.staff[st.id].homeGroupId, other.id, "入れなければ今のまま");
+  const s4 = applyEvents(s3, staffFormEvents(s3, { ...base, homeGroupId: "" }, c("c")).events);
+  assert.equal(s4.staff[st.id].homeGroupId, undefined);
+});
