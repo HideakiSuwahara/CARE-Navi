@@ -81,9 +81,9 @@ export function TaskCard({
   // 細い形のカードは始まりの時刻だけ（「9:30–10:…」と切れて作りかけに見えないように。決定記録 0019）
   const when = (
     <>
-      {variant === "narrow" || tight ? `${fmtMin(task.startMin)}〜` : fmtRange(task.startMin, task.endMin)}
+      {tight ? `${fmtMin(task.startMin)}〜` : fmtRange(task.startMin, task.endMin)}
       {/* 左のレール・細いカードは時刻だけ。人数は詳細で（ループ 15 #4） */}
-      {task.targetMode === "group" && targets.length > 0 && !rail && !tight && variant !== "narrow" && ` ・ ${targets.length}人`}
+      {task.targetMode === "group" && targets.length > 0 && !rail && !tight && ` ・ ${targets.length}人`}
     </>
   );
   // 業務名のボタンは 2 行（名前・時刻）で高さ 44px。負のマージンで広げないので、隣の要素に押せる領域を取られない

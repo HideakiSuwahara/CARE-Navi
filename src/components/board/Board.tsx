@@ -327,6 +327,11 @@ export function Board({ date: dateParam }: { date?: string }) {
     setPanel({ mode, taskId });
   };
   const openDetail = (id: string) => openPanel("detail", id);
+  // 担当の足りない短い枠は、札を業務名の下の段に（1 行に詰めると「お.担当あと1人」と重なる。ループ 19 #14）
+  const isShort = (taskId: string) => {
+    const l = headcountStatus(state, taskId).level;
+    return l === "unassigned" || l === "short";
+  };
   // 列の見出しの帯の色（グループの並び順で回す。共通は灰色。決定記録 0019）
   const groupColor = (id?: string): string => {
     const g = id ? state.groups[id] : undefined;
@@ -681,7 +686,17 @@ export function Board({ date: dateParam }: { date?: string }) {
                               now={now}
                               // 細いとき、1 行に業務名・担当のチップ・＋を詰める形（compact）は業務名が潰れる。
                               // 同じ時刻に横に並ぶ短い枠は細い形（narrow: 業務名・時刻と＋、担当は名字の文字）、利用者ごとの列は 2 段の形にする
-                              variant={rail ? "rail" : height < 84 ? "mini" : height < 150 && lanes > 1 ? "narrow" : height < 150 && view !== "resident" ? "compact" : "normal"}
+                              variant={
+                                rail
+                                  ? "rail"
+                                  : height < 84
+                                    ? "mini"
+                                    : height < 150 && (lanes > 1 || isShort(task.id))
+                                      ? "narrow"
+                                      : height < 150 && view !== "resident"
+                                        ? "compact"
+                                        : "normal"
+                              }
                               onOpen={openDetail}
                               onAdd={openAssign}
                               instanceKey={view === "resident" ? c.id : undefined}
