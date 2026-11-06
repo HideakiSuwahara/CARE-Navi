@@ -1,4 +1,6 @@
+import Image from "next/image";
 import Link from "next/link";
+import { Logo } from "@/components/Logo";
 
 /**
  * 最初の画面。何の道具かと、サンプル施設で試せる 3 つの場面（決定記録 0018）。
@@ -27,23 +29,46 @@ const scenes: { when: string; what: string; href: string; go: string }[] = [
 
 export default function Home() {
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-6 px-4 py-10">
-      <header className="flex flex-wrap items-center gap-3">
-        <span className="inline-block h-7 w-7 rounded-lg bg-[var(--cn-accent)]" aria-hidden="true" />
-        <h1 className="text-2xl font-bold">ケアナビ</h1>
-        <span className="text-[15px] text-[var(--cn-ink-soft)]">仕事に、人を付ける。</span>
-      </header>
-      <p className="max-w-2xl text-[16px]">
-        介護施設の一日の仕事を時間割にして、必要な仕事に人を付け、一人ひとりに「いつ・どこで・誰に・何を」を案内する道具です。
-        人に仕事を積み上げるのではなく、仕事の枠に人を付けます。
-      </p>
-      <div className="flex flex-wrap gap-3">
-        <Link href="/board" className="inline-flex h-12 items-center rounded-xl bg-[var(--cn-accent)] px-5 text-base font-bold text-white">
-          サンプル施設で試す
-        </Link>
-        <Link href="/setup" className="inline-flex h-12 items-center rounded-xl border border-[var(--cn-control-line)] bg-white px-5 text-base">
-          自分の施設で始める
-        </Link>
+    <main className="mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-8 px-4 py-8 sm:py-10">
+      <div className="grid items-center gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)]">
+        <div className="flex flex-col gap-5">
+          <header className="flex items-center gap-3">
+            <Logo size={40} />
+            <h1 className="text-[28px] font-bold tracking-wide">ケアナビ</h1>
+          </header>
+          <p className="text-[26px] font-bold leading-snug text-[var(--cn-accent)] sm:text-[30px]">仕事に、人を付ける。</p>
+          <p className="max-w-xl text-[16px] leading-relaxed">
+            介護施設の一日の仕事を時間割にして、必要な仕事に人を付け、一人ひとりに「いつ・どこで・誰に・何を」を案内する道具です。
+            人に仕事を積み上げるのではなく、仕事の枠に人を付けます。
+          </p>
+          <div className="flex flex-wrap gap-3">
+            <Link href="/board" className="inline-flex h-[52px] items-center rounded-xl bg-[var(--cn-accent)] px-6 text-[17px] font-bold text-white shadow-[0_4px_14px_rgba(29,92,138,0.35)]">
+              サンプル施設で試す
+            </Link>
+            <Link href="/setup" className="inline-flex h-[52px] items-center rounded-xl border border-[var(--cn-control-line)] bg-white px-5 text-[16px]">
+              自分の施設で始める
+            </Link>
+          </div>
+        </div>
+        {/* 製品の姿（決定記録 0019）: サンプル施設のボードと、初日の人のスマホ */}
+        <figure className="relative pb-10 pr-10 sm:pb-14 sm:pr-16">
+          <Image
+            src="/shots/board.png"
+            alt="ボード: 縦が時間、横がフロアとユニット。入浴介助に「担当あと1人」、担当の決まっていない枠に「担当未定」が出ている"
+            width={1440}
+            height={900}
+            priority
+            className="w-full rounded-xl border border-[var(--cn-border)] shadow-[0_12px_32px_rgba(28,31,35,0.18)]"
+          />
+          <Image
+            src="/shots/me.png"
+            alt="スマホの自分の予定: 困ったらの相談先、いまの時間の予定、お願いすること・しないこと"
+            width={824}
+            height={1678}
+            className="absolute bottom-0 right-0 w-[26%] min-w-[110px] rounded-[18px] border-4 border-[var(--cn-ink)] shadow-[0_12px_28px_rgba(28,31,35,0.3)]"
+          />
+          <figcaption className="sr-only">ケアナビのボードとスマホの画面（架空の施設「ひまわり苑」）</figcaption>
+        </figure>
       </div>
 
       <section aria-labelledby="scenes-title" className="flex flex-col gap-3">

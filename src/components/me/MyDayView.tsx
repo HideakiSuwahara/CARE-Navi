@@ -275,7 +275,8 @@ function FocusCard({ item, open, now }: { item: MyItem; open: boolean; now: numb
   const id = `fc-${t.id}`;
   // 読み上げ名は Link の中の文字そのまま（時刻・業務名・中身・「くわしく見る」）。名前と見える文字がずれないように（2.5.3）
   return (
-    <div className={`rounded-xl border-2 bg-white ${item.done ? "border-[var(--cn-card-line)]" : "border-[var(--cn-accent)]"}`}>
+    // いまの時間の予定は左に紺の太い帯（決定記録 0019）。終わった印のあとは薄い枠に戻す
+    <div className={`rounded-xl border-2 bg-white ${item.done ? "border-[var(--cn-card-line)]" : "border-[var(--cn-accent)] border-l-[10px] shadow-[0_2px_8px_rgba(29,92,138,0.15)]"}`}>
     <Link href={meHref(t.id)} className="block p-4">
       <p id={`${id}-time`} className="text-[16px] font-bold">
         {fmtRange(t.startMin, t.endMin)}
@@ -309,7 +310,7 @@ function FocusCard({ item, open, now }: { item: MyItem; open: boolean; now: numb
         </p>
       )}
       </div>
-      <p className="mt-2 text-[16px] font-bold text-[var(--cn-accent)]">
+      <p className="mt-3 inline-flex min-h-[44px] items-center gap-1 rounded-lg bg-[var(--cn-accent-soft)] px-3 text-[16px] font-bold text-[var(--cn-accent)]">
         <span id={`${id}-more`}>くわしく見る</span> <span aria-hidden="true">›</span>
       </p>
     </Link>

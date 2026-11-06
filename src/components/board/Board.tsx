@@ -315,6 +315,16 @@ export function Board({ date: dateParam }: { date?: string }) {
     setPanel({ mode, taskId });
   };
   const openDetail = (id: string) => openPanel("detail", id);
+  // 列の見出しの帯の色（グループの並び順で回す。共通は灰色。決定記録 0019）
+  const groupColor = (id?: string): string => {
+    const g = id ? state.groups[id] : undefined;
+    if (!g || g.kind === "common") return "var(--cn-group-common)";
+    const order = Object.values(state.groups)
+      .filter((x) => x.kind !== "common")
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .findIndex((x) => x.id === g.id);
+    return `var(--cn-group-${(order % 4) + 1})`;
+  };
   const openAssign = (id: string) => openPanel("assign", id);
   const closePanel = useCallback(() => {
     const opener = openerRef.current;
@@ -600,7 +610,13 @@ export function Board({ date: dateParam }: { date?: string }) {
                 <div className="sticky left-0 z-10 bg-white px-2 py-2.5 text-[13px] text-[var(--cn-muted)]">時刻</div>
 
                 {columns.map((c) => (
-                  <h2 key={c.id} id={`col-${c.id}`} className="border-l border-[var(--cn-grid)] px-3 py-2.5 font-bold" title={view === "resident" ? c.sub : undefined}>
+                  <h2
+                    key={c.id}
+                    id={`col-${c.id}`}
+                    className="border-l border-t-4 border-[var(--cn-grid)] px-3 py-2 font-bold"
+                    style={{ borderTopColor: groupColor(view === "resident" ? residentGroup : c.id) }}
+                    title={view === "resident" ? c.sub : undefined}
+                  >
                     <span>{c.name}</span> {view !== "resident" && c.sub && <span className="text-[14px] font-normal text-[var(--cn-muted)]">{c.sub}</span>}
                   </h2>
                 ))}
@@ -641,7 +657,7 @@ export function Board({ date: dateParam }: { date?: string }) {
                       const left = areaLeft + (areaWidth * lane) / lanes;
                       const width = areaWidth / lanes;
                       return (
-                        <DropZone key={task.id} id={view === "resident" ? `task:${task.id}:${c.id}` : `task:${task.id}`} data={{ kind: "task", taskId: task.id }} className="absolute p-[3px]" style={{ top, height, left: `${left}%`, width: `${width}%` }}>
+                        <DropZone key={task.id} id={view === "resident" ? `task:${task.id}:${c.id}` : `task:${task.id}`} data={{ kind: "task", taskId: task.id }} className="absolute z-[2] p-[3px]" style={{ top, height, left: `${left}%`, width: `${width}%` }}>
                           {view === "resident" && (state.targets[task.id] ?? []).length > 1 ? (
                             <SharedTaskCard state={state} task={task} onOpen={openDetail} columnName={c.name} />
                           ) : (
@@ -655,6 +671,7 @@ export function Board({ date: dateParam }: { date?: string }) {
                               onOpen={openDetail}
                               onAdd={openAssign}
                               instanceKey={view === "resident" ? c.id : undefined}
+                              tight={lanes > 1}
                             />
                           )}
                         </DropZone>
@@ -668,10 +685,15 @@ export function Board({ date: dateParam }: { date?: string }) {
                   </div>
                 )}
                 {nowInView && (
-                  <div aria-hidden="true" className="pointer-events-none absolute left-0 right-0 z-10" style={{ top: (now! - VIEW_START) * PX_PER_MIN }}>
-                    <div className="absolute left-1 -translate-y-1/2 rounded bg-[var(--cn-now)] px-1.5 text-[13px] font-bold text-white">{fmtMin(now!)}</div>
-                    <div className="ml-16 border-t-2 border-[var(--cn-now)]" />
-                  </div>
+                  <>
+                    {/* 線はカードの後ろ（業務名を横切って取り消し線に見えないように。決定記録 0019）。時刻の札は前 */}
+                    <div aria-hidden="true" className="pointer-events-none absolute left-0 right-0 z-[1]" style={{ top: (now! - VIEW_START) * PX_PER_MIN }}>
+                      <div className="ml-16 border-t-2 border-[var(--cn-now)]" />
+                    </div>
+                    <div aria-hidden="true" className="pointer-events-none absolute left-0 z-10" style={{ top: (now! - VIEW_START) * PX_PER_MIN }}>
+                      <div className="absolute left-1 -translate-y-1/2 rounded bg-[var(--cn-now)] px-1.5 text-[13px] font-bold text-white">{fmtMin(now!)}</div>
+                    </div>
+                  </>
                 )}
               </div>
             </div>

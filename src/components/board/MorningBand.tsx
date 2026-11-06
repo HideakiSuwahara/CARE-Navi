@@ -126,7 +126,7 @@ export function MorningBand({ state, date }: { state: State; date: DateKey }) {
                       type="button"
                       aria-pressed={e.firstTimer}
                       onClick={() => update(e.id, { firstTimer: !e.firstTimer })}
-                      className={`h-[44px] shrink-0 rounded border px-1.5 text-[13px] ${e.firstTimer ? "border-[var(--cn-ink)] font-bold" : "border-[var(--cn-card-line)] text-[var(--cn-muted)]"}`}
+                      className={`h-[44px] min-w-[44px] shrink-0 rounded border px-1.5 text-[13px] ${e.firstTimer ? "border-[var(--cn-ink)] font-bold" : "border-[var(--cn-card-line)] text-[var(--cn-muted)]"}`}
                       title="初回の印（押すと外せます）"
                     >
                       初回

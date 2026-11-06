@@ -123,3 +123,28 @@ test.describe("ループ 14・15 の持ち越し", () => {
     await expect(page.getByTestId("staff-view").getByText("✓ 終わった").first()).toBeVisible();
   });
 });
+
+test.describe("見た目（決定記録 0019）", () => {
+  test("最初の画面にボードとスマホの画面写真とロゴ", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.getByRole("img", { name: /^ボード:/ })).toBeVisible();
+    await expect(page.getByRole("img", { name: /^スマホの自分の予定/ })).toBeVisible();
+  });
+
+  test("現在時刻の線はカードの後ろ、列の見出しにグループの帯、細いカードは始まりの時刻だけ", async ({ page }) => {
+    await page.goto("/board?now=10:12");
+    await page.evaluate(() => localStorage.clear());
+    await page.goto("/board?now=10:12");
+    await expect(page.locator("[data-task-id]").first()).toBeVisible();
+    const z = await page.evaluate(() => {
+      const line = [...document.querySelectorAll<HTMLElement>("[data-testid=board-scroller] div")].find((d) => d.className.includes("border-[var(--cn-now)]"))!.parentElement!;
+      const card = document.querySelector<HTMLElement>("[data-task-id]")!.parentElement!;
+      return { line: Number(getComputedStyle(line).zIndex), card: Number(getComputedStyle(card).zIndex) };
+    });
+    expect(z.line).toBeLessThan(z.card);
+    const head = page.getByTestId("board-scroller").getByRole("heading", { level: 2 }).first();
+    expect(await head.evaluate((el) => getComputedStyle(el).borderTopWidth)).toBe("4px");
+    // 横に並ぶ細いカード（さくらユニットの見守り 9:30）は「9:30〜」
+    await expect(page.locator("[data-task-id]").filter({ hasText: "9:30〜" }).first()).toBeVisible();
+  });
+});

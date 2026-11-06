@@ -30,6 +30,12 @@
   --cn-noncore: #9c6410;
   --cn-band-bg: #f1efe6;
   --cn-band-line: #8a8574;
+  /* グループの帯（列の見出しの上 4px。状態の色とは別の系統。決定記録 0019） */
+  --cn-group-1: #4a7bab;
+  --cn-group-2: #5e9a6a;
+  --cn-group-3: #3f8f8a;
+  --cn-group-4: #a98446;
+  --cn-group-common: #9aa0a6;
 }
 
 html,
@@ -44,6 +50,11 @@ body {
 :focus-visible {
   outline: 3px solid var(--cn-accent);
   outline-offset: 2px;
+}
+
+/* 読み上げの移動先として見出しなどへ送るフォーカス（tabindex="-1"）には枠を出さない。押せるものではないため（決定記録 0019） */
+[tabindex="-1"]:focus-visible {
+  outline: none;
 }
 
 @media print {

@@ -1,7 +1,7 @@
 "use client";
 
 import { canMarkDone, headcountStatus, UNFINISHED_GRACE_MIN } from "@/domain/checks";
-import { fmtRange } from "@/domain/time";
+import { fmtMin, fmtRange } from "@/domain/time";
 import type { ID, State, TaskInstance } from "@/domain/types";
 import { useStaffDrag } from "./dnd";
 
@@ -22,9 +22,12 @@ export function TaskCard({
   onAdd,
   now,
   instanceKey,
+  tight,
 }: {
   state: State;
   task: TaskInstance;
+  /** 同じ時刻に横に並んで細いとき。2 行目は始まりの時刻だけにする（決定記録 0019） */
+  tight?: boolean;
   /** 同じ枠を複数の列に出すとき（横軸［利用者］）の見分け。チップのドラッグ ID に使う */
   instanceKey?: string;
   /** いまの時刻（分）。終わっていない枠の判定に使う。無ければ判定しない */
@@ -75,11 +78,12 @@ export function TaskCard({
     <StaffChip key={id} taskId={task.id} staffId={staff!.id} surname={staff!.surname} firstTimer={firstTimer} done={done} dragKey={instanceKey} onOpen={() => onOpen?.(task.id)} />
   ));
 
+  // 細い形のカードは始まりの時刻だけ（「9:30–10:…」と切れて作りかけに見えないように。決定記録 0019）
   const when = (
     <>
-      {fmtRange(task.startMin, task.endMin)}
-      {/* 左のレール（細い）は時刻だけ。人数は詳細で（ループ 15 #4） */}
-      {task.targetMode === "group" && targets.length > 0 && !rail && ` ・ ${targets.length}人`}
+      {variant === "narrow" || tight ? `${fmtMin(task.startMin)}〜` : fmtRange(task.startMin, task.endMin)}
+      {/* 左のレール・細いカードは時刻だけ。人数は詳細で（ループ 15 #4） */}
+      {task.targetMode === "group" && targets.length > 0 && !rail && !tight && variant !== "narrow" && ` ・ ${targets.length}人`}
     </>
   );
   // 業務名のボタンは 2 行（名前・時刻）で高さ 44px。負のマージンで広げないので、隣の要素に押せる領域を取られない
@@ -91,7 +95,7 @@ export function TaskCard({
       title={title}
       className={`block w-full min-w-[44px] max-w-full text-left hover:underline ${mini ? "flex min-h-[44px] items-center" : "min-h-[44px]"}`}
     >
-      <span className={`block truncate text-[15px] font-bold leading-6 ${isBreak ? "text-[var(--cn-break-ink)]" : done ? "text-[var(--cn-muted)]" : ""}`}>
+      <span className={`block truncate text-[15px] leading-6 ${rail && !done ? "font-semibold" : "font-bold"} ${isBreak ? "text-[var(--cn-break-ink)]" : done ? "text-[var(--cn-muted)]" : ""}`}>
         {/* 2 行のカードは 2 行目に「✓ 終わった」と文字で。1 行のカードは ✓ と読み上げ用の文字 */}
         {done && mini && <span className="text-[var(--cn-accent)]">✓ 終わった ・ </span>}
         {title}
@@ -118,7 +122,10 @@ export function TaskCard({
   return (
     <article
       aria-label={`${title} ${fmtRange(task.startMin, task.endMin)}${short ? ` ${status.label}` : ""}${done ? " 終わった" : ""}`}
-      className={`flex h-full gap-2 overflow-hidden rounded-[10px] px-2.5 py-1 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ${
+      className={`flex h-full gap-2 overflow-hidden rounded-[10px] px-2.5 py-1 ${
+        // 足りない枠だけを浮かせる（満たしている枠には何も足さない。決定記録 0019）
+        short ? "shadow-[0_3px_10px_rgba(181,101,29,0.28)]" : "shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
+      } ${
         rail && !short ? "bg-[var(--cn-rail-bg)]" : ""
       } ${compact || mini ? "flex-row items-center" : "flex-col"} ${frame}`}
       data-task-id={task.id}

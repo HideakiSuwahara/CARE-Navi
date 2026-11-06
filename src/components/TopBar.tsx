@@ -1,5 +1,6 @@
 "use client";
 
+import { Logo } from "@/components/Logo";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { useAppState } from "@/store/react";
@@ -20,7 +21,7 @@ export function TopBar({ current, children }: { current: TopBarPage; children?: 
   return (
     <header className="cn-noprint flex min-h-[56px] shrink-0 flex-wrap items-center gap-x-5 gap-y-1 border-b border-[var(--cn-border)] bg-white px-4 py-1 sm:px-5">
       <h1 className="flex shrink-0 items-center gap-2.5 whitespace-nowrap">
-        <span aria-hidden="true" className="inline-block h-7 w-7 rounded-lg bg-[var(--cn-accent)]" />
+        <Logo />
         <span className="text-[18px] font-bold">ケアナビ</span>
         <span className="hidden text-[14px] font-normal text-[var(--cn-muted)] sm:inline">{state.facility?.name ?? ""}</span>
       </h1>
