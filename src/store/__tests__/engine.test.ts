@@ -131,3 +131,19 @@ test("元に戻すは操作が触った日と「終わった」の印だけか�
   await engine.undo(assign.batchId);
   assert.equal(engine.lastUndo?.label, "終わった");
 });
+
+test("履歴: 見ている日の操作を新しい順に並べ、選んだところまで新しい方から戻す（決定記録 0021）", async () => {
+  const { engine } = makeEngine();
+  await engine.start();
+  const bath = findTask(engine.state, "入浴介助");
+  await engine.dispatch(assignEvents(bath.id, "s-kato", engine.context()), "1 つ目");
+  await engine.dispatch(setDoneEvents(bath.id, true, engine.context()), "2 つ目");
+  await engine.dispatch(setDoneEvents(bath.id, false, engine.context()), "3 つ目");
+  const pred = (u: UndoEntry) => !u.dates || u.dates.includes(DATE);
+  assert.deepEqual(engine.undoListWhere(pred).map((u) => u.label), ["3 つ目", "2 つ目", "1 つ目"]);
+  const target = engine.undoListWhere(pred)[1];
+  const done = await engine.undoThrough(target.batchId, pred);
+  assert.deepEqual(done.map((u) => u.label), ["3 つ目", "2 つ目"]);
+  assert.deepEqual(engine.undoListWhere(pred).map((u) => u.label), ["1 つ目"]);
+  assert.equal(Boolean(engine.state.tasks[bath.id].done), false);
+});

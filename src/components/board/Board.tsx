@@ -15,6 +15,7 @@ import { calendarDateOf, fmtMin, fmtRange } from "@/domain/time";
 import { updatedAtLabel } from "@/domain/display";
 import { addDays, addTodayPersonEvents, isFirstTimeDefault } from "@/domain/pattern";
 import { SharedTaskCard, TaskCard } from "./TaskCard";
+import type { Engine } from "@/store/engine";
 import { MorningBand } from "./MorningBand";
 import { AbsenceFlow, EscortFlow, withShortageNote } from "@/components/me/AllView";
 import { businessMinutes } from "@/domain/myday";
@@ -552,6 +553,16 @@ export function Board({ date: dateParam }: { date?: string }) {
             元に戻す<span className="text-[13px] text-[var(--cn-muted)]">（{viewUndo.label}）</span>
           </button>
         )}
+        {viewUndo && engine && (
+          <UndoHistory
+            engine={engine}
+            date={date}
+            onDone={(t) => {
+              setToast(null);
+              showNotice(t);
+            }}
+          />
+        )}
         {hasTasks && <BoardMenu state={state} engine={engine} date={date} dateShort={`${Number(date.slice(5, 7))}/${Number(date.slice(8))}`} onPrint={printSheet} onNotice={showNotice} />}
         </div>
       </section>
@@ -1021,4 +1032,75 @@ function saveBoardView(v: { axis: BoardAxis; group: string }) {
   } catch {
     // 保存できなくても表示はそのまま
   }
+}
+
+/**
+ * 元に戻すの履歴（決定記録 0021）。見ている日の操作（と日に依らない操作）を新しい順に 10 件。
+ * 選ぶと、新しい方から選んだところまで順に戻す（途中だけを抜いて戻さない）。その端末の操作だけ。
+ */
+function UndoHistory({ engine, date, onDone }: { engine: Engine; date: string; onDone: (text: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [, setTick] = useState(0);
+  useEffect(() => engine.subscribe(() => setTick((n) => n + 1)), [engine]);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const pred = (u: { dates?: string[] }) => !u.dates || u.dates.includes(date);
+  const list = engine.undoListWhere(pred, 10);
+  const at = (iso: string) => {
+    const d = new Date(iso);
+    return Number.isNaN(d.getTime()) ? "" : `${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}`;
+  };
+  return (
+    <div className="relative">
+      <button
+        ref={btnRef}
+        type="button"
+        aria-expanded={open}
+        aria-controls="undo-history"
+        onClick={() => setOpen((v) => !v)}
+        className="inline-flex h-[44px] items-center rounded-lg border border-[var(--cn-card-line)] bg-white px-3 text-[14px]"
+      >
+        履歴
+      </button>
+      {open && (
+        <div
+          id="undo-history"
+          role="region"
+          aria-label="元に戻すの履歴"
+          className="absolute right-0 top-[48px] z-40 w-[380px] max-w-[90vw] rounded-xl border border-[var(--cn-border)] bg-white p-3 shadow-lg"
+          onKeyDown={(e) => {
+            if (e.key === "Escape") {
+              setOpen(false);
+              btnRef.current?.focus();
+            }
+          }}
+        >
+          <p className="mb-2 text-[14px] text-[var(--cn-ink-soft)]">この端末で行った操作です（新しい順）。選ぶと、新しい方からそこまで順に戻します。</p>
+          {list.length === 0 ? (
+            <p className="text-[15px]">戻せる操作はありません。</p>
+          ) : (
+            <ol className="flex flex-col divide-y divide-[var(--cn-grid)]">
+              {list.map((u, i) => (
+                <li key={u.batchId} className="flex items-center gap-2 py-1.5">
+                  <span className="w-[44px] shrink-0 text-[13px] text-[var(--cn-muted)]">{at(u.at)}</span>
+                  <span className="min-w-0 flex-1 text-[14px]">{u.label.replace(/。いま .*$/, "")}</span>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const done = await engine.undoThrough(u.batchId, pred);
+                      setOpen(false);
+                      btnRef.current?.focus();
+                      if (done.length > 0) onDone(`元に戻しました（${done.length} 件。いちばん前: ${done[done.length - 1].label.replace(/。いま .*$/, "")}）`);
+                    }}
+                    className="inline-flex h-[44px] shrink-0 items-center rounded-lg border border-[var(--cn-control-line)] bg-white px-2.5 text-[14px] font-bold"
+                  >
+                    {i === 0 ? "これを戻す" : `ここまで戻す（${i + 1} 件）`}
+                  </button>
+                </li>
+              ))}
+            </ol>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }

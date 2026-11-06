@@ -301,3 +301,28 @@ test.describe("始まる前の「終わった」（決定記録 0021）", () => 
     await expect(dialog.getByRole("button", { name: /終わった$/ })).toHaveAttribute("aria-pressed", "true");
   });
 });
+
+test.describe("元に戻すの履歴（決定記録 0021）", () => {
+  test("見ている日の操作が新しい順に並び、選んだところまで戻せる", async ({ page }) => {
+    await page.goto("/board?now=10:12");
+    await page.evaluate(() => localStorage.clear());
+    await page.goto("/board?now=10:12");
+    await expect(page.locator('[data-badge="担当未定"]').first()).toBeVisible();
+    const before = await page.locator('[data-badge="担当未定"]').count();
+    for (let i = 0; i < 2; i++) {
+      await page.locator('[data-badge="担当未定"]').first().getByRole("button", { name: /に担当を追加$/ }).click();
+      const panel = page.getByRole("dialog");
+      const others = panel.getByRole("button", { name: /^ほかの人/ });
+      if ((await others.count()) > 0 && (await others.getAttribute("aria-expanded")) !== "true") await others.click();
+      await panel.getByRole("button", { name: "追加" }).first().click();
+      await page.keyboard.press("Escape");
+    }
+    await expect(page.locator('[data-badge="担当未定"]')).toHaveCount(before - 2);
+    await page.getByRole("button", { name: "履歴" }).click();
+    const hist = page.getByRole("region", { name: "元に戻すの履歴" });
+    await expect(hist.getByRole("listitem")).toHaveCount(2);
+    await hist.getByRole("button", { name: "ここまで戻す（2 件）" }).click();
+    await expect(page.locator('[data-badge="担当未定"]')).toHaveCount(before);
+    await expect(page.locator("#board-toast")).toContainText("元に戻しました（2 件");
+  });
+});

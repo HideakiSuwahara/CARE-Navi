@@ -232,6 +232,26 @@ export class Engine {
     return this.undoStack[this.undoStack.length - 1] ?? null;
   }
 
+  /** 条件に合う「元に戻す」を新しい順に（履歴の一覧。決定記録 0021） */
+  undoListWhere(pred: (u: UndoEntry) => boolean, limit = 10): UndoEntry[] {
+    const out: UndoEntry[] = [];
+    for (let i = this.undoStack.length - 1; i >= 0 && out.length < limit; i--) if (pred(this.undoStack[i])) out.push(this.undoStack[i]);
+    return out;
+  }
+
+  /** 履歴の「ここまで戻す」: 条件に合う操作を新しい方から順に、batchId の操作まで戻す。戻した数を返す */
+  async undoThrough(batchId: ID, pred: (u: UndoEntry) => boolean): Promise<UndoEntry[]> {
+    const list = this.undoListWhere(pred, this.undoStack.length);
+    const idx = list.findIndex((u) => u.batchId === batchId);
+    if (idx < 0) return [];
+    const done: UndoEntry[] = [];
+    for (const u of list.slice(0, idx + 1)) {
+      const r = await this.undo(u.batchId);
+      if (r) done.push(r);
+    }
+    return done;
+  }
+
   /** 条件に合ういちばん新しい「元に戻す」（見ている日の操作だけ・自分の印だけ など。ループ 19） */
   lastUndoWhere(pred: (u: UndoEntry) => boolean): UndoEntry | null {
     for (let i = this.undoStack.length - 1; i >= 0; i--) if (pred(this.undoStack[i])) return this.undoStack[i];
