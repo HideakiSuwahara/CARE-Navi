@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { canMarkDone } from "@/domain/checks";
 import { setDoneEvents } from "@/domain/commands";
 import type { TaskInstance } from "@/domain/types";
-import { useEngine } from "@/store/react";
+import { useAppState, useDefaultDate, useEngine, useNowMinutes } from "@/store/react";
 
 export interface DoneNotice {
   label: string;
@@ -24,8 +24,14 @@ export const DONE_EVENT = "cn-done";
  */
 export function DoneButton({ task, size = "md" }: { task: TaskInstance; size?: "sm" | "md" }) {
   const engine = useEngine();
+  const { state } = useAppState();
+  const today = useDefaultDate(state, "business");
+  const now = useNowMinutes();
+  // 始まる前に押したときは一言聞く（先の枠に押し間違えないように。決定記録 0021）
+  const [confirm, setConfirm] = useState(false);
   if (!engine || !canMarkDone(task)) return null;
   const done = Boolean(task.done);
+  const beforeStart = !done && today !== null && now !== null && (task.date > today || (task.date === today && now < task.startMin));
   const label = done ? `「${task.name}」の「終わった」を外しました` : `「${task.name}」に「終わった」の印を付けました`;
   return (
     <button
@@ -35,6 +41,11 @@ export function DoneButton({ task, size = "md" }: { task: TaskInstance; size?: "
       onClick={async (e) => {
         e.preventDefault();
         e.stopPropagation();
+        if (beforeStart && !confirm) {
+          setConfirm(true);
+          return;
+        }
+        setConfirm(false);
         const el = e.currentTarget;
         const evs = setDoneEvents(task.id, !done, engine.context());
         await engine.dispatch(evs, label);
@@ -46,13 +57,14 @@ export function DoneButton({ task, size = "md" }: { task: TaskInstance; size?: "
         }
         window.dispatchEvent(new CustomEvent<DoneNotice>(DONE_EVENT, { detail: { label, batchId: evs[0].batchId, taskId: task.id } }));
       }}
-      className={`inline-flex h-[44px] shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border text-[16px] font-bold ${
+      onBlur={() => setConfirm(false)}
+      className={`inline-flex min-h-[44px] shrink items-center justify-center gap-1 rounded-lg border text-[16px] font-bold ${confirm ? "max-w-[260px] whitespace-normal text-left text-[15px] leading-snug" : "h-[44px] shrink-0 whitespace-nowrap"} ${
         size === "sm" ? "px-2" : "px-3"
       } ${done ? "border-[var(--cn-accent)] bg-[var(--cn-accent-soft)] text-[var(--cn-accent)]" : "border-[var(--cn-control-line)] bg-white text-[var(--cn-ink)]"}`}
     >
       {/* 押す前は空の四角（○ は「できた」の印と読まれやすい） */}
       <span aria-hidden="true">{done ? "✓" : "□"}</span>
-      {done ? "終わった" : "終わったら押す"}
+      {done ? "終わった" : confirm ? "まだ始まる前です。もう一度押すと付けます" : "終わったら押す"}
     </button>
   );
 }

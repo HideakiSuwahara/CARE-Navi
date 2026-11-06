@@ -208,7 +208,7 @@ const CAT_OTHER = "other";
 // PHS は画面の「困ったら」で、その時刻のリーダーから出す（ここに番号を書くと夜に違う人を指す）
 const LEADER = "いまのリーダー（画面の上の「困ったら」）";
 const CONTACT_CARE = "一緒に入る常勤の職員";
-const CONTACT_NURSE = "看護師（日中 PHS 810 ／ 夜間はオンコール: 詰所に掲示の番号）";
+const CONTACT_NURSE = "看護師（看護の番がいる日の日中は PHS 810 ／ 日曜など看護がいない日と夜間はオンコール: 詰所に掲示の番号）";
 
 const TPL_WAKEUP = "tpl-wakeup";
 const TPL_BREAKFAST = "tpl-breakfast";
@@ -731,7 +731,7 @@ const templates: TaskTemplate[] = [
     defaultHeadcount: 2,
     requiredTags: [],
     place: "玄関（受付簿に記入）→ 詰所",
-    scopeNote: "詰所でリーダーと会い（PHS を受け取るまでは、近くの職員に声をかけてください）、更衣室・トイレ・詰所・非常口を一緒に回る。きょうの予定をスマホで確認する。",
+    scopeNote: "詰所でリーダーと会い（PHS を受け取るまでは、近くの職員に声をかけてください）、更衣室・トイレ・詰所・非常口を一緒に回る。きょうの予定をスマホで確認する。2 回目からは、PHS を受け取ってきょうの予定を確かめれば、次の予定へ進んでよい。",
     outOfScopeNote: "この時間は利用者の介助に入りません。案内が終わってから、次の予定へ。",
     procedure: [
       "玄関で受付簿に記入し、リーダーを呼ぶ",
@@ -906,7 +906,8 @@ const dayCommon = (bathDay: boolean): ItemSpec[] => [
 const nightCommon: ItemSpec[] = [
   { id: "dinner-east", tpl: TPL_DINNER, start: t(18), end: t(19), group: GRP_EAST, slots: [SLOT_OSOBAN, SLOT_YAKIN_EAST], hc: 2, rt: "rt-dinner-east" },
   { id: "dinner-sakura", tpl: TPL_DINNER, start: t(18), end: t(19), group: GRP_SAKURA, slots: [SLOT_YAKIN_SAKURA], hc: 1, rt: "rt-dinner-sakura" },
-  { id: "bedtime-east", tpl: TPL_BEDTIME, start: t(20), end: t(21), group: GRP_EAST, slots: [SLOT_YAKIN_EAST], hc: 1, rt: "rt-bedtime-east" },
+  // 従来型 20 人の就寝介助は、遅番が上がる前に遅番と夜勤東の 2 人で始める（夜勤東 1 人に詰めない。ループ 19 #17）
+  { id: "bedtime-east", tpl: TPL_BEDTIME, start: t(19), end: t(20), group: GRP_EAST, slots: [SLOT_OSOBAN, SLOT_YAKIN_EAST], hc: 2, rt: "rt-bedtime-east" },
   { id: "bedtime-sakura", tpl: TPL_BEDTIME, start: t(20), end: t(21), group: GRP_SAKURA, slots: [SLOT_YAKIN_SAKURA], hc: 1, rt: "rt-bedtime-sakura" },
   { id: "rounds-east-22", tpl: TPL_ROUNDS, start: t(22), end: t(22, 30), group: GRP_EAST, slots: [SLOT_YAKIN_EAST], hc: 1, rt: "rt-rounds-east-22" },
   { id: "rounds-sakura-22", tpl: TPL_ROUNDS, start: t(22), end: t(22, 30), group: GRP_SAKURA, slots: [SLOT_YAKIN_SAKURA], hc: 1, rt: "rt-rounds-sakura-22" },
@@ -969,7 +970,8 @@ const patterns: DayPattern[] = [
   },
   {
     id: PAT_WEEKDAY,
-    name: "平日",
+    // 月・水・木・土に当たるので「平日」とは呼ばない（土曜の朝に迷わないように。ループ 19 #18）
+    name: "入浴のない日",
     weekdays: [1, 3, 4, 6],
     items: build("pwd", [...dayCommon(false), ...weekdayChores, ...nightCommon]),
   },

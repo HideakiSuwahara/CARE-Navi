@@ -195,8 +195,17 @@ export function Board({ date: dateParam }: { date?: string }) {
       scrolled.current = false;
     }
     if (!ready || now === null || scrolled.current || !scroller.current) return;
-    scroller.current.scrollTop = Math.max(0, (now - 60 - VIEW_START) * PX_PER_MIN);
+    const target = Math.max(0, (now - 60 - VIEW_START) * PX_PER_MIN);
     scrolled.current = true;
+    // 描き終わる前は高さが足りず 0 に戻されることがある（負荷が高いとき）。届くまで数フレーム寄せ直す
+    let tries = 0;
+    const put = () => {
+      const el = scroller.current;
+      if (!el) return;
+      el.scrollTop = target;
+      if (Math.abs(el.scrollTop - target) > 2 && el.scrollHeight - el.clientHeight < target && tries++ < 30) requestAnimationFrame(put);
+    };
+    put();
   }, [ready, now, viewKey]);
 
   // 見出しの「担当未定 n件」を押すと、該当するカードへ順に移動する（押すたびに次へ）

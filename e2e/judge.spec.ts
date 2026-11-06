@@ -284,3 +284,20 @@ test.describe("ループ 19 の持ち越し（朝の帯・印刷）", () => {
     await expect(page.getByText(/印刷 11\/3 10:12/)).toBeVisible();
   });
 });
+
+test.describe("始まる前の「終わった」（決定記録 0021）", () => {
+  test("始まる前の枠は一言聞いてから付く。始まった枠は 1 回で付く", async ({ page }) => {
+    await page.goto("/board?now=10:12");
+    await page.evaluate(() => localStorage.clear());
+    await page.goto("/board?now=10:12");
+    // 16:00 の枠（始まる前）
+    const later = page.locator("[data-task-id]").filter({ hasText: "16:00" }).filter({ hasNot: page.locator("[data-done]") }).first();
+    await later.locator("[data-card-title]").click();
+    const dialog = page.getByRole("dialog");
+    const btn = dialog.getByRole("button", { name: /終わったら押す|まだ始まる前/ });
+    await btn.click();
+    await expect(dialog.getByRole("button", { name: /まだ始まる前です/ })).toBeVisible();
+    await dialog.getByRole("button", { name: /まだ始まる前です/ }).click();
+    await expect(dialog.getByRole("button", { name: /終わった$/ })).toHaveAttribute("aria-pressed", "true");
+  });
+});
