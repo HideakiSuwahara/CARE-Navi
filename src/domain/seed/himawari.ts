@@ -318,7 +318,7 @@ const templates: TaskTemplate[] = [
     requiredTags: [],
     place: "各居室",
     scopeNote: "決まった順路で居室を回り、交換と衣類・シーツの確認。使用済みの処理。",
-    outOfScopeNote: "皮膚の状態に気になることがあれば、自分で判断せず看護師か常勤に伝えます。",
+    outOfScopeNote: "皮膚の状態に気になることがあれば、自分で判断せず看護師か常勤に伝えます（夜間はもう一人の夜勤者へ。看護への連絡は施設の決めどおり）。",
     procedure: [
       "ワゴンに物品をそろえてから出発する（順路表はワゴンの上）",
       "入室前にノックと声かけ。カーテンを閉める",
@@ -491,8 +491,8 @@ const templates: TaskTemplate[] = [
     defaultHeadcount: 1,
     requiredTags: [],
     place: "各居室",
-    scopeNote: "着替えと整容の手伝い、夕食後の口腔ケア（義歯を外して洗い、ケースへ）、ベッドまでの移動の見守り、消灯。",
-    outOfScopeNote: "眠前の薬は看護師の指示どおり。自分で判断して渡しません。",
+    scopeNote: "着替えと整容の手伝い、夕食後の口腔ケア（義歯を外して洗い、ケースへ）、寝る前の排泄介助（トイレ誘導・パッド交換。21:00 のおむつ交換とどちらでするかは施設の決めどおり）、ベッドまでの移動の見守り、消灯。",
+    outOfScopeNote: "眠前の薬は看護師の指示どおり。自分で判断して渡しません。移乗に不安がある方は一人で行わず、近くの職員（夜間はもう一人の夜勤者）と二人で行います。",
     procedure: ["部屋の順番表に沿って回る", "ナースコールを手の届く所に置く", "最後に廊下の灯りを落とす"],
     supplies: "寝衣は各居室のクローゼット左側",
     contact: CONTACT_CARE,
@@ -909,10 +909,10 @@ const nightCommon: ItemSpec[] = [
   // 従来型 20 人の就寝介助は、遅番が上がる前に遅番と夜勤東の 2 人で始める（夜勤東 1 人に詰めない。ループ 19 #17）
   { id: "bedtime-east", tpl: TPL_BEDTIME, start: t(19), end: t(20), group: GRP_EAST, slots: [SLOT_OSOBAN, SLOT_YAKIN_EAST], hc: 2, rt: "rt-bedtime-east" },
   { id: "bedtime-sakura", tpl: TPL_BEDTIME, start: t(20), end: t(21), group: GRP_SAKURA, slots: [SLOT_YAKIN_SAKURA], hc: 1, rt: "rt-bedtime-sakura" },
-  // 就寝前と深夜のおむつ交換（夜勤の 20:00〜22:00 が空かないように。回数・時刻は施設が決める。ループ 20 の持ち越し）
-  { id: "diaper-east-21", tpl: TPL_DIAPER, start: t(21), end: t(21, 30), group: GRP_EAST, slots: [SLOT_YAKIN_EAST], hc: 1 },
-  { id: "diaper-sakura-2130", tpl: TPL_DIAPER, start: t(21, 30), end: t(22), group: GRP_SAKURA, slots: [SLOT_YAKIN_SAKURA], hc: 1 },
-  { id: "diaper-east-0230", tpl: TPL_DIAPER, start: nx(2, 30), end: nx(3), group: GRP_EAST, slots: [SLOT_YAKIN_EAST], hc: 1 },
+  // 就寝前と深夜のおむつ交換（ベッドで過ごす方。回数・時刻・対象は施設が決める。ループ 20・21）
+  { id: "diaper-east-21", tpl: TPL_DIAPER, start: t(21), end: t(21, 30), group: GRP_EAST, slots: [SLOT_YAKIN_EAST], hc: 1, residents: REPOSITION_EAST },
+  { id: "diaper-sakura-2130", tpl: TPL_DIAPER, start: t(21, 30), end: t(22), group: GRP_SAKURA, slots: [SLOT_YAKIN_SAKURA], hc: 1, residents: REPOSITION_SAKURA },
+  { id: "diaper-east-0230", tpl: TPL_DIAPER, start: nx(2, 30), end: nx(3), group: GRP_EAST, slots: [SLOT_YAKIN_EAST], hc: 1, residents: REPOSITION_EAST },
   { id: "rounds-east-22", tpl: TPL_ROUNDS, start: t(22), end: t(22, 30), group: GRP_EAST, slots: [SLOT_YAKIN_EAST], hc: 1, rt: "rt-rounds-east-22" },
   { id: "rounds-sakura-22", tpl: TPL_ROUNDS, start: t(22), end: t(22, 30), group: GRP_SAKURA, slots: [SLOT_YAKIN_SAKURA], hc: 1, rt: "rt-rounds-sakura-22" },
   { id: "rounds-east-00", tpl: TPL_ROUNDS, start: nx(0), end: nx(0, 30), group: GRP_EAST, slots: [SLOT_YAKIN_EAST], hc: 1, rt: "rt-rounds-east-00" },

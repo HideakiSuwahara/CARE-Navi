@@ -407,7 +407,7 @@ test.describe("やった人を変える（決定記録 0022）", () => {
     const first = box.getByRole("listitem").first().getByRole("button");
     const who = (await first.locator("span").first().innerText()).replace("さん", "");
     await first.click();
-    await expect(page.locator("#board-toast")).toContainText(`鈴木さんの代わりに${who}さんがやった`);
+    await expect(page.locator("#board-toast")).toContainText(`${who}さんがやったことにしました（鈴木さんの代わり`);
     const staff = dialog.locator('section[aria-labelledby="d-staff"]');
     await expect(staff).toContainText(who);
     await expect(staff).not.toContainText("鈴木");

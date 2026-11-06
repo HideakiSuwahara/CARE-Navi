@@ -58,12 +58,12 @@ export function AssignPanel({
   const add = async (c: Candidate) => {
     if (!engine) return;
     const before = headcountStatus(engine.state, task.id);
-    await engine.dispatch(assignEvents(task.id, c.staff.id, engine.context()), `${c.staff.surname}さんを「${taskLabel(engine.state, task)}」の担当にしました`);
+    await engine.dispatch(assignEvents(task.id, c.staff.id, engine.context()), `${boardName(engine.state, c.staff.id)}さんを「${taskLabel(engine.state, task)}」の担当にしました`);
     const after = headcountStatus(engine.state, task.id);
     // 満たした（または元から満たしていた）ら閉じる。次の担当が決まっていない枠があれば、閉じずに「次へ」を出す
     if (after.level === "ok" || after.level === "over" || (before.level !== "unassigned" && before.level !== "short")) {
       if (nextOf && onNext && nextOf(task.id)) {
-        setFilled(`${c.staff.surname}さんを付けました`);
+        setFilled(`${boardName(engine.state, c.staff.id)}さんを付けました`);
         requestAnimationFrame(() => nextRef.current?.focus());
       } else onClose();
     }
@@ -90,7 +90,7 @@ export function AssignPanel({
           <button
             type="button"
             onClick={() => add(c)}
-            aria-label={`${c.staff.surname}さんを追加`}
+            aria-label={`${boardName(state, c.staff.id)}さんを追加`}
             className={`h-[44px] shrink-0 rounded-lg px-4 text-[15px] font-bold ${
               c.tier === "ok" ? "bg-[var(--cn-accent)] text-white" : "border border-[var(--cn-control-line)] bg-white"
             }`}

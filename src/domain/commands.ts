@@ -8,10 +8,10 @@
 
 import type { Event } from "./events.ts";
 import { applyEvents } from "./reducer.ts";
-import { metaOf, type EventContext } from "./pattern.ts";
-import { assignmentsOf, checkAssignment, headcountStatus, rosterOf, taskLabel as boardLabel, tasksForDate, tasksOfStaff } from "./checks.ts";
+import { addDays, metaOf, type EventContext } from "./pattern.ts";
+import { assignmentsOf, boardName, checkAssignment, headcountStatus, rosterOf, taskLabel as boardLabel, tasksForDate, tasksOfStaff } from "./checks.ts";
 import { staffTaskName } from "./myday.ts";
-import { businessMinutes, fmtRange, overlaps } from "./time.ts";
+import { businessMinutes, fmtMin, fmtRange, overlaps } from "./time.ts";
 import type { DateKey, ID, Minutes, State, TaskInstance } from "./types.ts";
 
 /** プレビューの文で使う業務名。休憩は丸数字を外す（丸数字はボードのカードだけ） */
@@ -514,19 +514,21 @@ export function swapPreview(state: State, a: SwapChoice, b: SwapChoice, ctx: Eve
   const x = state.tasks[a.taskId];
   const y = state.tasks[b.taskId];
   if (!sa || !sb || !x || !y) return { events: [], label: "", lines: [], notes: [] };
+  const na = boardName(state, sa.id);
+  const nb = boardName(state, sb.id);
   const removes = [...unassignEvents(state, x.id, sa.id, ctx), ...unassignEvents(state, y.id, sb.id, ctx)];
   const mid = applyEvents(state, removes);
   const notes = [
-    ...checkAssignment(mid, x.id, sb.id).map((i) => `${sb.surname}さん: ${i.message}`),
-    ...checkAssignment(mid, y.id, sa.id).map((i) => `${sa.surname}さん: ${i.message}`),
+    ...checkAssignment(mid, x.id, sb.id).map((i) => `${nb}さん: ${i.message}`),
+    ...checkAssignment(mid, y.id, sa.id).map((i) => `${na}さん: ${i.message}`),
   ];
   const events = [...removes, ...assignEvents(x.id, sb.id, ctx), ...assignEvents(y.id, sa.id, ctx)];
   const lx = `${taskLabel(state, x)} ${fmtRange(x.startMin, x.endMin)}`;
   const ly = `${taskLabel(state, y)} ${fmtRange(y.startMin, y.endMin)}`;
   return {
     events,
-    label: `${sa.surname}さんと${sb.surname}さんの担当を入れ替えました（${lx} ⇄ ${ly}）`,
-    lines: [`${sa.surname}さん: ${lx} → ${ly}`, `${sb.surname}さん: ${ly} → ${lx}`],
+    label: `${na}さんと${nb}さんの担当を入れ替えました（${lx} ⇄ ${ly}）`,
+    lines: [`${na}さん: ${lx} → ${ly}`, `${nb}さん: ${ly} → ${lx}`],
     notes,
   };
 }
@@ -540,22 +542,42 @@ export interface DoerChoice {
   staffId: ID;
   /** 選ぶとき出す注意（休み・勤務外・重なりなど）。止めない */
   notes: string[];
+  /** その時間に勤務していない人（後ろに畳む） */
+  off: boolean;
 }
 
-/** やった人の候補: その日の勤務表にいる人（この枠の担当の人は除く）。注意の無い人を先に、名前の順 */
+const OFF_CODES = new Set(["noRoster", "absent", "offShift"]);
+
+/**
+ * やった人の候補: その日の勤務表にいる人と、その時刻にまだ勤務している前の日の夜勤の人（この枠の担当の人は除く）。
+ * その時間に勤務している人を先に（注意の少ない順・名前の順）、勤務外・休みの人は後ろ（off）。ループ 21
+ */
 export function doerChoices(state: State, taskId: ID, replacedStaffId?: ID): DoerChoice[] {
   const task = state.tasks[taskId];
   if (!task) return [];
   const inTask = new Set(assignmentsOf(state, taskId).map((a) => a.staffId));
   const base = replacedStaffId ? applyEvents(state, unassignEvents(state, taskId, replacedStaffId, previewCtx())) : state;
+  // 前の日の夜勤で、この枠の始まりにまだ勤務している人（夜勤明け。今日の勤務表では休みになっている）
+  const prev = addDays(task.date, -1);
+  const afterNight = new Map<ID, Minutes>();
+  for (const r of Object.values(state.roster)) {
+    if (r.date === prev && !r.absent && r.endMin > 24 * 60 && task.startMin < r.endMin - 24 * 60) afterNight.set(r.staffId, r.endMin - 24 * 60);
+  }
   const seen = new Set<ID>();
   const out: DoerChoice[] = [];
-  for (const r of Object.values(state.roster)) {
-    if (r.date !== task.date || inTask.has(r.staffId) || seen.has(r.staffId) || !state.staff[r.staffId]) continue;
-    seen.add(r.staffId);
-    out.push({ staffId: r.staffId, notes: checkAssignment(base, taskId, r.staffId).map((i) => i.message) });
-  }
-  return out.sort((a, b) => a.notes.length - b.notes.length || state.staff[a.staffId].surname.localeCompare(state.staff[b.staffId].surname, "ja"));
+  const add = (staffId: ID) => {
+    if (inTask.has(staffId) || seen.has(staffId) || !state.staff[staffId]) return;
+    seen.add(staffId);
+    let issues = checkAssignment(base, taskId, staffId);
+    const until = afterNight.get(staffId);
+    if (until !== undefined) issues = issues.filter((i) => !OFF_CODES.has(i.code));
+    const notes = [...(until !== undefined ? [`夜勤明け（${fmtMin(until)} まで）`] : []), ...issues.map((i) => i.message)];
+    out.push({ staffId, notes, off: issues.some((i) => OFF_CODES.has(i.code)) });
+  };
+  for (const r of Object.values(state.roster)) if (r.date === task.date) add(r.staffId);
+  for (const id of afterNight.keys()) add(id);
+  const name = (id: ID) => state.staff[id].surname;
+  return out.sort((a, b) => Number(a.off) - Number(b.off) || a.notes.length - b.notes.length || name(a.staffId).localeCompare(name(b.staffId), "ja"));
 }
 
 function previewCtx(): EventContext {
@@ -576,7 +598,7 @@ export function doneByEvents(state: State, taskId: ID, doerId: ID, replacedStaff
   const name = taskLabel(state, task);
   const replaced = replacedStaffId ? state.staff[replacedStaffId] : undefined;
   const label = replaced
-    ? `「${name}」は${replaced.surname}さんの代わりに${doer.surname}さんがやった、にしました（「終わった」の印つき）`
-    : `「${name}」は${doer.surname}さんがやった、にしました（「終わった」の印つき）`;
+    ? `「${name}」を${boardName(state, doer.id)}さんがやったことにしました（${boardName(state, replaced.id)}さんの代わり・「終わった」の印つき）`
+    : `「${name}」を${boardName(state, doer.id)}さんがやったことにしました（「終わった」の印つき）`;
   return { events, label };
 }

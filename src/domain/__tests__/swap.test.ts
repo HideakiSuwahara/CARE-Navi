@@ -67,7 +67,7 @@ test("やった人を変える（決定記録 0022）: 代わりの人を担当�
   const after = applyEvents(s, r.events);
   assert.deepEqual(assignmentsOf(after, t.id).map((v) => v.staffId), [ch[0].staffId]);
   assert.equal(after.tasks[t.id].done, true);
-  assert.match(r.label, /代わりに/);
+  assert.match(r.label, /さんの代わり/);
 });
 
 test("やった人を変える: 担当未定の枠でも、やった人を担当にして印を付ける", async () => {
@@ -88,4 +88,22 @@ test("始まったかは業務日の分で比べる（夜中の 2:10 は 翌2:10
   assert.ok(night, "翌0:00〜翌2:00 に始まる枠がある");
   assert.equal(taskStarted(night, DATE, 2 * 60 + 10), true);
   assert.equal(taskStarted(night, DATE, 22 * 60), false);
+});
+
+test("やった人の候補: 前の日の夜勤の人は、明けの時刻までは「夜勤明け」として勤務している側に並ぶ（ループ 21）", async () => {
+  const { doerChoices } = await import("../commands.ts");
+  const s = state();
+  const D1 = "2026-11-04";
+  const night = Object.values(s.roster).find((r) => r.date === DATE && !r.absent && r.endMin > 24 * 60)!;
+  const until = night.endMin - 24 * 60;
+  const early = tasksForDate(s, D1).find((t) => t.kind !== "break" && t.startMin < until && !assignmentsOf(s, t.id).some((a) => a.staffId === night.staffId))!;
+  assert.ok(early, "明けの時刻より前に始まる枠がある");
+  const c = doerChoices(s, early.id).find((x) => x.staffId === night.staffId)!;
+  assert.ok(c, "夜勤明けの人も候補に出る");
+  assert.equal(c.off, false);
+  assert.match(c.notes[0], /^夜勤明け/);
+  // 勤務外の人は後ろ
+  const list = doerChoices(s, early.id);
+  const firstOff = list.findIndex((x) => x.off);
+  if (firstOff >= 0) assert.ok(list.slice(firstOff).every((x) => x.off));
 });

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { assigneesOf, canMarkDone, headcountStatus, taskLabel, taskStarted , boardName } from "@/domain/checks";
-import { cancelTaskEvents, doerChoices, doneByEvents, shiftTaskEvents, swapChoices, swapPreview, unassignEvents, type SwapChoice } from "@/domain/commands";
+import { cancelTaskEvents, doerChoices, doneByEvents, shiftTaskEvents, swapChoices, swapPreview, unassignEvents, type DoerChoice, type SwapChoice } from "@/domain/commands";
 import { sheetRowFor } from "@/domain/routine";
 import { clockLabel, fmtRange } from "@/domain/time";
 import type { ID, State } from "@/domain/types";
@@ -131,8 +131,8 @@ export function TaskDetail({
                 {engine && (
                   <button
                     type="button"
-                    onClick={() => unassign(s.id, s.surname)}
-                    aria-label={`${s.surname}さんを担当から外す`}
+                    onClick={() => unassign(s.id, boardName(state, s.id))}
+                    aria-label={`${boardName(state, s.id)}さんを担当から外す`}
                     className="inline-flex h-[44px] w-[44px] items-center justify-center rounded-full text-[17px]"
                   >
                     ×
@@ -167,7 +167,7 @@ export function TaskDetail({
                   onClick={() => openSwap(swapFrom === s.id ? null : s.id)}
                   className="h-[44px] rounded-lg border border-[var(--cn-control-line)] px-3 text-[15px]"
                 >
-                  {s.surname}さんをほかの人と入れ替える…
+                  {boardName(state, s.id)}さんをほかの人と入れ替える…
                 </button>
               ))}
             </div>
@@ -350,7 +350,7 @@ function SwapBox({
     <div
       ref={boxRef}
       role="group"
-      aria-label={`${me.surname}さんの入れ替え`}
+      aria-label={`${boardName(state, me.id)}さんの入れ替え`}
       className="mt-2 flex flex-col gap-2 rounded-xl border border-[var(--cn-border)] p-3"
       onKeyDown={(e) => {
         // Escape は内側（入れ替えの箱）から先に閉じる（ループ 20）
@@ -362,7 +362,7 @@ function SwapBox({
     >
       {!preview ? (
         <>
-          <p className="text-[15px] font-bold">{me.surname}さんと担当を入れ替える人</p>
+          <p className="text-[15px] font-bold">{boardName(state, me.id)}さんと担当を入れ替える人</p>
           <p className="text-[14px] text-[var(--cn-ink-soft)]">同じ時間に別の業務の担当がある人です（右はその人のいまの担当）。空いている人を足すときは「＋ 担当を追加」から。</p>
           {choices.length === 0 ? (
             <p className="text-[15px] text-[var(--cn-ink-soft)]">この時間に重なるほかの業務の担当の人がいません。</p>
@@ -380,7 +380,7 @@ function SwapBox({
                       onClick={() => onPick(c)}
                       className="flex min-h-[44px] w-full items-center gap-2 rounded-lg border border-[var(--cn-control-line)] px-3 py-1.5 text-left text-[15px]"
                     >
-                      <span className="font-bold">{s.surname}さん</span>
+                      <span className="font-bold">{boardName(state, s.id)}さん</span>
                       <span className="text-[var(--cn-ink-soft)]">
                         いまの担当: {taskLabel(state, t)} {fmtRange(t.startMin, t.endMin)}
                       </span>
@@ -439,15 +439,44 @@ function SwapBox({
  */
 function DoerBox({ state, taskId, onDecide, onCancel }: { state: State; taskId: ID; onDecide: (doerId: ID, replacedId: ID | undefined) => void; onCancel: () => void }) {
   const assignees = assigneesOf(state, taskId);
-  // 担当が 1 人ならその人の代わり。複数なら選ぶ。担当がいなければ「やった人を選ぶ」
-  const [replaced, setReplaced] = useState<ID | undefined>(assignees.length === 1 ? assignees[0].id : undefined);
-  const needWho = assignees.length > 1 && replaced === undefined;
+  const status = headcountStatus(state, taskId);
+  const short = status.level === "unassigned" || status.level === "short";
+  // 担当が 1 人で人数がそろっている枠はその人の代わり。担当が足りない枠・複数の枠は、代わりか、もう一人足すかを選ぶ（ループ 21）
+  // 担当がいなければ「やった人を選ぶ」
+  const initial: ID | "add" | undefined = assignees.length === 0 ? "add" : assignees.length === 1 && !short ? assignees[0].id : undefined;
+  const [mode, setMode] = useState<ID | "add" | undefined>(initial);
+  const [showOff, setShowOff] = useState(false);
+  const needWho = mode === undefined;
+  const replaced = mode && mode !== "add" ? mode : undefined;
   const choices = needWho ? [] : doerChoices(state, taskId, replaced);
+  const on = choices.filter((c) => !c.off);
+  const off = choices.filter((c) => c.off);
   const boxRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     boxRef.current?.querySelector<HTMLElement>("button")?.focus();
   }, [needWho]);
-  const who = replaced ? state.staff[replaced]?.surname : undefined;
+  const who = replaced ? boardName(state, replaced) : undefined;
+  const title = needWho ? "代わりにやったか、一緒にやったか" : who ? `${who}さんの代わりにやった人` : assignees.length > 0 ? "一緒にやった人を足す" : "やった人を選ぶ";
+  const item = (c: DoerChoice) => {
+    const st = state.staff[c.staffId];
+    return (
+      <li key={c.staffId}>
+        <button
+          type="button"
+          onClick={() => onDecide(c.staffId, replaced)}
+          className="flex min-h-[44px] w-full flex-col items-start rounded-lg border border-[var(--cn-control-line)] px-3 py-1.5 text-left text-[15px]"
+        >
+          <span className="font-bold">{st ? boardName(state, st.id) : ""}さん</span>
+          {c.notes[0] && (
+            <span className="text-[14px] text-[var(--cn-ink-soft)]">
+              {!c.notes[0].startsWith("夜勤明け") && <span className="font-bold text-[var(--cn-short-ink)]">注意: </span>}
+              {c.notes[0]}
+            </span>
+          )}
+        </button>
+      </li>
+    );
+  };
   return (
     <section
       ref={boxRef}
@@ -461,42 +490,42 @@ function DoerBox({ state, taskId, onDecide, onCancel }: { state: State; taskId: 
       }}
     >
       <h3 id="doer-title" className="text-[15px] font-bold">
-        {needWho ? "だれの代わりにやりましたか" : who ? `${who}さんの代わりにやった人` : "やった人を選ぶ"}
+        {title}
       </h3>
       <p className="text-[14px] text-[var(--cn-ink-soft)]">選ぶと、その人を担当にして「終わった」の印を付けます（元に戻せます）。</p>
       {needWho ? (
         <div className="flex flex-wrap gap-2">
           {assignees.map((a) => (
-            <button key={a.id} type="button" onClick={() => setReplaced(a.id)} className="h-[44px] rounded-lg border border-[var(--cn-control-line)] px-3 text-[15px]">
-              {a.surname}さんの代わり
+            <button key={a.id} type="button" onClick={() => setMode(a.id)} className="h-[44px] rounded-lg border border-[var(--cn-control-line)] px-3 text-[15px]">
+              {boardName(state, a.id)}さんの代わり
             </button>
           ))}
+          {short && (
+            <button type="button" onClick={() => setMode("add")} className="h-[44px] rounded-lg border border-[var(--cn-control-line)] px-3 text-[15px]">
+              一緒にやった人を足す
+            </button>
+          )}
         </div>
       ) : choices.length === 0 ? (
         <p className="text-[15px]">選べる人がいません（この日の勤務表にいる人から選びます）。</p>
       ) : (
-        <ul className="flex flex-col gap-1.5">
-          {choices.map((c) => {
-            const st = state.staff[c.staffId];
-            return (
-              <li key={c.staffId}>
-                <button
-                  type="button"
-                  onClick={() => onDecide(c.staffId, replaced)}
-                  className="flex min-h-[44px] w-full flex-col items-start rounded-lg border border-[var(--cn-control-line)] px-3 py-1.5 text-left text-[15px]"
-                >
-                  <span className="font-bold">{st?.surname}さん</span>
-                  {c.notes[0] && (
-                    <span className="text-[14px] text-[var(--cn-ink-soft)]">
-                      <span className="font-bold text-[var(--cn-short-ink)]">注意: </span>
-                      {c.notes[0]}
-                    </span>
-                  )}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
+        <>
+          {on.length > 0 ? <ul className="flex flex-col gap-1.5">{on.map(item)}</ul> : <p className="text-[15px]">この時間に勤務している人はいません。下の「ほかの人」から選べます。</p>}
+          {off.length > 0 && (
+            <>
+              <button
+                type="button"
+                aria-expanded={showOff}
+                onClick={() => setShowOff((v) => !v)}
+                className="flex h-[44px] w-full items-center justify-between rounded-lg border border-[var(--cn-control-line)] px-3 text-left text-[15px]"
+              >
+                <span>ほかの人（勤務外・休み {off.length}）</span>
+                <span aria-hidden="true">{showOff ? "▴" : "▾"}</span>
+              </button>
+              {showOff && <ul className="flex flex-col gap-1.5">{off.map(item)}</ul>}
+            </>
+          )}
+        </>
       )}
       <button type="button" onClick={onCancel} className="h-[44px] self-start rounded-lg border border-[var(--cn-control-line)] px-3 text-[15px]">
         やめる

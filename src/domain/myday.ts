@@ -311,8 +311,9 @@ export function freeGaps(state: State, date: string, staffId: ID, minLength = 30
     cursor = Math.max(cursor, t.endMin);
   }
   if (entry.endMin - cursor >= minLength) gaps.push({ startMin: cursor, endMin: entry.endMin });
-  // 夜勤の番の人には、ほかの仕事の名前を出さない（自分のフロアを空けないように。ループ 20）
+  // 夜勤の番の人には空きの行を出さない（予定の枠が無くても、フロアでコールに応じている時間。ループ 21）
   const night = entry.endMin > 24 * 60;
+  if (night) return [];
   // 自分の番（なければ所属）のグループと、共通の枠だけ（別のフロアへの案内にしない）
   const myGroup = (entry.slotId ? state.roleSlots[entry.slotId]?.groupId : undefined) ?? state.staff[staffId]?.homeGroupId;
   const inMyArea = (t: TaskInstance) => !t.groupId || state.groups[t.groupId]?.kind === "common" || !myGroup || t.groupId === myGroup;
