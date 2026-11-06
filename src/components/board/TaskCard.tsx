@@ -1,6 +1,6 @@
 "use client";
 
-import { canMarkDone, headcountStatus, UNFINISHED_GRACE_MIN } from "@/domain/checks";
+import { canMarkDone, headcountStatus, UNFINISHED_GRACE_MIN , boardName } from "@/domain/checks";
 import { fmtMin, fmtRange } from "@/domain/time";
 import type { ID, State, TaskInstance } from "@/domain/types";
 import { useStaffDrag } from "./dnd";
@@ -75,7 +75,7 @@ export function TaskCard({
   ) : null;
 
   const chips = assignees.map(({ id, staff, firstTimer }) => (
-    <StaffChip key={id} taskId={task.id} staffId={staff!.id} surname={staff!.surname} firstTimer={firstTimer} done={done} dragKey={instanceKey} onOpen={() => onOpen?.(task.id)} />
+    <StaffChip key={id} taskId={task.id} staffId={staff!.id} surname={boardName(state, staff!.id)} firstTimer={firstTimer} done={done} dragKey={instanceKey} onOpen={() => onOpen?.(task.id)} />
   ));
 
   // 細い形のカードは始まりの時刻だけ（「9:30–10:…」と切れて作りかけに見えないように。決定記録 0019）
@@ -141,7 +141,7 @@ export function TaskCard({
           <div className="flex min-w-0 flex-1 items-center gap-2">
             {titleButton}
             {badge ?? (
-              <span className="min-w-0 truncate text-[14px] text-[var(--cn-accent)]">{assignees.map((a) => a.staff!.surname).join("・")}</span>
+              <span className="min-w-0 truncate text-[14px] text-[var(--cn-accent)]">{assignees.map((a) => boardName(state, a.staff!.id)).join("・")}</span>
             )}
           </div>
           {plus}
@@ -153,7 +153,7 @@ export function TaskCard({
             {plus}
           </div>
           <div className="flex min-w-0 items-center gap-1.5 overflow-hidden">
-            {badge ?? <span className="min-w-0 truncate text-[14px] text-[var(--cn-accent)]">{assignees.map((a) => a.staff!.surname).join("・")}</span>}
+            {badge ?? <span className="min-w-0 truncate text-[14px] text-[var(--cn-accent)]">{assignees.map((a) => boardName(state, a.staff!.id)).join("・")}</span>}
           </div>
         </>
       ) : compact ? (
@@ -241,7 +241,7 @@ export function SharedTaskCard({ state, task, onOpen, columnName }: { state: Sta
   const n = (state.targets[task.id] ?? []).length;
   const names = Object.values(state.assignments)
     .filter((a) => a.taskId === task.id)
-    .map((a) => state.staff[a.staffId]?.surname)
+    .map((a) => (state.staff[a.staffId] ? boardName(state, a.staffId) : undefined))
     .filter(Boolean)
     .join("・");
   const short = status.level === "unassigned" || status.level === "short";

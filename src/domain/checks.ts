@@ -363,3 +363,15 @@ export function nextUnfilledTask(state: State, date: string, currentId: ID, grou
   const after = cur ? list.find((t) => t.startMin > cur.startMin || (t.startMin === cur.startMin && t.id > cur.id)) : undefined;
   return after ?? list[0];
 }
+
+/**
+ * ボードで出す職員の名前。ふだんは姓だけ。同じ姓の職員がほかにいるときは名の 1 字を添える（「高橋（健）」。ループ 12 #4 の持ち越し）
+ */
+export function boardName(state: State, staffId: ID): string {
+  const st = state.staff[staffId];
+  if (!st) return "";
+  const same = Object.values(state.staff).some((x) => x.id !== st.id && x.surname === st.surname);
+  if (!same) return st.surname;
+  const given = st.displayName.replace(st.surname, "").trim();
+  return given ? `${st.surname}（${given.slice(0, 1)}）` : st.surname;
+}

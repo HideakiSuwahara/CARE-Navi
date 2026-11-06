@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { headcountStatus, rankCandidates, splitCandidates, taskLabel, type Candidate } from "@/domain/checks";
+import { headcountStatus, rankCandidates, splitCandidates, taskLabel, type Candidate , boardName } from "@/domain/checks";
 import { assignEvents } from "@/domain/commands";
 import { fmtRange } from "@/domain/time";
 import type { ID, State } from "@/domain/types";
@@ -77,7 +77,7 @@ export function AssignPanel({
       <li key={c.staff.id} className="flex items-center gap-3 px-3 py-2">
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-2">
-            <span className="font-bold">{c.staff.surname}</span>
+            <span className="font-bold">{boardName(state, c.staff.id)}</span>
             {slotName(c) && <span className="text-[14px] text-[var(--cn-ink-soft)]">{slotName(c)}</span>}
             {c.entry?.firstTimer && <span className="rounded border border-[var(--cn-card-line)] px-1 text-[13px]">初回</span>}
           </div>

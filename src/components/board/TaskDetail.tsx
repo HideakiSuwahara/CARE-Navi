@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { assigneesOf, canMarkDone, headcountStatus, taskLabel, taskStarted } from "@/domain/checks";
+import { assigneesOf, canMarkDone, headcountStatus, taskLabel, taskStarted , boardName } from "@/domain/checks";
 import { cancelTaskEvents, doerChoices, doneByEvents, shiftTaskEvents, swapChoices, swapPreview, unassignEvents, type SwapChoice } from "@/domain/commands";
 import { sheetRowFor } from "@/domain/routine";
 import { clockLabel, fmtRange } from "@/domain/time";
@@ -127,7 +127,7 @@ export function TaskDetail({
           <div className="flex flex-wrap items-center gap-2">
             {assignees.map((s) => (
               <span key={s.id} className="inline-flex h-[44px] items-center gap-1 rounded-full border border-[var(--cn-accent)] bg-[var(--cn-accent-soft)] pl-3 text-[15px] text-[var(--cn-accent)]">
-                {s.surname}
+                {boardName(state, s.id)}
                 {engine && (
                   <button
                     type="button"
@@ -347,7 +347,19 @@ function SwapBox({
   }, [picked]);
   if (!me) return null;
   return (
-    <div ref={boxRef} role="group" aria-label={`${me.surname}さんの入れ替え`} className="mt-2 flex flex-col gap-2 rounded-xl border border-[var(--cn-border)] p-3">
+    <div
+      ref={boxRef}
+      role="group"
+      aria-label={`${me.surname}さんの入れ替え`}
+      className="mt-2 flex flex-col gap-2 rounded-xl border border-[var(--cn-border)] p-3"
+      onKeyDown={(e) => {
+        // Escape は内側（入れ替えの箱）から先に閉じる（ループ 20）
+        if (e.key === "Escape") {
+          e.stopPropagation();
+          onCancel();
+        }
+      }}
+    >
       {!preview ? (
         <>
           <p className="text-[15px] font-bold">{me.surname}さんと担当を入れ替える人</p>

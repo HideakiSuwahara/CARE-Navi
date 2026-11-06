@@ -6,7 +6,7 @@
  */
 
 import type { ID, Minutes, Resident, State, TaskInstance } from "./types.ts";
-import { assigneesOf, headcountLabel, isWatchTask, taskLabel, tasksForDate } from "./checks.ts";
+import { assigneesOf, boardName, headcountLabel, isWatchTask, taskLabel, tasksForDate } from "./checks.ts";
 
 export { isWatchTask };
 
@@ -179,7 +179,7 @@ export function paletteRows(state: State, date: string): { working: PaletteRow[]
       : [];
     const row: PaletteRow = {
       staffId: staff.id,
-      surname: staff.surname,
+      surname: boardName(state, staff.id),
       slotName: e.slotId ? (state.roleSlots[e.slotId]?.name ?? "") : "",
       startMin: e.startMin,
       endMin: e.endMin,
@@ -298,7 +298,7 @@ export function watchLines(state: State, date: string): WatchLine[] {
       groupId: g.id,
       name: g.name,
       segments: segs.map((t) => {
-        const surnames = assigneesOf(state, t.id).map((s) => s.surname);
+        const surnames = assigneesOf(state, t.id).map((s) => boardName(state, s.id));
         const label = headcountLabel(t.headcount, surnames.length);
         return { task: t, surnames, label: label === "OK" || label.endsWith("多め") ? "" : label };
       }),

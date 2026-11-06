@@ -277,7 +277,8 @@ function FlowRow({ item, now }: { item: MyItem; now: number }) {
   // 「終わった」の印がある行は薄く。時刻が過ぎただけの行は通常の濃さのまま（決定記録 0010）
   return (
     // 「いま」の行はボタンを下の段に（業務名が 2〜3 字ずつ折れないように。ループ 19）
-    <li className={`flex items-stretch break-inside-avoid border-b border-[var(--cn-grid)] last:border-b-0 print:border-b-[#9a9fa5] ${item.current ? "flex-wrap bg-[var(--cn-accent-soft)]" : ""}`}>
+    // スマホ幅では「終わったら押す」のある行はすべてボタンを下の段に（過ぎた行も業務名が折れないように。ループ 20）
+    <li className={`flex items-stretch break-inside-avoid border-b border-[var(--cn-grid)] last:border-b-0 print:border-b-[#9a9fa5] max-sm:flex-wrap ${item.current ? "flex-wrap bg-[var(--cn-accent-soft)]" : ""}`}>
       <Link
         href={meHref(t.id)}
         data-flow-task={t.id}
@@ -295,7 +296,8 @@ function FlowRow({ item, now }: { item: MyItem; now: number }) {
           )}
           {item.past && !item.done && <span className="sr-only">（時刻を過ぎた予定）</span>}
           <span className={item.current ? "font-bold" : ""}>{item.title}</span>
-          {item.done && <span className="block text-[14px] font-bold text-[var(--cn-accent)]">✓ 終わった</span>}
+          {/* 右に「✓ 終わった」のボタンが出る行では、行の中には重ねて書かない（2 か所に出ないように。ループ 18 #23） */}
+          {item.done && !(item.canDone && t.startMin <= now) && <span className="block text-[14px] font-bold text-[var(--cn-accent)]">✓ 終わった</span>}
           {item.target && <span className="text-[14px]"> {item.target}</span>}
           {t.place && <span className="block text-[14px]">{t.place}</span>}
           {item.together.length > 0 && <span className="block text-[14px]">一緒に: {item.together.map((p) => p.surname).join("・")}</span>}
@@ -306,7 +308,7 @@ function FlowRow({ item, now }: { item: MyItem; now: number }) {
       </Link>
       {/* 印は始まった業務だけ（先の行で押し間違えないように。先に終えた人も、始まった後なら押せる） */}
       {item.canDone && t.startMin <= now && (
-        <span className={`cn-noprint flex items-center pr-3 ${item.current ? "w-full justify-end pb-3 pl-4" : ""}`}>
+        <span className={`cn-noprint flex items-center pr-3 ${item.current ? "w-full justify-end pb-3 pl-4" : "max-sm:-mt-1 max-sm:w-full max-sm:justify-end max-sm:pb-3 max-sm:pl-4"}`}>
           <DoneButton task={t} size="sm" />
         </span>
       )}

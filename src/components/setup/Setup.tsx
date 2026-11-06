@@ -781,6 +781,8 @@ function Everyday({ onOwn, onSample }: { onOwn: () => void; onSample: () => void
         )}
       </section>
 
+      {/* トーストが下のボタンを隠さないよう、ページの下に余白（ループ 12 #32 の持ち越し） */}
+      <div aria-hidden="true" className="h-24 shrink-0" />
       <div className="fixed bottom-5 left-1/2 z-40 flex -translate-x-1/2 items-center gap-2">
         {/* 読み上げ領域は常に置き、中身だけ出し入れする */}
         <span role="status" aria-live="polite" className="contents">

@@ -17,7 +17,8 @@ test.describe("「終わった」の印（スマホ）", () => {
     await pick(page, "10:12", "高橋");
     const flow = page.getByRole("heading", { name: "きょうの流れ" }).locator("..");
     // サンプルは 8:00 までの枠に印あり → 「✓ 終わった」が先にある。印の無い行の「終わったら押す」を押す
-    const before = await flow.getByText("✓ 終わった").count();
+    const marked = () => flow.locator('[data-done-task][aria-pressed="true"]').count();
+    const before = await marked();
     const buttons = flow.getByRole("button", { name: "終わったら押す" });
     expect(await buttons.count()).toBeGreaterThan(0);
     // これからの行（始まっていない）には出さない
@@ -28,11 +29,13 @@ test.describe("「終わった」の印（スマホ）", () => {
     await expect(first).toHaveAttribute("aria-pressed", "false");
     await first.click();
     await expect(first).toHaveAttribute("aria-pressed", "true");
-    expect(await flow.getByText("✓ 終わった").count()).toBe(before + 1);
+    expect(await marked()).toBe(before + 1);
+    // 行の中には「✓ 終わった」を重ねて書かない（ボタンだけ。ループ 18 #23）
+    await expect(first.locator("xpath=ancestor::li[1]").getByText("✓ 終わった", { exact: true })).toHaveCount(0);
     const status = page.getByRole("status").filter({ hasText: "に「終わった」の印を付けました" });
     await expect(status).toBeVisible();
     await status.getByRole("button", { name: "元に戻す" }).click();
-    expect(await flow.getByText("✓ 終わった").count()).toBe(before);
+    await expect.poll(marked).toBe(before);
     await expect(page.getByRole("status").filter({ hasText: "元に戻しました" })).toBeVisible();
     // トーストが消えたあとも、見出しの横の「元に戻す（操作名）」で戻せる（CLAUDE §5）
     await first.click();

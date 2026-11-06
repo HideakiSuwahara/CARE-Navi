@@ -76,13 +76,15 @@ export function addGroupEvents(state: State, name: string, template: SeedData, c
   const slotFor = new Map<ID, ID>();
   const token = shortName(src.name);
   const newSlots: RoleSlot[] = [];
-  for (const sl of template.roleSlots) {
+  // 写した番は、今ある番の後ろにまとめて並べる（グループの順 → 番の順。ループ 13 #30）
+  const slotBase = Math.max(-1, ...Object.values(state.roleSlots).map((x) => x.sortOrder)) + 1;
+  for (const sl of [...template.roleSlots].sort((a, b) => a.sortOrder - b.sortOrder)) {
     if (sl.groupId !== src.id) continue;
     // 雛形の短い名前を含む番は置き換え（夜勤東 → 夜勤3階）、ほかは後ろに添える（早番A（3階））
     const renamed = token && sl.name.includes(token) ? sl.name.replace(token, n) : `${sl.name}（${n}）`;
     const { leaderRank: _lr, ...rest } = sl;
     void _lr;
-    const slot: RoleSlot = { ...rest, id: ctx.newId(), name: renamed, groupId: group.id, sortOrder: sl.sortOrder + sortOrder * 0.01 };
+    const slot: RoleSlot = { ...rest, id: ctx.newId(), name: renamed, groupId: group.id, sortOrder: slotBase + newSlots.length };
     // 同じ名前の番が既にあれば、名前の後ろに種類を添えて見分ける
     if (Object.values(state.roleSlots).some((x) => x.name === slot.name)) slot.name = `${slot.name}（${n}）`;
     newSlots.push(slot);

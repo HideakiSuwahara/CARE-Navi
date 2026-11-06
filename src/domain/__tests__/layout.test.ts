@@ -141,3 +141,15 @@ test("職員表示: 同じ人の帯が重なれば両方に印、見守りの空
   assert.ok(unfilled.length > 0);
   assert.ok(unfilled.every((u) => u.task.kind !== "break"));
 });
+
+test("ボードの名前: 同じ姓がほかにいれば名の 1 字を添える（ループ 12 #4 の持ち越し）", async () => {
+  const { boardName } = await import("../checks.ts");
+  const { himawariSeed } = await import("../seed/index.ts");
+  const { stateFromSeed, deterministicContext } = await import("../loadSeed.ts");
+  const s = stateFromSeed(himawariSeed, deterministicContext("bn"));
+  const st = Object.values(s.staff)[0];
+  assert.equal(boardName(s, st.id), st.surname);
+  s.staff["dup"] = { ...st, id: "dup", displayName: `${st.surname} 太郎` };
+  assert.equal(boardName(s, "dup"), `${st.surname}（太）`);
+  assert.notEqual(boardName(s, st.id), st.surname);
+});
