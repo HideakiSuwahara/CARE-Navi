@@ -2,7 +2,7 @@
  * 設定の「追加・変更」: 施設の名前・グループ（ユニット・フロア）・番（役割枠）を、施設を作ったあとに足す・直す・外す。
  * 決定記録 0016、グリル 2026-11-06。
  * - グループを足すと、雛形（サンプル）の同じ種類のグループの番と業務表の枠を写す（「自分の施設で始める」と同じ考え方）。
- * - 所属（利用者・職員）が残るグループ、明日以降の勤務表や業務表に使われている番は消せない（理由を一文）。
+ * - 所属（利用者・職員）が残るグループ、今日以降の勤務表や業務表に使われている番は消せない（理由を一文）。
  * - 番の時刻を変えても、入れてある勤務表の時刻は変えない（次に貼る分と、朝の帯で選び直した日から効く）。
  * - 業務の種類（テンプレート）と業務表の編集は作らない（0001・0003）。
  */
@@ -53,11 +53,11 @@ export function groupMembers(state: State, groupId: ID): { residents: number; st
  * - 業務表: 施設の業務表（雛形と同じ ID）に、雛形の同じグループの項目を新しい ID で足す。対象の方を決めていた項目は写さない（一括の入浴は全員の日課として写す）。
  * - グループを持たない番（介護助手・看護・スポット）の項目は、施設にその番があれば束ねる。
  */
-export function addGroupEvents(state: State, name: string, template: SeedData, ctx: EventContext): MasterResult {
+export function addGroupEvents(state: State, name: string, template: SeedData, ctx: EventContext, kindIn?: Group["kind"]): MasterResult {
   const n = squash(name);
   if (!n) return { events: [], label: "", error: "グループの名前を入れてください" };
   if (Object.values(state.groups).some((g) => g.name === n)) return { events: [], label: "", error: `「${n}」はもうあります` };
-  const kind = groupKindOf(n);
+  const kind = kindIn && kindIn !== "common" ? kindIn : groupKindOf(n);
   const existing = Object.values(state.groups);
   const common = existing.find((g) => g.kind === "common");
   const others = existing.filter((g) => g.kind !== "common");
@@ -121,7 +121,8 @@ export function addGroupEvents(state: State, name: string, template: SeedData, c
     added += items.length;
     events.push({ ...metaOf(ctx), type: "pattern.upsert", pattern: { ...mine, items: [...mine.items, ...items] } });
   }
-  const label = `グループ「${n}」を足しました（番 ${newSlots.length}・業務表の枠 ${added}。次の日の時間割から出ます）`;
+  const names = newSlots.map((x) => x.name).join("、");
+  const label = `グループ「${n}」を足しました（番 ${newSlots.length}${names ? `: ${names}` : ""}・業務表の枠 ${added}。次の日の時間割から出ます）`;
   return { events, label };
 }
 
@@ -133,12 +134,19 @@ export function renameGroupEvents(state: State, groupId: ID, name: string, ctx: 
   if (!n) return { events: [], label: "", error: "グループの名前を入れてください" };
   if (n === g.name) return { events: [], label: "" };
   if (Object.values(state.groups).some((x) => x.name === n && x.id !== groupId)) return { events: [], label: "", error: `「${n}」はもうあります` };
-  const events: Event[] = [{ ...metaOf(ctx), type: "group.upsert", group: { ...g, name: n, kind: g.kind === "common" ? "common" : groupKindOf(n) } }];
+  // 種類（ユニット／フロア）は名前を変えても変えない（0016。種類は足すときに選ぶ）
+  const events: Event[] = [{ ...metaOf(ctx), type: "group.upsert", group: { ...g, name: n } }];
+  const oldShort = shortName(g.name);
+  const newShort = shortName(n);
+  const kept: string[] = [];
   for (const sl of Object.values(state.roleSlots)) {
-    if (sl.groupId === groupId && sl.name.includes(g.name)) {
-      events.push({ ...metaOf(ctx), type: "roleSlot.upsert", roleSlot: { ...sl, name: sl.name.replace(g.name, n) } });
-    }
+    if (sl.groupId !== groupId) continue;
+    const next = sl.name.includes(g.name) ? sl.name.replace(g.name, n) : oldShort && sl.name.includes(oldShort) ? sl.name.replace(oldShort, newShort) : null;
+    if (next && next !== sl.name && !Object.values(state.roleSlots).some((x) => x.name === next && x.id !== sl.id)) {
+      events.push({ ...metaOf(ctx), type: "roleSlot.upsert", roleSlot: { ...sl, name: next } });
+    } else kept.push(sl.name);
   }
+  if (kept.length > 0) return { events, label: `グループ「${g.name}」を「${n}」にしました（番の名前はそのまま: ${kept.join("、")}。下の番の欄で直せます）` };
   return { events, label: `グループ「${g.name}」を「${n}」にしました` };
 }
 
@@ -177,7 +185,10 @@ export interface RoleSlotInput {
 export function upsertRoleSlotEvents(state: State, input: RoleSlotInput, ctx: EventContext): MasterResult {
   const n = squash(input.name);
   if (!n) return { events: [], label: "", error: "番の名前を入れてください（早番A など）" };
-  if (!(input.startMin >= 0 && input.endMin > input.startMin && input.endMin <= 48 * 60)) return { events: [], label: "", error: "時刻は 開始 < 終わり（翌日は 翌9:00 のように）で入れてください" };
+  // 終わりが開始より前（17:00／9:00）なら翌日として受ける
+  const endMin = input.endMin <= input.startMin && input.endMin < 24 * 60 ? input.endMin + 24 * 60 : input.endMin;
+  input = { ...input, endMin };
+  if (!(input.startMin >= 0 && input.startMin < 24 * 60 && input.endMin > input.startMin && input.endMin <= 2879)) return { events: [], label: "", error: "時刻は 開始 < 終わり（翌日は 翌9:00 のように）で入れてください" };
   const prev = input.id ? state.roleSlots[input.id] : undefined;
   if (input.id && !prev) return { events: [], label: "", error: "その番は見つかりません" };
   if (Object.values(state.roleSlots).some((s) => s.name === n && s.id !== input.id)) return { events: [], label: "", error: `番「${n}」はもうあります` };
@@ -199,7 +210,7 @@ export function upsertRoleSlotEvents(state: State, input: RoleSlotInput, ctx: Ev
   return { events: [{ ...metaOf(ctx), type: "roleSlot.upsert", roleSlot: slot }], label };
 }
 
-/** 番を外す。明日以降の勤務表か業務表に使われていれば外せない */
+/** 番を外す。今日以降の勤務表か業務表に使われていれば外せない */
 export function removeRoleSlotEvents(state: State, slotId: ID, today: DateKey, ctx: EventContext): MasterResult {
   const sl = state.roleSlots[slotId];
   if (!sl) return { events: [], label: "", error: "その番は見つかりません" };
@@ -207,7 +218,8 @@ export function removeRoleSlotEvents(state: State, slotId: ID, today: DateKey, c
   const patterns = Object.values(state.patterns).filter((p) => p.items.some((it) => it.slotIds.includes(slotId)));
   if (rosterDays > 0 || patterns.length > 0) {
     const why = [rosterDays > 0 ? `今日以降の勤務表 ${rosterDays}日` : "", patterns.length > 0 ? `業務表「${patterns.map((p) => p.name).join("・")}」` : ""].filter(Boolean).join("と");
-    return { events: [], label: "", error: `番「${sl.name}」は${why}で使われているので外せません。先にそちらを変えてください` };
+    const next = patterns.length > 0 ? "使わなくなった番は、名前を変えて残してください" : "先に勤務表のその日の番を選び直してください";
+    return { events: [], label: "", error: `番「${sl.name}」は${why}で使われているので外せません。${next}` };
   }
   return { events: [{ ...metaOf(ctx), type: "roleSlot.remove", id: slotId }], label: `番「${sl.name}」を外しました` };
 }

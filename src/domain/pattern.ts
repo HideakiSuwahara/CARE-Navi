@@ -327,17 +327,18 @@ export function morningDraft(state: State, date: DateKey, newId: () => ID): Morn
     })
     .map((e) => {
       listed.add(e.staffId);
+      // 外した番（設定で外した・グループごと外した）は写さない。休みで並べ、人が番を選び直す（ループ 13）
       const slot = e.slotId ? state.roleSlots[e.slotId] : undefined;
       return {
         id: newId(),
         date,
         staffId: e.staffId,
-        slotId: e.slotId,
+        slotId: slot ? e.slotId : undefined,
         startMin: slot?.defaultStartMin ?? e.startMin,
         endMin: slot?.defaultEndMin ?? e.endMin,
         firstTimer: false,
         // 休みの印は引き継がない（受け入れ L35）。ただし番のない人は休みのまま（番のない出勤を作らない。グリル U1）
-        absent: !e.slotId,
+        absent: !slot,
         carriedFrom: lastWeek,
       };
     });
@@ -384,11 +385,11 @@ function recentDraft(state: State, date: DateKey, newId: () => ID): Pick<Morning
         id: newId(),
         date,
         staffId: e.staffId,
-        slotId: e.slotId,
+        slotId: slot ? e.slotId : undefined,
         startMin: slot?.defaultStartMin ?? e.startMin,
         endMin: slot?.defaultEndMin ?? e.endMin,
         firstTimer: false,
-        absent: e.absent || afterNight,
+        absent: e.absent || afterNight || !slot,
         carriedFrom: from,
       });
     }
