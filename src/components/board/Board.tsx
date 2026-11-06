@@ -554,7 +554,8 @@ export function Board({ date: dateParam }: { date?: string }) {
             元に戻す<span className="text-[13px] text-[var(--cn-muted)]">（{viewUndo.label}）</span>
           </button>
         )}
-        {viewUndo && engine && (
+        {/* 履歴は戻せる操作が無くても置いておく（戻したあと探さないように。ループ 21） */}
+        {engine && (
           <UndoHistory
             engine={engine}
             date={date}

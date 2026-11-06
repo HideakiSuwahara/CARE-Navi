@@ -108,7 +108,9 @@ export function leaderContact(state: State, date: string, now: Minutes): LeaderC
   if (!primary) return undefined;
   const leaderStaff = state.staff[primary.entry.staffId];
   // リーダー本人の相談先は、リーダーの番（leaderRank）の人だけから（同僚ではなく、次の順の人）
-  const nextDuty = byRank.find((d) => d !== primary);
+  // 夜勤のリーダーで順の人がいなければ、もう一人の夜勤者（夜は詰所に誰もいないことが多い。日中は同僚を出さない。ループ 21）
+  const nightLeader = primary.entry.endMin > 24 * 60;
+  const nextDuty = byRank.find((d) => d !== primary) ?? (nightLeader ? byOrder.find((d) => d !== primary && !d.onBreak) : undefined);
   const base = {
     leader: person(leaderStaff),
     isLeader: primary.rank !== undefined,

@@ -166,3 +166,15 @@ test("手が空いたら: 勤務中の 30 分以上の空きと、その時間�
     }
   }
 });
+
+test("困ったら: 夜勤のリーダー本人には、もう一人の夜勤者を出す（ループ 21）", async () => {
+  const { leaderContact } = await import("../myday.ts");
+  const { himawariSeed } = await import("../seed/index.ts");
+  const { stateFromSeed, deterministicContext } = await import("../loadSeed.ts");
+  const s = stateFromSeed(himawariSeed, deterministicContext("lc"));
+  const c = leaderContact(s, "2026-11-03", 23 * 60)!;
+  assert.ok(c.isLeader);
+  assert.ok(c.next, "相談先がいる");
+  const entry = Object.values(s.roster).find((r) => r.date === "2026-11-03" && r.staffId === c.next!.staffId)!;
+  assert.ok(entry.endMin > 24 * 60, "もう一人の夜勤者");
+});
