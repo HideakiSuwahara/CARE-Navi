@@ -198,3 +198,36 @@ test.describe("ループ 18（暗い画面と見た目の直し）", () => {
     await expect(page.locator("#board-toast").getByRole("button", { name: "元に戻す" })).toHaveCount(0);
   });
 });
+
+test.describe("ループ 12・13・18 の持ち越し", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto("/board?now=10:12");
+    await page.evaluate(() => localStorage.clear());
+    await page.goto("/board?now=10:12");
+    await expect(page.locator("[data-task-id]").first()).toBeVisible();
+  });
+
+  test("ボードの日付を押して日を選ぶと、その日のボードへ移る", async ({ page }) => {
+    await expect(page.getByRole("button", { name: /押すと日付を選べます/ })).toBeVisible();
+    await page.locator('nav[aria-label="日付"] input[type="date"]').fill("2026-11-09");
+    await expect(page).toHaveURL(/date=2026-11-09/);
+    await expect(page.getByRole("button", { name: /11月9日（月）/ })).toBeVisible();
+  });
+
+  test("利用者一覧の名前を押すと、その方を選んだ状態で「1 人ずつ足す・直す」が開く", async ({ page }) => {
+    await page.goto("/residents");
+    // 名前のボタンは「101 山田 キヨ 様 （直す）」
+    const name = page.getByRole("button", { name: /^101 .+（直す）$/ });
+    await name.click();
+    await expect(page.getByLabel(/名前/).first()).toHaveValue("山田 キヨ");
+  });
+
+  test("利用者がまだいないグループの列には、次の 1 手を書く", async ({ page }) => {
+    await page.goto("/setup");
+    await page.getByLabel(/^グループを足す/).fill("すみれ");
+    await page.getByRole("button", { name: "＋ グループを足す" }).click();
+    await page.goto("/board?date=2026-11-12&now=7:00");
+    await page.getByRole("button", { name: "この内容で作る" }).click();
+    await expect(page.getByTestId("board-scroller").getByText("利用者がまだいません（利用者の画面で足せます）")).toBeVisible();
+  });
+});

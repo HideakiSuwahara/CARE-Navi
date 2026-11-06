@@ -106,7 +106,8 @@ export function boardColumns(state: State, date: string, minVisualMin = 0, group
     return {
       id: g.id,
       name: g.name,
-      sub: g.kind === "common" ? "" : `利用者 ${residentsIn(g.id)}人`,
+      // 足したばかりで利用者がいないグループは、次の 1 手を添える（ループ 13 #19）
+      sub: g.kind === "common" ? "" : residentsIn(g.id) === 0 ? "利用者がまだいません（利用者の画面で足せます）" : `利用者 ${residentsIn(g.id)}人`,
       cards,
       hasRail,
       maxLanes,

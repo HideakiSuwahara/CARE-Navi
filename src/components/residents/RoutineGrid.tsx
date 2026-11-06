@@ -18,7 +18,7 @@ import { RoutinePanel, type RoutinePanelResult, type RoutinePanelTarget } from "
  * 一覧: 縦に利用者、横にそのグループの日課。標準と違うマスだけ直す（決定記録 0004 §3）。
  * 行を選んで、列の見出しの「まとめて変える」から同じ時刻・なしを一度に入れる（1つの操作・1つの元に戻す）。
  */
-export function RoutineGrid({ state, groupId, flash = [] }: { state: State; groupId: ID; flash?: ID[] }) {
+export function RoutineGrid({ state, groupId, flash = [], onEdit }: { state: State; groupId: ID; flash?: ID[]; onEdit?: (residentId: ID) => void }) {
   const engine = useEngine();
   const [band, setBand] = useState<RoutineBand>("all");
   const allRoutines = useMemo(() => routinesOf(state, groupId), [state, groupId]);
@@ -248,8 +248,23 @@ export function RoutineGrid({ state, groupId, flash = [] }: { state: State; grou
                     </label>
                   </td>
                   <th scope="row" className={`sticky left-[52px] px-3 text-left font-normal transition-colors duration-700 ${bg}`}>
-                    <span className="mr-2 text-[14px] text-[var(--cn-muted)]">{r.room}</span>
-                    <span className="font-bold">{r.displayName}</span>様
+                    {/* 名前を押すと、その方を選んだ状態で「1 人ずつ足す・直す」が開く（ループ 12 #21） */}
+                    {onEdit ? (
+                      <button
+                        type="button"
+                        onClick={() => onEdit(r.id)}
+                        className="inline-flex min-h-[44px] items-center text-left hover:underline"
+                      >
+                        <span className="mr-2 text-[14px] text-[var(--cn-muted)]">{r.room}</span>
+                        <span className="font-bold underline decoration-[var(--cn-control-line)] underline-offset-4">{r.displayName}</span>様
+                        <span className="sr-only">（直す）</span>
+                      </button>
+                    ) : (
+                      <>
+                        <span className="mr-2 text-[14px] text-[var(--cn-muted)]">{r.room}</span>
+                        <span className="font-bold">{r.displayName}</span>様
+                      </>
+                    )}
                     {isNew && <span className="ml-2 rounded border border-[var(--cn-card-line)] bg-white px-1.5 text-[14px] font-bold">足しました</span>}
                   </th>
                   {routines.map((rt) => {

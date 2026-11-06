@@ -59,7 +59,7 @@ export function DoneButton({ task, size = "md" }: { task: TaskInstance; size?: "
 
 /** ボタンの下に添える一言（一緒に入る人がいる枠・対象が複数の枠では、その分も含めて押すと分かるように） */
 export function doneHint(task: TaskInstance, togetherCount: number): string {
-  if (task.done) return "「終わった」の印が付いています";
+  if (task.done) return "「終わった」の印が付いています（押すと外せます）";
   if (togetherCount > 0) return "一緒に入る人の分も終わったら押します（元に戻せます）";
   if (task.targetMode === "group") return "対象の方 全員が終わったら押します（元に戻せます）";
   return "終わったら印を付けます（元に戻せます）";

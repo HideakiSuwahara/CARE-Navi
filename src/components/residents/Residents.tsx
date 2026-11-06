@@ -28,6 +28,12 @@ export function Residents() {
   const [pasteOpen, setPasteOpen] = useState(false);
   // 1 人ずつ足す・直す・退所（決定記録 0015）
   const [formOpen, setFormOpen] = useState(false);
+  const [formFor, setFormFor] = useState<ID | undefined>(undefined);
+  const editResident = (id: ID) => {
+    setFormFor(id);
+    setFormOpen(true);
+    window.scrollTo({ top: 0 });
+  };
   const today = useDefaultDate(state, "business") ?? "";
   // 貼り付けで足した方（一覧でその行までスクロールし、2秒ほど目立たせる）
   const [flash, setFlash] = useState<ID[]>([]);
@@ -190,8 +196,8 @@ export function Residents() {
         ) : (
           <>
             {pasteOpen && <PastePanel state={state} groupId={groupId} onClose={() => setPasteOpen(false)} onAdded={afterPaste} />}
-            {formOpen && <ResidentForm state={state} groupId={groupId} today={today} onClose={() => setFormOpen(false)} onDone={afterForm} />}
-            {groupId && (tab === "grid" ? <RoutineGrid key={groupId} state={state} groupId={groupId} flash={flash} /> : <SheetView key={groupId} state={state} groupId={groupId} />)}
+            {formOpen && <ResidentForm key={formFor ?? "new"} state={state} groupId={groupId} today={today} initialId={formFor} onClose={() => { setFormOpen(false); setFormFor(undefined); }} onDone={(...a) => { setFormFor(undefined); afterForm(...a); }} />}
+            {groupId && (tab === "grid" ? <RoutineGrid key={groupId} state={state} groupId={groupId} flash={flash} onEdit={editResident} /> : <SheetView key={groupId} state={state} groupId={groupId} />)}
           </>
         )}
       </main>

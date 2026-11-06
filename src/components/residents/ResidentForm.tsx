@@ -15,8 +15,11 @@ export function ResidentForm({
   today,
   onDone,
   onClose,
+  initialId,
 }: {
   state: State;
+  /** 一覧の名前から開いたとき、その方を選んだ状態で開く（ループ 12 #21） */
+  initialId?: ID;
   /** いま選んでいるグループ（足すときの既定） */
   groupId?: ID;
   today: string;
@@ -27,11 +30,12 @@ export function ResidentForm({
   const groups = Object.values(state.groups)
     .filter((g) => g.kind !== "common")
     .sort((a, b) => a.sortOrder - b.sortOrder);
-  const [pickedId, setPickedId] = useState<string>("");
+  const init = initialId ? state.residents[initialId] : undefined;
+  const [pickedId, setPickedId] = useState<string>(init?.id ?? "");
   const prev = pickedId ? state.residents[pickedId] : undefined;
-  const [name, setName] = useState("");
-  const [group, setGroup] = useState<string>(groupId ?? groups[0]?.id ?? "");
-  const [room, setRoom] = useState("");
+  const [name, setName] = useState(init?.displayName ?? "");
+  const [group, setGroup] = useState<string>(init?.groupId ?? groupId ?? groups[0]?.id ?? "");
+  const [room, setRoom] = useState(init?.room ?? "");
   const [error, setError] = useState("");
   const [confirmLeave, setConfirmLeave] = useState(false);
   const first = useRef<HTMLInputElement>(null);

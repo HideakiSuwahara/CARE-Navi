@@ -220,7 +220,13 @@ export function MorningBand({ state, date }: { state: State; date: DateKey }) {
           この内容で作る
         </button>
         <span className="text-[14px] text-[var(--cn-muted)]">
-          {rows.some((r) => !r.absent && !r.slotId) ? "番を選んでいない人がいます（赤い枠）。" : "作ったあとで直せます。元に戻すこともできます。"}
+          {rows.some((r) => !r.absent && !r.slotId)
+            ? `番を選んでいない人: ${rows
+                .filter((r) => !r.absent && !r.slotId)
+                .map((r) => state.staff[r.staffId]?.surname)
+                .filter(Boolean)
+                .join("・")}（「番を選ぶ」の欄）。`
+            : "作ったあとで直せます。元に戻すこともできます。"}
         </span>
       </div>
     </section>

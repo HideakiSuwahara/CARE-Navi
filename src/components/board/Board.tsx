@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { TopBar } from "@/components/TopBar";
 import { SETUP_NOTE_KEY, writeChosen } from "@/components/setup/setupNote";
@@ -816,13 +817,41 @@ function DateNav({ date, today }: { date: string; today: string | null }) {
   const href = (d: string) => (d === today ? "/board" : `/board?date=${d}`);
   const prev = addDays(date, -1);
   const next = addDays(date, 1);
+  const router = useRouter();
+  const picker = useRef<HTMLInputElement>(null);
   return (
     <nav aria-label="日付" className="flex items-center gap-1">
       <Link href={href(prev)} className={link} aria-label={`前の日（${shortDateOf(prev)}）`}>
         ‹ 前の日
       </Link>
-      <span className="px-1 text-[16px] font-bold" aria-current="date">
-        {weekdayLabel(date)}
+      {/* 日付を押すとカレンダーで日を選べる（勤務表を入れた先の日へ「次の日」を何度も押さない。ループ 12 #25） */}
+      <span className="relative">
+        <button
+          type="button"
+          aria-current="date"
+          aria-label={`${weekdayLabel(date)}。押すと日付を選べます`}
+          onClick={() => {
+            const el = picker.current;
+            if (!el) return;
+            try {
+              el.showPicker();
+            } catch {
+              el.focus();
+            }
+          }}
+          className="inline-flex h-[44px] items-center rounded-lg px-2 text-[16px] font-bold underline decoration-dotted underline-offset-4 hover:bg-[var(--cn-ground)]"
+        >
+          {weekdayLabel(date)}
+        </button>
+        <input
+          ref={picker}
+          type="date"
+          tabIndex={-1}
+          aria-hidden="true"
+          value={date}
+          onChange={(e) => e.target.value && router.push(href(e.target.value))}
+          className="pointer-events-none absolute bottom-0 left-0 h-px w-px opacity-0"
+        />
       </span>
       <Link href={href(next)} className={link} aria-label={`次の日（${shortDateOf(next)}）`}>
         次の日 ›

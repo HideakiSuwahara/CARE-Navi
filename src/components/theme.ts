@@ -32,3 +32,12 @@ export function writeTheme(choice: ThemeChoice) {
 
 /** 描く前に読む小さなスクリプト（layout の <head>）。開いた瞬間に明るい画面が一瞬出ないように */
 export const THEME_BOOT = `try{var t=localStorage.getItem("${THEME_KEY}");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}`;
+
+/** 同じブラウザのほかのタブで変えたら、このタブもそろえる（ループ 18） */
+export function watchTheme(): () => void {
+  const on = (e: StorageEvent) => {
+    if (e.key === THEME_KEY || e.key === null) applyTheme(readTheme());
+  };
+  window.addEventListener("storage", on);
+  return () => window.removeEventListener("storage", on);
+}
