@@ -109,7 +109,7 @@ const REPOSITION_EAST: ID[] = ["res-101-yamada", "res-104-shimizu", "res-107-has
 const REPOSITION_SAKURA: ID[] = [RES_TANAKA, RES_KOBAYASHI];
 
 // ---------------------------------------------------------------------------
-// 職員（12人・架空）
+// 職員（15人・架空）
 // ---------------------------------------------------------------------------
 
 const s = (
@@ -142,6 +142,10 @@ const STF_KATO = "stf-kato";
 const STF_WATANABE = "stf-watanabe";
 const STF_SAITO = "stf-saito";
 const STF_NOGUCHI = "stf-noguchi";
+// 11/5 から勤務表に入る職員（11/3・11/4 は公休。11/3 の見せ場の出勤者は変えない）
+const STF_YOSHIDA = "stf-yoshida";
+const STF_YAMAGUCHI = "stf-yamaguchi";
+const STF_SUGIYAMA = "stf-sugiyama";
 
 const staff: Staff[] = [
   s(STF_SATO, "佐藤", "みき", "介護福祉士", ["介護福祉士", "入浴担当可"], GRP_EAST, "801"),
@@ -156,6 +160,9 @@ const staff: Staff[] = [
   s(STF_WATANABE, "渡辺", "さとし", "介護助手", ["入浴担当可"]),
   s(STF_SAITO, "斉藤", "りく", "介護職員", ["入浴担当可"], GRP_EAST, "808"),
   s(STF_NOGUCHI, "野口", "ちえ", "介護福祉士", ["介護福祉士"], GRP_SAKURA, "809"),
+  s(STF_YOSHIDA, "吉田", "まなみ", "介護福祉士", ["介護福祉士", "入浴担当可"], GRP_EAST, "813"),
+  s(STF_YAMAGUCHI, "山口", "こうき", "介護職員", ["入浴担当可"], GRP_EAST, "814"),
+  s(STF_SUGIYAMA, "杉山", "はるか", "介護職員", ["入浴担当可"], GRP_SAKURA, "815"),
 ];
 
 // ---------------------------------------------------------------------------
@@ -927,7 +934,7 @@ const nightCommon: ItemSpec[] = [
 
 /** 入浴日だけの枠（早番A＝リーダーは入れない） */
 const bathOnly: ItemSpec[] = [
-  // 小林様は看護が朝に入浴の可否を見てから（9:30）。東の入浴（10:30）と重ねない
+  // 小林様は看護が 9:00 に来てから（9:30）。東の入浴（10:30）と重ねない
   { id: "bath-kobayashi", tpl: TPL_BATH_INDIV, start: t(9, 30), end: t(10, 30), group: GRP_SAKURA, slots: [SLOT_NIKKIN_SAKURA, SLOT_NIKKIN_B], hc: 2, residents: [RES_KOBAYASHI] },
   { id: "bath-east", tpl: TPL_BATH_GROUP, start: t(10, 30), end: t(12), group: GRP_EAST, slots: [SLOT_NIKKIN_C, SLOT_NIKKIN_A, SLOT_JOSHU], hc: 3, residents: BATH_EAST_RESIDENTS },
 ];
@@ -1011,6 +1018,7 @@ const D4 = "2026-11-06";
 const D5 = "2026-11-07";
 const D6 = "2026-11-08";
 const D7 = "2026-11-09";
+const D8 = "2026-11-10";
 
 const roster: RosterEntry[] = [
   // 10/27（火）先週の入浴日。番だけ持つ（時間割は作らない）。介護助手は出勤、スポットなし。
@@ -1048,49 +1056,64 @@ const roster: RosterEntry[] = [
   ros(D2, STF_KIMURA, SLOT_YAKIN_EAST),
   ros(D2, STF_YAMAMOTO, SLOT_YAKIN_SAKURA),
   ros(D2, STF_WATANABE, SLOT_JOSHU),
-  // 11/5〜11/9: 月の勤務表から入れてある日（時間割はまだ）。夜勤の翌日（明け）は勤務表に載せない（休み）。
-  // 夜勤は 東・さくら 1 人ずつ。夜勤のあと中 1 日以上あけてから次の夜勤。介護助手は火・水・金の午前。
-  // 土日は日中の人数が少ない日（看護は日曜休み。夜間はオンコール）。
-  // 11/5（木）平日。11/4 の夜勤（木村・山本）は明け
+  // 11/5〜11/10: 月の勤務表から入れてある日（時間割はまだ）。基本は「入り（夜勤）・明け・休み」。明けの日は勤務表に載せない。
+  // 全員、週に 1 日以上の公休（吉田・山口・杉山は 11/3・11/4 が公休）。夜勤は 東・さくら 1 人ずつ。介護助手は火・水・金の午前。
+  // 11/5（木）平日。11/4 の夜勤（木村・山本）は明け、斉藤・野口・鈴木は公休
   ros(D3, STF_SATO, SLOT_HAYABAN_A),
-  ros(D3, STF_SUZUKI, SLOT_HAYABAN_B),
-  ros(D3, STF_NOGUCHI, SLOT_NIKKIN_B),
+  ros(D3, STF_TAKAHASHI, SLOT_HAYABAN_B),
+  ros(D3, STF_ITO, SLOT_NIKKIN_B),
   ros(D3, STF_OGAWA, SLOT_NIKKIN_SAKURA),
-  ros(D3, STF_SAITO, SLOT_OSOBAN),
+  ros(D3, STF_YAMAGUCHI, SLOT_OSOBAN),
   ros(D3, STF_NAKAMURA, SLOT_KANGO),
-  ros(D3, STF_ITO, SLOT_YAKIN_EAST),
-  ros(D3, STF_TAKAHASHI, SLOT_YAKIN_SAKURA),
-  // 11/6（金）入浴日。11/5 の夜勤（伊藤・高橋）は明け、鈴木は休み。スポットの加藤は 2 回目（初回ではない）
+  ros(D3, STF_YOSHIDA, SLOT_YAKIN_EAST),
+  ros(D3, STF_SUGIYAMA, SLOT_YAKIN_SAKURA),
+  // 11/6（金）入浴日。日勤C は置かず、11/3 と同じく早番Bが 10:30 から東の入浴に入れる形。スポットの加藤は 2 回目（初回ではない）
   ros(D4, STF_SATO, SLOT_HAYABAN_A),
-  ros(D4, STF_YAMAMOTO, SLOT_NIKKIN_C),
+  ros(D4, STF_TAKAHASHI, SLOT_HAYABAN_B),
+  ros(D4, STF_SUZUKI, SLOT_NIKKIN_A),
+  ros(D4, STF_SAITO, SLOT_NIKKIN_B),
   ros(D4, STF_OGAWA, SLOT_NIKKIN_SAKURA),
-  ros(D4, STF_KIMURA, SLOT_OSOBAN),
+  ros(D4, STF_YAMAGUCHI, SLOT_OSOBAN),
   ros(D4, STF_WATANABE, SLOT_JOSHU),
   ros(D4, STF_NAKAMURA, SLOT_KANGO),
   ros(D4, STF_KATO, SLOT_SPOT_PM),
-  ros(D4, STF_SAITO, SLOT_YAKIN_EAST),
+  ros(D4, STF_ITO, SLOT_YAKIN_EAST),
   ros(D4, STF_NOGUCHI, SLOT_YAKIN_SAKURA),
-  // 11/7（土）平日の業務表。11/6 の夜勤（斉藤・野口）は明け、佐藤・小川は休み。さくらの日中は高橋
+  // 11/7（土）平日の業務表。日中 4 人（遅番あり）
   ros(D5, STF_SUZUKI, SLOT_HAYABAN_A),
-  ros(D5, STF_ITO, SLOT_NIKKIN_B),
-  ros(D5, STF_TAKAHASHI, SLOT_NIKKIN_SAKURA),
+  ros(D5, STF_YAMAGUCHI, SLOT_NIKKIN_B),
+  ros(D5, STF_OGAWA, SLOT_NIKKIN_SAKURA),
+  ros(D5, STF_KIMURA, SLOT_OSOBAN),
   ros(D5, STF_NAKAMURA, SLOT_KANGO),
-  ros(D5, STF_KIMURA, SLOT_YAKIN_EAST),
+  ros(D5, STF_SAITO, SLOT_YAKIN_EAST),
   ros(D5, STF_YAMAMOTO, SLOT_YAKIN_SAKURA),
-  // 11/8（日）。11/7 の夜勤（木村・山本）は明け、佐藤・高橋は休み、看護は休み
-  ros(D6, STF_ITO, SLOT_HAYABAN_A),
-  ros(D6, STF_NOGUCHI, SLOT_NIKKIN_SAKURA),
-  ros(D6, STF_SAITO, SLOT_OSOBAN),
-  ros(D6, STF_SUZUKI, SLOT_YAKIN_EAST),
-  ros(D6, STF_OGAWA, SLOT_YAKIN_SAKURA),
-  // 11/9（月）平日。11/8 の夜勤（鈴木・小川）は明け、斉藤は休み
+  // 11/8（日）。日中 4 人。看護は公休（夜間はオンコール）
+  ros(D6, STF_TAKAHASHI, SLOT_HAYABAN_A),
+  ros(D6, STF_SUZUKI, SLOT_NIKKIN_A),
+  ros(D6, STF_SUGIYAMA, SLOT_NIKKIN_SAKURA),
+  ros(D6, STF_YOSHIDA, SLOT_OSOBAN),
+  ros(D6, STF_KIMURA, SLOT_YAKIN_EAST),
+  ros(D6, STF_YAMAGUCHI, SLOT_YAKIN_SAKURA),
+  // 11/9（月）平日
   ros(D7, STF_SATO, SLOT_HAYABAN_A),
-  ros(D7, STF_YAMAMOTO, SLOT_NIKKIN_A),
-  ros(D7, STF_NOGUCHI, SLOT_NIKKIN_SAKURA),
-  ros(D7, STF_KIMURA, SLOT_OSOBAN),
+  ros(D7, STF_NOGUCHI, SLOT_NIKKIN_A),
+  ros(D7, STF_ITO, SLOT_NIKKIN_B),
+  ros(D7, STF_OGAWA, SLOT_NIKKIN_SAKURA),
+  ros(D7, STF_SUGIYAMA, SLOT_OSOBAN),
   ros(D7, STF_NAKAMURA, SLOT_KANGO),
-  ros(D7, STF_ITO, SLOT_YAKIN_EAST),
+  ros(D7, STF_YOSHIDA, SLOT_YAKIN_EAST),
   ros(D7, STF_TAKAHASHI, SLOT_YAKIN_SAKURA),
+  // 11/10（火）入浴日。11/9 の夜勤（高橋・吉田）は明け。介護助手は火曜出勤。さくらの日勤は山本（入浴担当可）
+  ros(D8, STF_SATO, SLOT_HAYABAN_A),
+  ros(D8, STF_SUZUKI, SLOT_HAYABAN_B),
+  ros(D8, STF_ITO, SLOT_NIKKIN_A),
+  ros(D8, STF_SAITO, SLOT_NIKKIN_B),
+  ros(D8, STF_YAMAMOTO, SLOT_NIKKIN_SAKURA),
+  ros(D8, STF_NOGUCHI, SLOT_OSOBAN),
+  ros(D8, STF_WATANABE, SLOT_JOSHU),
+  ros(D8, STF_NAKAMURA, SLOT_KANGO),
+  ros(D8, STF_SUGIYAMA, SLOT_YAKIN_EAST),
+  ros(D8, STF_OGAWA, SLOT_YAKIN_SAKURA),
 ];
 
 // ---------------------------------------------------------------------------

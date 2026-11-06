@@ -141,14 +141,15 @@ test.describe("ボード（D1）", () => {
 
 test.describe("今日の時間割を作る（1タップ）", () => {
   test("空の日は帯が出て、先週の同じ曜日の番で並び、1タップで時間割ができ、元に戻せる", async ({ page }) => {
-    await page.goto("/board?date=2026-11-10&now=7:00");
+    // サンプルの勤務表は 11/10 まで入っている。勤務表のない 11/13（金）は先週 11/6 の番を写す
+    await page.goto("/board?date=2026-11-13&now=7:00");
     await page.evaluate(() => localStorage.clear());
-    await page.goto("/board?date=2026-11-10&now=7:00");
+    await page.goto("/board?date=2026-11-13&now=7:00");
     const band = page.getByRole("region", { name: "今日の時間割を作る" });
     await expect(band).toBeVisible();
-    await expect(band.getByText(/先週の同じ曜日（11\/3）と同じ番で並べました/)).toBeVisible();
+    await expect(band.getByText(/先週の同じ曜日（11\/6）と同じ番で並べました/)).toBeVisible();
     await expect(band.getByRole("combobox", { name: "業務表" })).toHaveValue(/.+/); // 業務表が選ばれている
-    // スポット（初回の加藤）は写さない
+    // スポット（11/6 に来た加藤）は写さない
     await expect(band.getByRole("list", { name: "今日の出勤者" }).getByText("加藤")).toHaveCount(0);
 
     await band.getByRole("button", { name: "この内容で作る" }).click(); // 1タップ
@@ -160,9 +161,10 @@ test.describe("今日の時間割を作る（1タップ）", () => {
   });
 
   test("休みにした人の番の枠は担当未定になる", async ({ page }) => {
-    await page.goto("/board?date=2026-11-10&now=7:00");
+    // 先週（11/6）の番を写す日。渡辺（介護助手）が出勤で並ぶ
+    await page.goto("/board?date=2026-11-13&now=7:00");
     await page.evaluate(() => localStorage.clear());
-    await page.goto("/board?date=2026-11-10&now=7:00");
+    await page.goto("/board?date=2026-11-13&now=7:00");
     const band = page.getByRole("region", { name: "今日の時間割を作る" });
     const watanabe = band.getByRole("listitem").filter({ hasText: "渡辺" });
     await watanabe.getByRole("button", { name: "休み" }).click();
