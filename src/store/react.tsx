@@ -100,20 +100,36 @@ function minutesOf(d: Date): number {
 /**
  * 現在時刻（分）。URL に ?now=10:12 があればその時刻に固定する（デモ・動画用）。
  */
+/** サンプル施設の時計の始まり（決定記録 0018）。開いた瞬間を 10:12 として、実時間で進む */
+export const SAMPLE_START_MIN = 10 * 60 + 12;
+let sampleOpenedAt: number | null = null;
+/** サンプル施設の「いま」（分）。ページを開いてからの経過分を 10:12 に足す */
+export function sampleNowMinutes(nowMs: number = Date.now()): number {
+  if (sampleOpenedAt === null) sampleOpenedAt = nowMs;
+  return Math.min(SAMPLE_START_MIN + Math.floor((nowMs - sampleOpenedAt) / 60_000), 2879);
+}
+
 export function useNowMinutes(): number | null {
+  const { state, ready, loaded } = useAppState();
+  const sample = isSampleFacility(state);
+  // 施設が読めるまでは時計を返さない（サンプルかどうかで「いま」が変わる。先に実時刻でスクロールしないように）
+  const known = ready || loaded;
   const [now, setNow] = useState<number | null>(null);
   useEffect(() => {
+    if (!known) return;
     const fixed = new URLSearchParams(window.location.search).get("now");
     if (fixed && /^\d{1,2}:\d{2}$/.test(fixed)) {
       const [h, m] = fixed.split(":").map(Number);
       setNow(h * 60 + m);
       return;
     }
-    setNow(minutesOf(new Date()));
-    const id = window.setInterval(() => setNow(minutesOf(new Date())), 30_000);
+    // サンプル施設は 11/3 の一日を見せるので、時計も 10:12 から進める（いつ開いても見せ場が画面に入る。決定記録 0018）
+    const read = () => setNow(sample ? sampleNowMinutes() : minutesOf(new Date()));
+    read();
+    const id = window.setInterval(read, sample ? 15_000 : 30_000);
     return () => window.clearInterval(id);
-  }, []);
-  return now;
+  }, [sample, known]);
+  return known ? now : null;
 }
 
 /** サンプル施設（ひまわり苑）か。サンプルは基準日（11/3）の一日を見せる */

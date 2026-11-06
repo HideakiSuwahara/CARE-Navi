@@ -67,6 +67,16 @@ export function Help() {
           <h2 className="text-[22px] font-bold">使い方</h2>
           <p className="mt-1 text-[var(--cn-ink-soft)]">困った場面から探してください。ボタンの名前は画面と同じです。</p>
         </div>
+        <section aria-labelledby="h-about" className="rounded-xl border-2 border-[var(--cn-accent)] bg-white p-4">
+          <h3 id="h-about" className="mb-2 text-[17px] font-bold">
+            ケアナビとは
+          </h3>
+          <ul className="flex list-disc flex-col gap-1 pl-5">
+            <li>介護施設の一日の仕事を時間割にして、必要な仕事に人を付ける道具です（仕事に、人を付ける）。</li>
+            <li>リーダーはボード（PC）で配置を決め、途中の変更はスマホでも 3 タップ。職員は自分のスマホで「いつ・どこで・誰に・何を」を見ます。</li>
+            <li>介護記録ではありません（持つのは「終わった」の印だけ）。配置を決めるのは人で、道具は理由を一文で見せます。製品の中で AI は使いません。</li>
+          </ul>
+        </section>
         {SECTIONS.map((sec) => (
           <section key={sec.title} aria-labelledby={`h-${sec.title}`} className="rounded-xl border border-[var(--cn-border)] bg-white p-4">
             <h3 id={`h-${sec.title}`} className="mb-2 text-[17px] font-bold">

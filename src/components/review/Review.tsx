@@ -38,6 +38,9 @@ export function Review({ date: dateParam }: { date?: string }) {
           <h2 className="text-[20px] font-bold">業務の見直し</h2>
           <span className="text-[16px]">今週 {weekLabel(w.dates)}</span>
         </div>
+        <p className="text-[15px]">
+          施設が区分を「ノンコア」にした業務（例: 食堂準備・洗濯物たたみ・物品補充）が、一週間のどの時間帯に集まっているかを 1 枚で見る図です。介護助手などの勤務の時間と重なっているかも並べます。見直すのは人です。
+        </p>
         <p role="note" className="rounded-xl border-2 border-[var(--cn-accent)] bg-[var(--cn-accent-soft)] px-4 py-2.5 text-[15px]">
           <span className="font-bold">予定時間ベース</span>（業務表と当日の予定から計算。実施時間ではありません）。
           <span className="font-bold">配置を見直すための数字です。職員の評価には使いません。</span>

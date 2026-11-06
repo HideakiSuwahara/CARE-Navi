@@ -40,7 +40,7 @@ import { applyEvents } from "@/domain/reducer";
 import { fmtMin, fmtRange } from "@/domain/time";
 import { MAX_MINUTES, type ID, type State } from "@/domain/types";
 import type { Engine } from "@/store/engine";
-import { useEngine, useIncoming } from "@/store/react";
+import { useEngine, useIncoming, isSampleFacility } from "@/store/react";
 import { SyncBadge } from "@/components/SyncBadge";
 import { DONE_EVENT, DoneButton, type DoneNotice } from "@/components/DoneButton";
 import { PreviewSheet } from "./PreviewSheet";
@@ -224,7 +224,11 @@ export function AllView({ state, date, me, now, clock, tabs }: { state: State; d
             {m}/{d}（{wd}）
           </span>
           <span className="ml-auto flex items-center gap-2">
-            {updated && <span className="text-[14px] text-[var(--cn-muted)]">{updated}</span>}
+            {isSampleFacility(state) ? (
+              <span className="text-[14px] text-[var(--cn-muted)]">サンプル施設の一日</span>
+            ) : (
+              updated && <span className="text-[14px] text-[var(--cn-muted)]">{updated}</span>
+            )}
             <SyncBadge />
           </span>
         </div>

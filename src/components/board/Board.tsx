@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { TopBar } from "@/components/TopBar";
 import { SETUP_NOTE_KEY, writeChosen } from "@/components/setup/setupNote";
-import { useAppState, useDefaultDate, useEngine, useIncoming, useNowMinutes, useSyncStatus } from "@/store/react";
+import { useAppState, useDefaultDate, useEngine, useIncoming, useNowMinutes, useSyncStatus, isSampleFacility } from "@/store/react";
 import { SyncEmpty } from "@/components/setup/Setup";
 import { SyncBadge } from "@/components/SyncBadge";
 import { SAMPLE_DATE } from "@/store/sample";
@@ -337,7 +337,11 @@ export function Board({ date: dateParam }: { date?: string }) {
       {/* 上部バー（1段） */}
       <TopBar current="board">
         <DateNav date={date} today={defaultDate} />
-        {updated && <span className="text-[14px] text-[var(--cn-muted)]">{updated}</span>}
+        {isSampleFacility(state) ? (
+          <span className="text-[14px] text-[var(--cn-muted)]">サンプル施設の一日</span>
+        ) : (
+          updated && <span className="text-[14px] text-[var(--cn-muted)]">{updated}</span>
+        )}
         <SyncBadge />
       </TopBar>
 

@@ -8,7 +8,7 @@ import { viewerDay } from "@/domain/myday";
 import { addDays } from "@/domain/pattern";
 import { fmtRange } from "@/domain/time";
 import type { ID } from "@/domain/types";
-import { useAppState, useDefaultDate, useNowMinutes } from "@/store/react";
+import { isSampleFacility, useAppState, useDefaultDate, useNowMinutes } from "@/store/react";
 import { SAMPLE_DATE } from "@/store/sample";
 import { AllView } from "./AllView";
 import { LeaderTabs } from "./LeaderTabs";
@@ -159,6 +159,15 @@ function NamePicker({
           </button>
         </div>
       )}
+      {isSampleFacility(state) && entries.length > 0 && (() => {
+        // サンプル施設のときだけ、試す人の案内（決定記録 0018。自分の施設では名前を自分で選ぶ）
+        const first = entries.find((e) => e.firstTimer && !e.overnight);
+        const leader = entries.find((e) => !e.overnight && canSeeAll(state, date, e.staffId));
+        const parts = [first && `${state.staff[first.staffId].surname}（初日の人の画面）`, leader && `${state.staff[leader.staffId].surname}（リーダー。［全体］で欠勤・付き添いを 3 タップ）`].filter(Boolean);
+        return parts.length > 0 ? (
+          <p className="rounded-xl border border-dashed border-[var(--cn-control-line)] bg-white p-3 text-[15px]">サンプル施設で試すなら: {parts.join("、")}</p>
+        ) : null;
+      })()}
       <ul className="flex flex-col gap-2" aria-label="きょうの出勤者">
         {entries.map((e) => {
           const s = state.staff[e.staffId];
@@ -173,6 +182,9 @@ function NamePicker({
                 <span className="text-[18px] font-bold">{s.surname}</span>
                 {e.firstTimer && <span className="rounded border border-[var(--cn-control-line)] px-1.5 text-[14px]">初回</span>}
                 {e.overnight && <span className="rounded border border-[var(--cn-control-line)] px-1.5 text-[14px]">夜勤明け</span>}
+                {isSampleFacility(state) && !e.overnight && canSeeAll(state, date, e.staffId) && Object.values(state.roleSlots).some((x) => x.leaderRank !== undefined) && (
+                  <span className="rounded border border-[var(--cn-control-line)] px-1.5 text-[14px]">リーダー</span>
+                )}
                 <span className="text-[14px] text-[var(--cn-muted)]">
                   {slot} {fmtRange(e.startMin, e.endMin)}
                 </span>
