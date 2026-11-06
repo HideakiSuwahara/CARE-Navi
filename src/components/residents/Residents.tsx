@@ -198,7 +198,7 @@ export function Residents() {
 
       <div role="status" aria-live="polite" className="cn-noprint pointer-events-none fixed bottom-5 left-1/2 z-40 -translate-x-1/2">
         {toast && (
-          <div className="pointer-events-auto flex items-center gap-3 rounded-[10px] bg-[var(--cn-ink)] px-4 py-3 text-[15px] text-white shadow-lg">
+          <div className="pointer-events-auto flex items-center gap-3 rounded-[10px] bg-[var(--cn-toast-bg)] text-[var(--cn-toast-ink)] border border-[var(--cn-toast-line)] px-4 py-3 text-[15px] shadow-lg">
             <span>{toast}</span>
             <button
               type="button"
@@ -206,7 +206,7 @@ export function Residents() {
                 setToast(null);
                 engine?.undo();
               }}
-              className="h-[44px] rounded-md border border-white/40 px-3 text-[14px] font-bold"
+              className="h-[44px] rounded-md border border-[var(--cn-toast-ink)] px-3 text-[14px] font-bold"
             >
               元に戻す
             </button>

@@ -170,3 +170,30 @@ test.describe("ダークモード（決定記録 0020）", () => {
     expect(await bg()).toBe("rgb(255, 255, 255)");
   });
 });
+
+test.describe("ループ 18（暗い画面と見た目の直し）", () => {
+  test("設定の先頭の目次から「画面の明るさ」へ飛べ、選んだものに ✓ が付く", async ({ page }) => {
+    await page.goto("/board?now=10:12");
+    await page.evaluate(() => localStorage.clear());
+    await page.goto("/board?now=10:12");
+    await expect(page.locator("[data-task-id]").first()).toBeVisible();
+    await page.goto("/setup");
+    await page.getByRole("navigation", { name: "このページの中" }).getByRole("link", { name: "画面の明るさ" }).click();
+    const group = page.getByRole("group", { name: "画面の明るさ" });
+    await expect(group).toBeInViewport();
+    await group.getByRole("button", { name: "暗い（紺）" }).click();
+    await expect(group.getByRole("button", { name: "暗い（紺）" })).toContainText("✓");
+    await expect(page.getByText("画面の明るさを「暗い（紺）」にしました")).toBeAttached();
+    // 暗い画面のトーストは紺の地（明るい地にしない）
+    await page.goto("/board?now=10:12");
+    await page.getByRole("button", { name: /に担当を追加$/ }).first().click();
+    await page.getByRole("dialog").getByRole("button", { name: "追加" }).first().click();
+    const toast = page.locator("#board-toast > div").first();
+    await expect(toast).toBeVisible();
+    expect(await toast.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe("rgb(34, 52, 79)");
+    // 元に戻したあとのお知らせには「元に戻す」を出さない
+    await toast.getByRole("button", { name: "元に戻す" }).click();
+    await expect(page.locator("#board-toast")).toContainText("元に戻しました");
+    await expect(page.locator("#board-toast").getByRole("button", { name: "元に戻す" })).toHaveCount(0);
+  });
+});

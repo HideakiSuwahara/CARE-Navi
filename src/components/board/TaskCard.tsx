@@ -59,7 +59,7 @@ export function TaskCard({
   const frame = isBreak
     ? "border border-dashed border-[var(--cn-break-line)] bg-[var(--cn-break-bg)]"
     : done
-      ? "border border-l-4 border-dashed border-[var(--cn-control-line)] [border-left-style:solid] bg-[var(--cn-ground)] shadow-none"
+      ? "border border-l-4 border-dashed border-[var(--cn-control-line)] [border-left-style:solid] bg-[var(--cn-done-bg)] shadow-none"
       : short
       ? `border-2 ${status.level === "unassigned" ? "border-dashed" : ""} border-[var(--cn-alert-line)] bg-white`
       : "border border-[var(--cn-card-line)] bg-white";

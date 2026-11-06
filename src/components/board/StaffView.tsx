@@ -185,7 +185,7 @@ export function StaffView({
         {nowInView && (
           <div aria-hidden="true" className="pointer-events-none absolute bottom-0 top-0 z-10" style={{ left: NAME_COL + (now! - range.start) * PX_PER_MIN }}>
             <div className="h-full border-l-2 border-[var(--cn-now)]" />
-            <div className="absolute top-[40px] -translate-x-1/2 rounded bg-[var(--cn-now)] px-1.5 text-[13px] font-bold text-white">{fmtMin(now!)}</div>
+            <div className="absolute top-[40px] -translate-x-1/2 cn-now-label rounded bg-[var(--cn-now)] px-1.5 text-[13px] font-bold text-white">{fmtMin(now!)}</div>
           </div>
         )}
       </div>

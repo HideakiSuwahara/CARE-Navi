@@ -517,7 +517,9 @@ export function Board({ date: dateParam }: { date?: string }) {
             type="button"
             onClick={async () => {
               const done = await engine?.undo();
-              setToast(done ? `元に戻しました（取り消した操作: ${done.label}）` : null);
+              // 戻した結果は「元に戻す」の無いお知らせで（戻した直後にまた元に戻すを出さない。ループ 18）
+              setToast(null);
+              if (done) showNotice(`元に戻しました（取り消した操作: ${done.label}）`);
             }}
             className="inline-flex h-[44px] items-center gap-2 rounded-lg border border-[var(--cn-card-line)] bg-white px-4 text-[14px]"
           >
@@ -691,7 +693,7 @@ export function Board({ date: dateParam }: { date?: string }) {
                       <div className="ml-16 border-t-2 border-[var(--cn-now)]" />
                     </div>
                     <div aria-hidden="true" className="pointer-events-none absolute left-0 z-10" style={{ top: (now! - VIEW_START) * PX_PER_MIN }}>
-                      <div className="absolute left-1 -translate-y-1/2 rounded bg-[var(--cn-now)] px-1.5 text-[13px] font-bold text-white">{fmtMin(now!)}</div>
+                      <div className="absolute left-1 -translate-y-1/2 cn-now-label rounded bg-[var(--cn-now)] px-1.5 text-[13px] font-bold text-white">{fmtMin(now!)}</div>
                     </div>
                   </>
                 )}
@@ -764,18 +766,19 @@ export function Board({ date: dateParam }: { date?: string }) {
       {panel?.mode === "assign" && <AssignPanel key={panel.taskId} state={state} engine={engine} taskId={panel.taskId} onClose={closePanel} onDetail={openDetail} />}
       <div id="board-toast" role="status" aria-live="polite" className="pointer-events-none fixed bottom-5 left-1/2 z-40 -translate-x-1/2">
         {notice && !toast && (
-          <div className="pointer-events-auto rounded-[10px] bg-[var(--cn-ink)] px-4 py-3 text-[15px] text-white shadow-lg">{notice}</div>
+          <div className="pointer-events-auto rounded-[10px] bg-[var(--cn-toast-bg)] text-[var(--cn-toast-ink)] border border-[var(--cn-toast-line)] px-4 py-3 text-[15px] shadow-lg">{notice}</div>
         )}
         {toast && (
-          <div className="pointer-events-auto flex items-center gap-3 rounded-[10px] bg-[var(--cn-ink)] px-4 py-3 text-[15px] text-white shadow-lg">
+          <div className="pointer-events-auto flex items-center gap-3 rounded-[10px] bg-[var(--cn-toast-bg)] text-[var(--cn-toast-ink)] border border-[var(--cn-toast-line)] px-4 py-3 text-[15px] shadow-lg">
             <span>{toast}</span>
             <button
               type="button"
-              onClick={() => {
+              onClick={async () => {
                 setToast(null);
-                engine?.undo();
+                const done = await engine?.undo();
+                if (done) showNotice(`元に戻しました（取り消した操作: ${done.label}）`);
               }}
-              className="h-[44px] shrink-0 whitespace-nowrap rounded-md border border-white/40 px-3 text-[14px] font-bold"
+              className="h-[44px] shrink-0 whitespace-nowrap rounded-md border border-[var(--cn-toast-ink)] px-3 text-[14px] font-bold"
             >
               元に戻す
             </button>

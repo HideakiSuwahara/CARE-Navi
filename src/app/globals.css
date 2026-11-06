@@ -41,6 +41,13 @@
   /* 「困ったら」の帯（いまの行の色と分ける。ループ 18） */
   --cn-help-bg: #e6f0f8;
   --cn-help-line: #1d5c8a;
+  /* トースト・終わった枠の地・業務の見直しの「その他」（ループ 18） */
+  --cn-toast-bg: #1c1f23;
+  --cn-toast-ink: #ffffff;
+  --cn-toast-line: #1c1f23;
+  --cn-done-bg: #f3f3ef;
+  --cn-other-bg: #d9dad4;
+  --cn-other-dot: #5b6168;
   color-scheme: light;
 }
 
@@ -81,6 +88,12 @@
     --cn-on-accent: #0b1626;
   --cn-help-bg: #16263d;
   --cn-help-line: #8cc4f2;
+    --cn-toast-bg: #22344f;
+    --cn-toast-ink: #e9eff7;
+    --cn-toast-line: #8cc4f2;
+    --cn-done-bg: #253141;
+    --cn-other-bg: #1f2c3f;
+    --cn-other-dot: #c5d2e1;
     color-scheme: dark;
   }
 }
@@ -117,8 +130,14 @@
     --cn-group-4: #d2aa66;
     --cn-group-common: #8a97a8;
     --cn-on-accent: #0b1626;
-  --cn-help-bg: #16263d;
-  --cn-help-line: #8cc4f2;
+    --cn-help-bg: #16263d;
+    --cn-help-line: #8cc4f2;
+    --cn-toast-bg: #22344f;
+    --cn-toast-ink: #e9eff7;
+    --cn-toast-line: #8cc4f2;
+    --cn-done-bg: #253141;
+    --cn-other-bg: #1f2c3f;
+    --cn-other-dot: #c5d2e1;
     color-scheme: dark;
   }
 }
@@ -175,5 +194,23 @@ body {
 @media print {
   .cn-noprint {
     display: none !important;
+  }
+}
+
+/* 強制カラー（Windows のハイコントラスト等）: 地の色が消えても、ボタン・札・選んだ状態が分かるように（ループ 18、WCAG 1.4.11） */
+@media (forced-colors: active) {
+  button:not([data-card-title]):not([aria-roledescription]),
+  a.inline-flex,
+  select {
+    border: 1px solid ButtonText;
+  }
+  [aria-pressed="true"] {
+    outline: 3px solid Highlight;
+    outline-offset: -3px;
+  }
+  [class*="cn-unassigned-bg"],
+  [class*="cn-short-bg"],
+  .cn-now-label {
+    border: 1px solid CanvasText;
   }
 }

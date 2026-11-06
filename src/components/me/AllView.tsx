@@ -314,10 +314,10 @@ export function AllView({ state, date, me, now, clock, tabs }: { state: State; d
         {/* 読み上げ領域は常に置き、中身だけ出し入れする（WCAG 4.1.3） */}
         <div role="status" aria-live="polite" className="absolute inset-x-3 bottom-full mb-2">
         {toast && (
-          <div className="flex items-center gap-2 rounded-xl bg-[var(--cn-ink)] px-3 py-2 text-[16px] text-white shadow-lg">
+          <div className="flex items-center gap-2 rounded-xl bg-[var(--cn-toast-bg)] text-[var(--cn-toast-ink)] border border-[var(--cn-toast-line)] px-3 py-2 text-[16px] shadow-lg">
             <p className="min-w-0 flex-1">{toast}</p>
             {lastUndo && !toast.startsWith("元に戻しました") && (
-              <button type="button" onClick={undo} className="h-[44px] shrink-0 rounded-lg border border-white px-3 font-bold">
+              <button type="button" onClick={undo} className="h-[44px] shrink-0 rounded-lg border border-[var(--cn-toast-ink)] px-3 font-bold">
                 元に戻す
               </button>
             )}
@@ -497,7 +497,7 @@ function MenuSheet({ state, engine, taskId, now, onClose, onApply }: { state: St
               「✓ 終わった」を取り消す（□ に戻す）
             </button>
           ) : (
-            <button type="button" className={`${btn} font-bold`} onClick={() => onApply(setDoneEvents(task.id, true, engine.context()), `「${row.label} ${fmtMin(task.startMin)}」を終わったにしました`)}>
+            <button type="button" className={`${btn} font-bold`} onClick={() => onApply(setDoneEvents(task.id, true, engine.context()), `「${row.label} ${fmtMin(task.startMin)}」に「終わった」の印を付けました`)}>
               終わったにする
             </button>
           )}

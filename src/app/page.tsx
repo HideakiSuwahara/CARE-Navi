@@ -62,7 +62,7 @@ export default function Home() {
           />
           <Image
             src="/shots/me.png"
-            alt="スマホの自分の予定: 困ったらの相談先、いまの時間の予定、お願いすること・しないこと"
+            alt="スマホの自分の予定: 上に困ったらの相談先（PHS）、最初の予定「到着・案内」、お願いすること・しないこと"
             width={824}
             height={1678}
             className="cn-shot absolute bottom-0 right-0 w-[26%] min-w-[110px] rounded-[18px] border-4 border-[var(--cn-ink)] shadow-[0_12px_28px_rgba(28,31,35,0.3)]"

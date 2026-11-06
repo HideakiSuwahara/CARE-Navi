@@ -269,8 +269,8 @@ function Chart({
       <svg viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full" role="img" aria-label="区分 × 時間帯の積み上げ棒グラフ。数値は下の表にあります">
         <defs>
           <pattern id="cn-dots" width="5" height="5" patternUnits="userSpaceOnUse">
-            <rect width="5" height="5" fill="#d9dad4" />
-            <circle cx="2.5" cy="2.5" r="1.3" fill="var(--cn-muted)" />
+            <rect width="5" height="5" fill="var(--cn-other-bg)" />
+            <circle cx="2.5" cy="2.5" r="1.3" fill="var(--cn-other-dot)" />
           </pattern>
           <pattern id="cn-hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
             <rect width="6" height="6" fill={NONCORE} />

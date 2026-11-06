@@ -502,6 +502,20 @@ function Everyday({ onOwn, onSample }: { onOwn: () => void; onSample: () => void
         </span>
       </div>
 
+      {/* このページの中（長いページなので、よく開く区画へ飛べるように。ループ 18） */}
+      <nav aria-label="このページの中" className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[15px]">
+        {[
+          ["#s-add", "追加・変更"],
+          ["#s-tags", "職員"],
+          ["#s-everyday", "ふだんの設定"],
+          ["#s-theme", "画面の明るさ"],
+        ].map(([href, label]) => (
+          <a key={href} href={href} className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center font-bold text-[var(--cn-accent)] underline">
+            {label}
+          </a>
+        ))}
+      </nav>
+
       <h2 id="s-add" className="mt-2 text-[18px] font-bold">
         追加・変更
       </h2>
@@ -682,6 +696,7 @@ function Everyday({ onOwn, onSample }: { onOwn: () => void; onSample: () => void
               onClick={() => set({ residentDisplayMode: m.mode }, `手元画面の利用者名を「${m.label}」にしました`)}
               className={choice(settings.residentDisplayMode === m.mode)}
             >
+              <span aria-hidden="true">{settings.residentDisplayMode === m.mode ? "✓ " : ""}</span>
               {m.label}
               {example && <span className="ml-1.5 text-[14px] font-normal">（例: {residentLabel(example, m.mode)}様）</span>}
             </button>
@@ -698,9 +713,11 @@ function Everyday({ onOwn, onSample }: { onOwn: () => void; onSample: () => void
         </p>
         <div role="group" aria-labelledby="s-first" className="flex flex-wrap gap-2">
           <button type="button" aria-pressed={settings.firstTimerOnlyWarning} onClick={() => set({ firstTimerOnlyWarning: true }, "初回の職員の警告を「する」にしました")} className={choice(settings.firstTimerOnlyWarning)}>
+            <span aria-hidden="true">{settings.firstTimerOnlyWarning ? "✓ " : ""}</span>
             する
           </button>
           <button type="button" aria-pressed={!settings.firstTimerOnlyWarning} onClick={() => set({ firstTimerOnlyWarning: false }, "初回の職員の警告を「しない」にしました")} className={choice(!settings.firstTimerOnlyWarning)}>
+            <span aria-hidden="true">{!settings.firstTimerOnlyWarning ? "✓ " : ""}</span>
             しない
           </button>
         </div>
@@ -756,10 +773,10 @@ function Everyday({ onOwn, onSample }: { onOwn: () => void; onSample: () => void
         {/* 読み上げ領域は常に置き、中身だけ出し入れする */}
         <span role="status" aria-live="polite" className="contents">
         {toast && (
-          <span className="flex items-center gap-3 rounded-xl bg-[var(--cn-ink)] px-4 py-2 text-[15px] text-white shadow-lg">
+          <span className="flex items-center gap-3 rounded-xl bg-[var(--cn-toast-bg)] text-[var(--cn-toast-ink)] border border-[var(--cn-toast-line)] px-4 py-2 text-[15px] shadow-lg">
             <span>{toast}</span>
             {lastUndo && !toast.startsWith("戻しました") && (
-              <button type="button" onClick={undo} className="h-[44px] shrink-0 whitespace-nowrap rounded-lg border border-white px-3 font-bold">
+              <button type="button" onClick={undo} className="h-[44px] shrink-0 whitespace-nowrap rounded-lg border border-[var(--cn-toast-ink)] px-3 font-bold">
                 元に戻す
               </button>
             )}
@@ -1143,6 +1160,7 @@ function BackupSection({ onToast }: { onToast: (text: string) => void }) {
 /** 画面の明るさ（決定記録 0020）。その端末のブラウザで覚える */
 function ThemeSection({ choiceClass }: { choiceClass: (on: boolean) => string }) {
   const [theme, setTheme] = useState<ThemeChoice>("auto");
+  const [said, setSaid] = useState("");
   useEffect(() => setTheme(readTheme()), []);
   const options: { v: ThemeChoice; label: string }[] = [
     { v: "auto", label: "端末に合わせる" },
@@ -1164,13 +1182,18 @@ function ThemeSection({ choiceClass }: { choiceClass: (on: boolean) => string })
             onClick={() => {
               writeTheme(o.v);
               setTheme(o.v);
+              setSaid(`画面の明るさを「${o.label}」にしました`);
             }}
             className={choiceClass(theme === o.v)}
           >
+            <span aria-hidden="true">{theme === o.v ? "✓ " : ""}</span>
             {o.label}
           </button>
         ))}
       </div>
+      <p role="status" className="sr-only">
+        {said}
+      </p>
     </section>
   );
 }

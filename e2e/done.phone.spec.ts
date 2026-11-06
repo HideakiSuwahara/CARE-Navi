@@ -29,7 +29,7 @@ test.describe("「終わった」の印（スマホ）", () => {
     await first.click();
     await expect(first).toHaveAttribute("aria-pressed", "true");
     expect(await flow.getByText("✓ 終わった").count()).toBe(before + 1);
-    const status = page.getByRole("status").filter({ hasText: "を終わったにしました" });
+    const status = page.getByRole("status").filter({ hasText: "に「終わった」の印を付けました" });
     await expect(status).toBeVisible();
     await status.getByRole("button", { name: "元に戻す" }).click();
     expect(await flow.getByText("✓ 終わった").count()).toBe(before);
@@ -38,7 +38,7 @@ test.describe("「終わった」の印（スマホ）", () => {
     await first.click();
     await expect(first).toHaveAttribute("aria-pressed", "true");
     const headerUndo = page.getByRole("button", { name: /^元に戻す（/ });
-    await expect(headerUndo).toHaveAccessibleName(/を終わったにしました/);
+    await expect(headerUndo).toHaveAccessibleName(/に「終わった」の印を付けました/);
     await headerUndo.click();
     await expect(first).toHaveAttribute("aria-pressed", "false");
     await expect(page.getByRole("status").filter({ hasText: "元に戻しました" })).toBeVisible();

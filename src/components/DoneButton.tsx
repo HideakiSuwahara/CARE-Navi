@@ -26,7 +26,7 @@ export function DoneButton({ task, size = "md" }: { task: TaskInstance; size?: "
   const engine = useEngine();
   if (!engine || !canMarkDone(task)) return null;
   const done = Boolean(task.done);
-  const label = done ? `「${task.name}」の「終わった」を外しました` : `「${task.name}」を終わったにしました`;
+  const label = done ? `「${task.name}」の「終わった」を外しました` : `「${task.name}」に「終わった」の印を付けました`;
   return (
     <button
       type="button"
