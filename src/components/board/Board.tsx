@@ -32,7 +32,7 @@ const RAIL_WIDTH = 28;
 /** 短い業務も画面上はこの長さ（分）を占めるものとして並べる。20分 = 60px（1段のカードに ＋ が収まる） */
 const MIN_VISUAL_MIN = 20;
 /** 横に並ぶカード1枚あたりの最小幅(px) */
-const MIN_CARD_WIDTH = 112;
+const MIN_CARD_WIDTH = 150;
 /** 表示する範囲: 06:00 → 翌 06:00 */
 const VIEW_START = 6 * 60;
 const VIEW_END = 30 * 60;
@@ -584,8 +584,9 @@ export function Board({ date: dateParam }: { date?: string }) {
                               state={state}
                               task={task}
                               now={now}
-                              // 利用者ごとの列は細いので、1 行に詰める形（compact）を使わず、業務名と担当を 2 段に分ける
-                              variant={rail ? "rail" : height < 84 ? "mini" : height < 150 && view !== "resident" ? "compact" : "normal"}
+                              // 細いとき、1 行に業務名・担当のチップ・＋を詰める形（compact）は業務名が潰れる。
+                              // 同じ時刻に横に並ぶ短い枠は細い形（narrow: 業務名・時刻と＋、担当は名字の文字）、利用者ごとの列は 2 段の形にする
+                              variant={rail ? "rail" : height < 84 ? "mini" : height < 150 && lanes > 1 ? "narrow" : height < 150 && view !== "resident" ? "compact" : "normal"}
                               onOpen={openDetail}
                               onAdd={openAssign}
                               instanceKey={view === "resident" ? c.id : undefined}

@@ -12,7 +12,7 @@ import { useStaffDrag } from "./dnd";
  * 休憩はバッジなし。カード全体を button にせず、中の名前・チップ・＋をそれぞれ button にする（入れ子にしない）。
  * 「終わった」の印がある枠は ✓ と薄い文字。時刻を過ぎて印が無い枠は通常の濃さのまま（data-unfinished。見出しの「終わっていない n 件」から飛ぶ）。決定記録 0010
  */
-export type CardVariant = "normal" | "compact" | "mini" | "rail";
+export type CardVariant = "normal" | "compact" | "mini" | "rail" | "narrow";
 
 export function TaskCard({
   state,
@@ -49,6 +49,8 @@ export function TaskCard({
   const compact = variant === "compact";
   const mini = variant === "mini";
   const rail = variant === "rail";
+  // 細くて短い枠（同じ時刻に横に並ぶとき）: 業務名・時刻の 2 行と＋。担当はチップを出さず名字の文字（押せる大きさを取れないため）
+  const narrow = variant === "narrow";
 
   // 終わった印のある枠は灰色の地・点線の枠（決定記録 0017）。終わっていない白い枠が目立つ。状態は「✓ 終わった」の文字で
   const frame = isBreak
@@ -134,6 +136,16 @@ export function TaskCard({
             )}
           </div>
           {plus}
+        </>
+      ) : narrow ? (
+        <>
+          <div className="flex min-w-0 items-start gap-1">
+            <div className="min-w-0 flex-1">{titleButton}</div>
+            {plus}
+          </div>
+          <div className="flex min-w-0 items-center gap-1.5 overflow-hidden">
+            {badge ?? <span className="min-w-0 truncate text-[14px] text-[var(--cn-accent)]">{assignees.map((a) => a.staff!.surname).join("・")}</span>}
+          </div>
         </>
       ) : compact ? (
         <>

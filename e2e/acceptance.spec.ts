@@ -78,10 +78,10 @@ test.describe("受け入れ: ボード", () => {
 
   test("L28 初回の方だけの配置は「注意」で理由が出て、追加できる", async ({ page }) => {
     // サンプルでは加藤（初回）の 15:30 面会対応は「水分補給」との重なりが先に出る。重なりを外してから見る
-    const water = page.locator("[data-task-id]").filter({ hasText: "水分補給" }).filter({ has: page.getByRole("button", { name: /^加藤/ }) }).first();
+    const water = page.locator("[data-task-id]").filter({ hasText: "水分補給" }).filter({ hasText: "加藤" }).first();
     await water.scrollIntoViewIfNeeded();
-    // 列が混んでいてカードの名前の幅が 0 になるので、担当チップから詳細を開く
-    await water.getByRole("button", { name: /^加藤/ }).click();
+    // 横に並ぶ短い枠は担当を名字の文字で出すので、業務名から詳細を開く
+    await water.locator("[data-card-title]").click();
     await page.getByRole("dialog").getByRole("button", { name: "加藤さんを担当から外す" }).click();
     await page.keyboard.press("Escape");
     const card = page.locator('[data-task-id][data-badge="担当未定"]').filter({ hasText: "面会対応" }).first();

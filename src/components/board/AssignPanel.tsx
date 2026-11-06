@@ -66,7 +66,7 @@ export function AssignPanel({
           <div className="flex items-baseline gap-2">
             <span className="font-bold">{c.staff.surname}</span>
             {slotName(c) && <span className="text-[14px] text-[var(--cn-ink-soft)]">{slotName(c)}</span>}
-            {c.entry?.firstTimer && <span className="rounded border border-[var(--cn-card-line)] px-1 text-[12px]">初回</span>}
+            {c.entry?.firstTimer && <span className="rounded border border-[var(--cn-card-line)] px-1 text-[13px]">初回</span>}
           </div>
           <p className="text-[14px] text-[var(--cn-ink-soft)]">
             {c.tier === "warn" && <span className="font-bold text-[var(--cn-short-ink)]">注意: </span>}
@@ -160,7 +160,7 @@ export function AssignPanel({
         )}
 
         {onDetail && (
-          <button type="button" onClick={() => onDetail(task.id)} className="h-[44px] self-start text-[15px] text-[var(--cn-accent)] underline">
+          <button type="button" onClick={() => onDetail(task.id)} className="min-h-[44px] shrink-0 self-start text-[15px] text-[var(--cn-accent)] underline">
             この業務の詳細を見る
           </button>
         )}
