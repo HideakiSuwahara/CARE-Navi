@@ -1,5 +1,7 @@
 "use client";
 
+import { offLabel } from "@/domain/rosterPaste";
+
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
@@ -790,7 +792,7 @@ export function Board({ date: dateParam }: { date?: string }) {
                 {palette.off.map((r) => (
                   <li key={r.staffId} className="rounded-[10px] bg-[var(--cn-ground)] px-3 py-2 text-[14px] text-[var(--cn-ink-soft)]">
                     <span className="font-bold">{r.surname}</span> {r.slotName}
-                    {r.offKind && <span>（{r.offKind}）</span>}
+                    {r.offKind && <span> {offLabel(r.offKind)}</span>}
                     {r.unfilledSlotTasks > 0 && (
                       <span className="block text-[13px]">
                         {/* 数字は人ではなく枠に付ける（原則 5。「◯◯さんの分 n件」と書かない。ループ 21） */}

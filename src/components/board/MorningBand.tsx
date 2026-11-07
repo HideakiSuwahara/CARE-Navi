@@ -6,7 +6,7 @@ import { useMemo, useState } from "react";
 import { useEngine } from "@/store/react";
 import { conditionSkips, createDayEvents, isFirstTimeDefault, morningDraft, suggestSlot } from "@/domain/pattern";
 import { applyEvents } from "@/domain/reducer";
-import { publicOffKind } from "@/domain/rosterPaste";
+import { offLabel, publicOffKind } from "@/domain/rosterPaste";
 import { boardName } from "@/domain/checks";
 import { fmtMin, fmtRange } from "@/domain/time";
 import type { DateKey, ID, RosterEntry, State } from "@/domain/types";
@@ -141,7 +141,7 @@ export function MorningBand({ state, date }: { state: State; date: DateKey }) {
                     </button>
                   )}
                   {e.absent ? (
-                    <span className="text-[14px]">休み{publicOffKind(e.offKind) ? `（${publicOffKind(e.offKind)}）` : ""}</span>
+                    <span className="text-[14px]">{offLabel(publicOffKind(e.offKind))}</span>
                   ) : (
                     <select
                       aria-label={`${staff?.surname} の番`}

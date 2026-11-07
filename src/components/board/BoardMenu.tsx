@@ -29,6 +29,11 @@ export function BoardMenu({
   const [open, setOpen] = useState(false);
   const [dialog, setDialog] = useState<"save" | "reset" | null>(null);
   const [name, setName] = useState("");
+  // この日を作った業務表（あれば、既定はそれを書き換える。新しい業務表にすると次の同じ曜日に効かないため。ループ 23）
+  const appliedId = state.days[date]?.appliedPatternId;
+  const applied = appliedId ? state.patterns[appliedId] : undefined;
+  const [mode, setMode] = useState<"overwrite" | "new">("overwrite");
+  const overwrite = mode === "overwrite" && !!applied;
   const wrap = useRef<HTMLDivElement>(null);
   const toggle = useRef<HTMLButtonElement>(null);
   const firstItem = useRef<HTMLButtonElement>(null);
@@ -77,15 +82,19 @@ export function BoardMenu({
 
   const save = async () => {
     if (!engine) return;
-    const label = name.trim() || `${dateShort}の業務表`;
+    const label = overwrite && applied ? applied.name : name.trim() || `${dateShort}の業務表`;
     const ctx = engine.context();
-    const pattern = patternFromDay(engine.state, date, label, ctx);
+    const made = patternFromDay(engine.state, date, label, ctx);
+    const pattern = made && overwrite && applied ? { ...made, id: applied.id, name: applied.name, ...(applied.weekdays ? { weekdays: applied.weekdays } : {}) } : made;
     if (!pattern) {
       onNotice("保存できる業務がありません。");
       closeDialog();
       return;
     }
-    await engine.dispatch([{ ...metaOf(ctx), type: "pattern.upsert", pattern }], `業務表「${label}」を保存しました`);
+    await engine.dispatch(
+      [{ ...metaOf(ctx), type: "pattern.upsert", pattern }],
+      overwrite ? `業務表「${label}」を今日の内容に書き換えました（次にこの業務表で作る日から効きます）` : `業務表「${label}」を保存しました（次に時間割を作るときに選べます）`,
+    );
     closeDialog();
   };
 
@@ -170,18 +179,35 @@ export function BoardMenu({
                 <h2 id="board-menu-dialog-title" className="text-[17px] font-bold">
                   今日を業務表として保存
                 </h2>
-                <p className="mt-2 text-[15px] text-[var(--cn-ink-soft)]">業務・時刻・番・必要人数・対象の方を保存します。担当の人は保存しません。業務の種類のない、その日だけの予定も入りません。次に時間割を作るときに選べます。</p>
-                <label className="mt-4 block text-[14px] font-bold" htmlFor="pattern-name">
-                  業務表の名前
-                </label>
-                <input
-                  id="pattern-name"
-                  autoFocus
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && save()}
-                  className="mt-1 h-[44px] w-full rounded-lg border border-[var(--cn-control-line)] px-3 text-[15px]"
-                />
+                <p className="mt-2 text-[15px] text-[var(--cn-ink-soft)]">業務・時刻・番・必要人数・対象の方を保存します。担当の人は保存しません。業務の種類のない、その日だけの予定も入りません。今日だけの中止・ずらしも入るので、ふだんどおりの日に保存してください。</p>
+                {applied && (
+                  <fieldset className="mt-4 flex flex-col gap-2">
+                    <legend className="text-[14px] font-bold">保存のしかた</legend>
+                    <label className="flex min-h-[44px] items-center gap-2 text-[15px]">
+                      <input type="radio" name="save-mode" checked={mode === "overwrite"} onChange={() => setMode("overwrite")} className="h-5 w-5" autoFocus />
+                      今日を作った「{applied.name}」を書き換える（次にこの業務表で作る日から効きます）
+                    </label>
+                    <label className="flex min-h-[44px] items-center gap-2 text-[15px]">
+                      <input type="radio" name="save-mode" checked={mode === "new"} onChange={() => setMode("new")} className="h-5 w-5" />
+                      新しい名前で残す（時間割を作るときに選ぶ）
+                    </label>
+                  </fieldset>
+                )}
+                {!overwrite && (
+                  <>
+                    <label className="mt-4 block text-[14px] font-bold" htmlFor="pattern-name">
+                      業務表の名前
+                    </label>
+                    <input
+                      id="pattern-name"
+                      autoFocus={!applied}
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && save()}
+                      className="mt-1 h-[44px] w-full rounded-lg border border-[var(--cn-control-line)] px-3 text-[15px]"
+                    />
+                  </>
+                )}
                 <div className="mt-5 flex justify-end gap-2">
                   <button type="button" onClick={closeDialog} className="h-[44px] rounded-lg border border-[var(--cn-control-line)] px-4">
                     やめる

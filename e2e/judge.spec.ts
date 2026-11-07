@@ -490,10 +490,10 @@ test.describe("この業務の番（決定記録 0024）", () => {
     await expect(sec).toContainText("この業務の条件: 入浴担当可");
     await sec.getByRole("button", { name: "番を変える…" }).click();
     const list = sec.getByRole("list", { name: "番の一覧" });
-    await expect(list).toContainText("（条件あり）");
-    await expect(list).toContainText(/条件「入浴担当可」なし|きょうは出勤なし/);
-    const off = list.getByRole("button", { pressed: false }).first();
-    const name = (await off.getAttribute("aria-label"))!.replace("をこの業務の番にする", "");
+    await expect(list).toContainText("入浴担当可 ✓");
+    await expect(list).toContainText(/入浴担当可 なし|きょうは出勤なし/);
+    const off = list.getByRole("button", { name: /をこの業務の番に足す$/ }).first();
+    const name = (await off.getAttribute("aria-label"))!.replace("をこの業務の番に足す", "");
     await off.click();
     await expect(page.locator("#board-toast")).toContainText(`番に${name}を足しました`);
     await expect(sec.locator("span").first()).toContainText(name);

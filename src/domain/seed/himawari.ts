@@ -207,7 +207,7 @@ const CAT_NONCORE = "noncore";
 const CAT_OTHER = "other";
 // PHS は画面の「困ったら」で、その時刻のリーダーから出す（ここに番号を書くと夜に違う人を指す）
 const LEADER = "いまのリーダー（画面の上の「困ったら」）";
-const CONTACT_CARE = "一緒に入る常勤の職員（ひとりで入るときは、上の「困ったら」の人）";
+const CONTACT_CARE = "一緒に入る常勤の職員（ひとりで入るときは、その時間のリーダー）";
 const CONTACT_NURSE = "看護師（看護師が出勤している日の日中は看護用 PHS 810 ／ 日曜など看護師がいない日と夜間はオンコール: 詰所に掲示の番号）";
 
 const TPL_WAKEUP = "tpl-wakeup";

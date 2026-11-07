@@ -10,7 +10,7 @@
  */
 
 import type { Event } from "./events.ts";
-import { metaOf, type EventContext } from "./pattern.ts";
+import { isFirstTimeDefault, metaOf, type EventContext } from "./pattern.ts";
 import { boardName } from "./checks.ts";
 import type { DateKey, ID, RoleSlot, RosterEntry, State } from "./types.ts";
 
@@ -72,6 +72,9 @@ const OFF_WORDS = new Set([
   "産",
   "慶",
   "希",
+  "研修",
+  "会議",
+  "出張",
   "/",
   "／",
   "－",
@@ -363,7 +366,13 @@ export function rosterPasteLabel(parsed: RosterPasteResult): string {
 // ---------------------------------------------------------------------------
 
 /** 1 か月の表で選べる休みの種類（表の語は貼り付けでそのまま入る） */
-export const OFF_KINDS = ["公休", "有休", "明け", "研修"] as const;
+export const OFF_KINDS = ["公休", "有休", "明け"] as const;
+/** フロアに入らない勤務（研修・会議 など）。データは休みと同じ（配置しない）だが、言葉は「休み」と言わない（ループ 23） */
+export const AWAY_KINDS = ["研修", "会議", "出張"] as const;
+export function offLabel(kind: string | undefined): string {
+  if (!kind) return "休み";
+  return (AWAY_KINDS as readonly string[]).includes(kind) ? `${kind}（フロアに入らない）` : `休み（${kind}）`;
+}
 
 export type MonthCellChoice = { kind: "slot"; slotId: ID } | { kind: "off"; offKind?: string } | { kind: "none" };
 
@@ -407,13 +416,13 @@ export function setMonthCellEvents(state: State, date: DateKey, staffId: ID, cho
       ...(choice.offKind ? { offKind: choice.offKind } : {}),
     };
     events.push({ ...metaOf(ctx), type: "roster.upsert", entry });
-    return { events, label: `${day} の${boardName(state, staffId)}さんを休み${choice.offKind ? `（${choice.offKind}）` : ""}にしました` };
+    return { events, label: `${day} の${boardName(state, staffId)}さんを${offLabel(choice.offKind)}にしました` };
   }
   const slot = state.roleSlots[choice.slotId];
   if (!slot) return { events: [], label: "" };
   const entry: RosterEntry = {
     id: ctx.newId(), date, staffId, slotId: slot.id, startMin: slot.defaultStartMin, endMin: slot.defaultEndMin,
-    firstTimer: prev?.firstTimer ?? false, absent: false,
+    firstTimer: prev?.firstTimer ?? isFirstTimeDefault(state, staffId, date), absent: false,
   };
   events.push({ ...metaOf(ctx), type: "roster.upsert", entry });
   return { events, label: `${day} の${boardName(state, staffId)}さんを${slot.name}にしました` };

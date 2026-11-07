@@ -83,10 +83,13 @@ test("勤務表の貼り付け: 名簿と番に照らして日付ごとの出勤
   const nakamura = Object.values(s.staff).find((x) => x.surname === "中村")!;
   assert.equal(d3.find((e) => e.staffId === nakamura.id)!.slotId, night.id);
   assert.equal(rosterPasteLabel(r2), "勤務表を入れました（12/1〜12/3・3人）");
-  // 朝の帯は、その日の勤務表をそのまま使う
+  // 朝の帯は、その日の勤務表を先に使い、表にいない職員は先週の写し（または休み）で埋める（ループ 23）
   const draft = morningDraft(s2, "2026-12-01", () => "n");
   assert.equal(draft.source, "today");
-  assert.equal(draft.entries.length, 3);
+  const pasted = rosterForDate(s2, "2026-12-01");
+  assert.equal(pasted.length, 3);
+  assert.deepEqual(draft.entries.slice(0, 3).map((e) => e.staffId), pasted.map((e) => e.staffId));
+  assert.equal(new Set(draft.entries.map((e) => e.staffId)).size, Object.keys(s2.staff).length, "名簿の全員が 1 行ずつ");
 });
 
 test("未記入の列（照らせた職員が全部空欄）は入れない。今日より前の日は変えない。職種・雇用区分の列が左にあっても名前の列を見つける。タイトル行は飛ばす", () => {

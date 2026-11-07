@@ -612,11 +612,18 @@ export interface SlotChoice {
   name: string;
   /** いまこの業務の番か */
   on: boolean;
+  /** 番の時刻 */
+  startMin: Minutes;
+  endMin: Minutes;
+  /** 業務の時刻が番の勤務時間に入らない */
+  outside: boolean;
+  /** 業務と違うグループの番なら、そのグループの名前 */
+  groupName?: string;
   /** きょうのその番の人と、業務の条件を持つか */
   people: { staffId: ID; ok: boolean; missing: string[] }[];
 }
 
-/** 番の一覧。条件を持つきょうの人がいる番を上に、次に出勤のある番、出勤のない番（同じ段は番の並び順） */
+/** 番の一覧（番の並び順）。番の時刻、業務の時刻が勤務外か、きょうの人と業務の条件を持つか */
 export function slotChoices(state: State, taskId: ID): SlotChoice[] {
   const task = state.tasks[taskId];
   if (!task) return [];
@@ -628,11 +635,13 @@ export function slotChoices(state: State, taskId: ID): SlotChoice[] {
         const missing = task.requiredTags.filter((t) => !tags.includes(t));
         return { staffId: r.staffId, ok: missing.length === 0, missing };
       });
-    return { slotId: sl.id, name: sl.name, on: task.slotIds.includes(sl.id), people };
+    const outside = task.startMin < sl.defaultStartMin || task.endMin > sl.defaultEndMin;
+    const g = sl.groupId && sl.groupId !== task.groupId ? state.groups[sl.groupId] : undefined;
+    return { slotId: sl.id, name: sl.name, on: task.slotIds.includes(sl.id), startMin: sl.defaultStartMin, endMin: sl.defaultEndMin, outside, people, ...(g && g.kind !== "common" ? { groupName: g.name } : {}) };
   });
-  const rank = (c: SlotChoice) => (c.people.some((p) => p.ok) ? 0 : c.people.length > 0 ? 1 : 2);
+  // 並びは番の並び順のまま（毎日変わらないように。きょうの人と条件の有無は補足。ループ 23）
   const order = (id: ID) => state.roleSlots[id]?.sortOrder ?? 999;
-  return out.sort((a, b) => rank(a) - rank(b) || order(a.slotId) - order(b.slotId));
+  return out.sort((a, b) => order(a.slotId) - order(b.slotId));
 }
 
 export function setTaskSlotEvents(state: State, taskId: ID, slotId: ID, on: boolean, ctx: EventContext): { events: Event[]; label: string } {
@@ -640,8 +649,9 @@ export function setTaskSlotEvents(state: State, taskId: ID, slotId: ID, on: bool
   const slot = state.roleSlots[slotId];
   if (!task || !slot || task.slotIds.includes(slotId) === on) return { events: [], label: "" };
   const slotIds = on ? [...task.slotIds, slotId] : task.slotIds.filter((x) => x !== slotId);
+  const now = slotIds.map((id) => state.roleSlots[id]?.name).filter(Boolean);
   return {
     events: [{ ...metaOf(ctx), type: "task.update", id: taskId, patch: { slotIds } }],
-    label: `「${taskLabel(state, task)}」の番${on ? `に${slot.name}を足しました` : `から${slot.name}を外しました`}（きょうの担当は変えません。次の日からは ⋯ →「今日を業務表として保存」）`,
+    label: `「${taskLabel(state, task)}」の番${on ? `に${slot.name}を足しました` : `から${slot.name}を外しました`}。いまの番: ${now.length > 0 ? now.join("・") : "なし"}（きょうの担当は変えません）`,
   };
 }

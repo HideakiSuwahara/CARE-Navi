@@ -104,9 +104,30 @@ test.describe("ボードの職員表示と分担表", () => {
     await page.getByRole("button", { name: "今日を業務表として保存" }).click();
     const dialog = page.getByRole("dialog", { name: "今日を業務表として保存" });
     await expect(dialog.getByText("担当の人は保存しません")).toBeVisible();
+    // 既定は今日を作った業務表を書き換える。新しい名前で残すこともできる（ループ 23）
+    const radios = dialog.getByRole("radio");
+    if ((await radios.count()) > 0) {
+      await expect(radios.first()).toBeChecked();
+      await dialog.getByRole("radio", { name: /新しい名前で残す/ }).check();
+    }
     await dialog.getByLabel("業務表の名前").fill("入浴日（11/3版）");
     await dialog.getByRole("button", { name: "この内容で保存" }).click();
     await expect(page.locator("#board-toast")).toContainText("業務表「入浴日（11/3版）」を保存しました");
     await expect(page.getByRole("button", { name: /元に戻す ?（業務表/ })).toBeVisible();
+  });
+});
+
+test.describe("今日を業務表として保存（ループ 23）", () => {
+  test("既定は今日を作った業務表を書き換え、次に同じ業務表で作る日から効く", async ({ page }) => {
+    await page.goto("/board?now=10:12");
+    await page.evaluate(() => localStorage.clear());
+    await page.goto("/board?now=10:12");
+    await expect(page.locator("[data-task-id]").first()).toBeVisible();
+    await page.getByRole("button", { name: "ほかの操作" }).click();
+    await page.getByRole("button", { name: "今日を業務表として保存" }).click();
+    const dialog = page.getByRole("dialog", { name: "今日を業務表として保存" });
+    await expect(dialog.getByRole("radio", { name: /を書き換える/ })).toBeChecked();
+    await dialog.getByRole("button", { name: "この内容で保存" }).click();
+    await expect(page.locator("#board-toast")).toContainText("を今日の内容に書き換えました");
   });
 });

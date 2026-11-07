@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { boardName } from "@/domain/checks";
-import { monthCellText, monthDates, OFF_KINDS, setMonthCellEvents, type MonthCellChoice } from "@/domain/rosterPaste";
+import { AWAY_KINDS, monthCellText, monthDates, offLabel, OFF_KINDS, setMonthCellEvents, type MonthCellChoice } from "@/domain/rosterPaste";
+import { boardName, tasksForDate } from "@/domain/checks";
 import type { DateKey, ID, State } from "@/domain/types";
 import { useEngine } from "@/store/react";
 
@@ -23,6 +23,13 @@ export function MonthRoster({ state, today, onDone }: { state: State; today: str
   const slots = Object.values(state.roleSlots).sort((a, b) => a.sortOrder - b.sortOrder);
   const [cell, setCell] = useState<{ date: DateKey; staffId: ID } | null>(null);
   const pickRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  // 開いたら今日の列まで横に送る（20 日がどこか探さないように。ループ 23）
+  useEffect(() => {
+    const el = scrollRef.current;
+    const th = el?.querySelector<HTMLElement>('th[aria-current="date"]');
+    if (el && th) el.scrollLeft = Math.max(0, th.offsetLeft - 120);
+  }, [ym]);
   useEffect(() => {
     if (cell) pickRef.current?.querySelector<HTMLElement>("button")?.focus();
   }, [cell]);
@@ -45,10 +52,31 @@ export function MonthRoster({ state, today, onDone }: { state: State; today: str
     back(c);
   };
   const btn = "inline-flex h-[44px] items-center rounded-lg border border-[var(--cn-control-line)] bg-white px-3 text-[15px]";
+  const btnOn = "inline-flex h-[44px] items-center rounded-lg border border-[var(--cn-accent)] bg-[var(--cn-accent-soft)] px-3 text-[15px] font-bold text-[var(--cn-accent)]";
+  const curEntry = cell ? Object.values(state.roster).find((e) => e.date === cell.date && e.staffId === cell.staffId) : undefined;
+  const cur = cell ? monthCellText(state, cell.date, cell.staffId) : { text: "", off: false };
+  const isCur = (choice: MonthCellChoice) =>
+    choice.kind === "none" ? !curEntry : choice.kind === "slot" ? !!curEntry && !curEntry.absent && curEntry.slotId === choice.slotId : !!curEntry && curEntry.absent && curEntry.offKind === choice.offKind;
+  const optBtn = (choice: MonthCellChoice, text: string, key: string) => (
+    <button key={key} type="button" aria-pressed={isCur(choice)} onClick={() => choose(choice)} className={isCur(choice) ? btnOn : btn}>
+      {isCur(choice) ? `✓ ${text}（いま）` : text}
+    </button>
+  );
   const dow = (d: DateKey) => new Date(`${d}T12:00:00`).getDay();
 
   return (
-    <section aria-labelledby="s-month" className="flex flex-col gap-2 rounded-xl border border-[var(--cn-border)] bg-white p-4">
+    <section
+      aria-labelledby="s-month"
+      className="flex flex-col gap-2 rounded-xl border border-[var(--cn-border)] bg-white p-4"
+      onKeyDown={(e) => {
+        // Escape はマスにいても選ぶ欄にいても閉じて、そのマスへ戻す（ループ 23）
+        if (e.key === "Escape" && cell) {
+          const c = cell;
+          setCell(null);
+          back(c);
+        }
+      }}
+    >
       <h3 id="s-month" className="text-[16px] font-bold">
         1 か月の勤務
       </h3>
@@ -66,7 +94,14 @@ export function MonthRoster({ state, today, onDone }: { state: State; today: str
           次の月 ›
         </button>
       </div>
-      <div className="overflow-auto rounded-lg border border-[var(--cn-border)]" tabIndex={0} role="region" aria-label={`${year}年${month}月の勤務の表`}>
+      {/* 表はマスが多いので、飛ばして先へ進める（ループ 23） */}
+      <a href="#s-everyday" className="sr-only focus:not-sr-only focus:inline-flex focus:h-[44px] focus:items-center focus:rounded focus:bg-white focus:px-3 focus:font-bold focus:text-[var(--cn-accent)] focus:underline">
+        1 か月の勤務の表を飛ばす
+      </a>
+      <p className="text-[14px] text-[var(--cn-ink-soft)]">
+        <span aria-hidden="true">→ </span>表は横に続きます（横にスクロール）。
+      </p>
+      <div ref={scrollRef} className="overflow-auto rounded-lg border border-[var(--cn-border)]" tabIndex={0} role="region" aria-label={`${year}年${month}月の勤務の表`}>
         <table className="border-collapse text-[13px]">
           <thead>
             <tr>
@@ -74,9 +109,15 @@ export function MonthRoster({ state, today, onDone }: { state: State; today: str
                 職員
               </th>
               {dates.map((d) => (
-                <th key={d} scope="col" className={`min-w-[52px] px-1 py-1 text-center font-normal ${d === today ? "bg-[var(--cn-accent-soft)] font-bold" : ""}`}>
-                  {Number(d.slice(8))}
-                  <span className="block text-[12px] text-[var(--cn-muted)]">{WEEK[dow(d)]}</span>
+                <th key={d} scope="col" aria-current={d === today ? "date" : undefined} className={`min-w-[52px] px-1 py-1 text-center font-normal ${d === today ? "bg-[var(--cn-accent-soft)] font-bold" : ""}`}>
+                  <span className="sr-only">
+                    {month}月{Number(d.slice(8))}日（{WEEK[dow(d)]}）{d === today ? "、今日" : ""}
+                  </span>
+                  <span aria-hidden="true">
+                    {Number(d.slice(8))}
+                    <span className="block text-[12px] text-[var(--cn-muted)]">{WEEK[dow(d)]}</span>
+                    {d === today && <span className="block text-[12px] font-bold">今日</span>}
+                  </span>
                 </th>
               ))}
             </tr>
@@ -94,14 +135,18 @@ export function MonthRoster({ state, today, onDone }: { state: State; today: str
                       <button
                         type="button"
                         data-month-cell={`${d}:${st.id}`}
-                        aria-label={`${Number(d.slice(5, 7))}月${Number(d.slice(8))}日 ${boardName(state, st.id)}さん: ${c.text ? (c.off ? `休み（${c.text}）` : c.text) : "入れていない"}`}
                         aria-expanded={cell?.date === d && cell.staffId === st.id}
+                        aria-controls={cell?.date === d && cell.staffId === st.id ? "month-pick" : undefined}
                         onClick={() => setCell({ date: d, staffId: st.id })}
-                        className={`h-[44px] w-[52px] overflow-hidden break-all rounded px-0.5 text-[12px] leading-tight ${
+                        className={`h-[44px] w-[52px] overflow-hidden break-all rounded px-0.5 text-[12px] leading-tight ${cell?.date === d && cell.staffId === st.id ? "outline outline-[3px] outline-[var(--cn-accent)]" : ""} ${
                           c.off ? "bg-[var(--cn-ground)] text-[var(--cn-ink-soft)]" : c.text ? "border border-[var(--cn-accent)] bg-[var(--cn-accent-soft)] font-bold text-[var(--cn-accent)]" : "border border-dashed border-[var(--cn-control-line)]"
                         }`}
                       >
+                        <span className="sr-only">
+                          {Number(d.slice(5, 7))}月{Number(d.slice(8))}日 {boardName(state, st.id)}さん:{" "}
+                        </span>
                         {c.text}
+                        <span className="sr-only">{c.text ? (c.off ? "（休み・フロアに入らない）" : "") : "入れていない"}</span>
                       </button>
                     </td>
                   );
@@ -114,39 +159,28 @@ export function MonthRoster({ state, today, onDone }: { state: State; today: str
       {cell && (
         <div
           ref={pickRef}
+          id="month-pick"
           role="group"
           aria-labelledby="month-pick-title"
+          aria-describedby={tasksForDate(state, cell.date).length > 0 ? "month-pick-warn" : undefined}
           className="flex flex-col gap-2 rounded-xl border-2 border-[var(--cn-accent)] p-3"
-          onKeyDown={(e) => {
-            if (e.key === "Escape") {
-              const c = cell;
-              setCell(null);
-              back(c);
-            }
-          }}
         >
           <p id="month-pick-title" className="font-bold">
-            {Number(cell.date.slice(5, 7))}月{Number(cell.date.slice(8))}日（{WEEK[dow(cell.date)]}） {boardName(state, cell.staffId)}さん
+            {Number(cell.date.slice(5, 7))}月{Number(cell.date.slice(8))}日（{WEEK[dow(cell.date)]}） {boardName(state, cell.staffId)}さん　いま: {cur.text ? (cur.off ? offLabel(cur.text === "休" ? undefined : cur.text) : cur.text) : "入れていない"}
           </p>
+          {tasksForDate(state, cell.date).length > 0 && (
+            <p id="month-pick-warn" className="text-[14px] font-bold text-[var(--cn-short-ink)]">
+              この日は時間割ができています。勤務表を直しても担当は変わりません（担当を外すときは、ボードの「欠勤・早退」で）。
+            </p>
+          )}
           <div className="flex flex-wrap gap-2">
-            {slots.map((sl) => (
-              <button key={sl.id} type="button" onClick={() => choose({ kind: "slot", slotId: sl.id })} className={btn}>
-                {sl.name}
-              </button>
-            ))}
+            {slots.map((sl) => optBtn({ kind: "slot", slotId: sl.id }, sl.name, sl.id))}
           </div>
           <div className="flex flex-wrap gap-2">
-            {OFF_KINDS.map((k) => (
-              <button key={k} type="button" onClick={() => choose({ kind: "off", offKind: k })} className={btn}>
-                休み（{k}）
-              </button>
-            ))}
-            <button type="button" onClick={() => choose({ kind: "off" })} className={btn}>
-              休み
-            </button>
-            <button type="button" onClick={() => choose({ kind: "none" })} className={btn}>
-              入れていない
-            </button>
+            {OFF_KINDS.map((k) => optBtn({ kind: "off", offKind: k }, `休み（${k}）`, k))}
+            {AWAY_KINDS.map((k) => optBtn({ kind: "off", offKind: k }, offLabel(k), k))}
+            {optBtn({ kind: "off" }, "休み", "off")}
+            {optBtn({ kind: "none" }, "入れていない", "none")}
             <button
               type="button"
               onClick={() => {
@@ -156,7 +190,7 @@ export function MonthRoster({ state, today, onDone }: { state: State; today: str
               }}
               className={btn}
             >
-              やめる
+              やめる（表に戻る・Esc）
             </button>
           </div>
         </div>

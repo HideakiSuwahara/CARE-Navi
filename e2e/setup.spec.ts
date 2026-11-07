@@ -278,7 +278,7 @@ test.describe("1 か月の勤務（決定記録 0024）", () => {
     const pick = sec.getByRole("group");
     await expect(pick.getByRole("button", { name: "休み（有休）" })).toBeFocused({ timeout: 2000 }).catch(() => {});
     await pick.getByRole("button", { name: "休み（有休）" }).click();
-    await expect(cell).toHaveAccessibleName(/11月20日 佐藤さん: 休み（有休）/);
+    await expect(cell).toHaveAccessibleName(/11月20日 佐藤さん: 有休/);
     await expect(cell).toBeFocused();
     await expect(page.getByRole("status").filter({ hasText: "11/20 の佐藤さんを休み（有休）にしました" })).toBeVisible();
     await page.getByRole("status").getByRole("button", { name: "元に戻す" }).click();

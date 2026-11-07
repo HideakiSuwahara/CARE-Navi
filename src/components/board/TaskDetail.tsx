@@ -580,7 +580,7 @@ function SlotSection({ state, engine, taskId }: { state: State; engine: Engine; 
     if (r.events.length > 0) engine.dispatch(r.events, r.label);
   };
   const who = (p: { staffId: ID; ok: boolean; missing: string[] }) =>
-    `${boardName(state, p.staffId)}${task.requiredTags.length === 0 ? "" : p.ok ? "（条件あり）" : `（条件「${p.missing.join("・")}」なし）`}`;
+    `${boardName(state, p.staffId)}さん${task.requiredTags.length === 0 ? "" : p.ok ? `（${task.requiredTags.join("・")} ✓）` : `（${p.missing.join("・")} なし）`}`;
   return (
     <section aria-labelledby="d-slot" className="flex flex-col gap-1.5">
       <h3 id="d-slot" className="text-[14px] font-bold text-[var(--cn-muted)]">
@@ -599,7 +599,7 @@ function SlotSection({ state, engine, taskId }: { state: State; engine: Engine; 
         </button>
       </div>
       <p className="text-[14px] text-[var(--cn-ink-soft)]">
-        番を変えたら、⋯ →「今日を業務表として保存」で次の日から効きます（きょうの担当は変わりません）。
+        番を変えたら、⋯ →「今日を業務表として保存」で次の日から効きます（きょうの担当は変わりません）。保存すると今日だけの中止・追加・ずらしも業務表に入るので、ふだんどおりの日に保存してください。
         {task.requiredTags.length > 0 && ` この業務の条件: ${task.requiredTags.join("・")}（施設の設定）。`}
       </p>
       {open && (
@@ -607,19 +607,24 @@ function SlotSection({ state, engine, taskId }: { state: State; engine: Engine; 
           {choices.map((c) => (
             <li key={c.slotId} className="flex items-center gap-2 px-3 py-1.5">
               <span className="min-w-0 flex-1">
-                <span className="block font-bold">{c.name}</span>
+                <span className="block font-bold">
+                  {c.name}
+                  {c.groupName && <span className="font-normal text-[14px]">（{c.groupName}）</span>}{" "}
+                  <span className="font-normal text-[14px]">{fmtRange(c.startMin, c.endMin)}</span>
+                  {c.on && <span className="ml-1 rounded bg-[var(--cn-accent-soft)] px-1 text-[13px] text-[var(--cn-accent)]">この業務の番</span>}
+                  {c.outside && <span className="ml-1 text-[14px] font-bold text-[var(--cn-short-ink)]">（この業務の時刻は勤務外）</span>}
+                </span>
                 <span className="block text-[14px] text-[var(--cn-ink-soft)]">
                   {c.people.length > 0 ? `きょう: ${c.people.map(who).join("・")}` : "きょうは出勤なし"}
                 </span>
               </span>
               <button
                 type="button"
-                aria-pressed={c.on}
-                aria-label={`${c.name}をこの業務の番にする`}
+                aria-label={c.on ? `${c.name}（この業務の番）を外す` : `${c.name}をこの業務の番に足す`}
                 onClick={() => toggle(c.slotId, !c.on)}
                 className={`h-[44px] shrink-0 rounded-lg border px-3 text-[15px] ${c.on ? "border-[var(--cn-accent)] bg-[var(--cn-accent-soft)] font-bold text-[var(--cn-accent)]" : "border-[var(--cn-control-line)]"}`}
               >
-                {c.on ? `✓ ${c.name}` : `${c.name}にする`}
+                {c.on ? "外す" : "足す"}
               </button>
             </li>
           ))}

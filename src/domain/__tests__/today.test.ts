@@ -21,7 +21,9 @@ test("業務表から作る: 番の人が業務の条件を持たなければ付
   const D = "2026-11-03";
   const pid = Object.values(s.patterns)[0].id;
   const after0 = applyEvents(s, applyPatternEvents(s, D, pid, deterministicContext("p0")));
-  const t = tasksForDate(after0, D).find((x) => x.requiredTags.length > 0 && assignmentsOf(after0, x.id).length > 0)!;
+  // 条件を持つ人が施設にほかにもいる業務（誰も持たない条件では止めない: ループ 23）
+  const holders = (tag: string) => Object.values(s.staff).filter((st) => st.tags.includes(tag)).length;
+  const t = tasksForDate(after0, D).find((x) => x.requiredTags.length > 0 && x.requiredTags.every((g) => holders(g) >= 2) && assignmentsOf(after0, x.id).length > 0)!;
   assert.ok(t, "条件のある業務に担当が付いている");
   const who = assignmentsOf(after0, t.id)[0].staffId;
   // その人から条件を外して作り直すと、付かない
@@ -31,4 +33,13 @@ test("業務表から作る: 番の人が業務の条件を持たなければ付
   assert.ok(!assignmentsOf(after, t2.id).some((a) => a.staffId === who));
   assert.ok(conditionSkips(after, D).some((k) => k.staffId === who && k.task.id === t2.id));
   void rosterForDate;
+});
+
+test("業務表から作る: 施設の誰もまだ付けていない条件では止めない（ループ 23）", async () => {
+  const { hasTags } = await import("../pattern.ts");
+  const { himawariSeed } = await import("../seed/index.ts");
+  const { stateFromSeed, deterministicContext } = await import("../loadSeed.ts");
+  const s = stateFromSeed(himawariSeed, deterministicContext("ht"));
+  const id = Object.keys(s.staff)[0];
+  assert.equal(hasTags(s, { requiredTags: ["誰も持たない条件"] }, id), true);
 });

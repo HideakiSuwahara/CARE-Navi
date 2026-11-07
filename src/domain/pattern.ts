@@ -71,7 +71,9 @@ export function taskFromPatternItem(state: State, date: DateKey, item: DayPatter
 /** その業務の条件（施設が決めた担当条件: 0011）をすべて持っているか */
 export function hasTags(state: State, task: Pick<TaskInstance, "requiredTags">, staffId: ID): boolean {
   const tags = state.staff[staffId]?.tags ?? [];
-  return (task.requiredTags ?? []).every((t) => tags.includes(t));
+  const all = Object.values(state.staff);
+  // 施設の誰もまだその条件を付けていないあいだは、条件で止めない（始めたばかりの施設で入浴が毎回担当未定にならないように。ループ 23）
+  return (task.requiredTags ?? []).every((t) => tags.includes(t) || !all.some((s) => s.tags.includes(t)));
 }
 
 /**
@@ -319,7 +321,16 @@ export interface MorningDraft {
 export function morningDraft(state: State, date: DateKey, newId: () => ID): MorningDraft {
   const today = rosterForDate(state, date);
   const patternId = patternForDate(state, date);
-  if (today.length > 0) return { date, patternId, entries: today.map((e) => ({ ...e })), source: "today" };
+  if (today.length > 0) {
+    const have = new Set(today.map((e) => e.staffId));
+    const missing = Object.keys(state.staff).filter((id) => !have.has(id));
+    if (missing.length === 0) return { date, patternId, entries: today.map((e) => ({ ...e })), source: "today" };
+    // 一部の職員だけ入っている日（1 か月の表で 1 マスだけ直した など）は、残りを先週の写しで埋め、入っている行を優先する（ループ 23）
+    const without: State = { ...state, roster: Object.fromEntries(Object.entries(state.roster).filter(([, e]) => e.date !== date)) };
+    const base = morningDraft(without, date, newId);
+    const rest = base.entries.filter((e) => !have.has(e.staffId));
+    return { ...base, date, patternId, entries: [...today.map((e) => ({ ...e })), ...rest], source: "today" };
+  }
   const lastWeek = addDays(date, -7);
   const prev = rosterForDate(state, lastWeek);
   if (prev.length === 0) {
