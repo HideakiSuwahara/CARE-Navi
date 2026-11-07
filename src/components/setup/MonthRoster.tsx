@@ -67,7 +67,7 @@ export function MonthRoster({ state, today, onDone }: { state: State; today: str
   return (
     <section
       aria-labelledby="s-month"
-      className="flex flex-col gap-2 rounded-xl border border-[var(--cn-border)] bg-white p-4"
+      className="flex min-w-0 max-w-full flex-col gap-2 rounded-xl border border-[var(--cn-border)] bg-white p-4"
       onKeyDown={(e) => {
         // Escape はマスにいても選ぶ欄にいても閉じて、そのマスへ戻す（ループ 23）
         if (e.key === "Escape" && cell) {
@@ -101,7 +101,7 @@ export function MonthRoster({ state, today, onDone }: { state: State; today: str
       <p className="text-[14px] text-[var(--cn-ink-soft)]">
         <span aria-hidden="true">→ </span>表は横に続きます（横にスクロール）。
       </p>
-      <div ref={scrollRef} className="overflow-auto rounded-lg border border-[var(--cn-border)]" tabIndex={0} role="region" aria-label={`${year}年${month}月の勤務の表`}>
+      <div ref={scrollRef} className="relative max-w-full overflow-auto rounded-lg border border-[var(--cn-border)]" tabIndex={0} role="region" aria-label={`${year}年${month}月の勤務の表`}>
         <table className="border-collapse text-[13px]">
           <thead>
             <tr>
