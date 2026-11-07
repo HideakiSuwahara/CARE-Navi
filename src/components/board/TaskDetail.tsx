@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { assigneesOf, canMarkDone, headcountStatus, taskLabel, taskStarted , boardName } from "@/domain/checks";
-import { cancelTaskEvents, doerChoices, doneByEvents, shiftTaskEvents, swapChoices, swapPreview, unassignEvents, type DoerChoice, type SwapChoice } from "@/domain/commands";
+import { cancelTaskEvents, doerChoices, doneByEvents, setTaskSlotEvents, shiftTaskEvents, slotChoices, swapChoices, swapPreview, unassignEvents, type DoerChoice, type SwapChoice } from "@/domain/commands";
 import { sheetRowFor } from "@/domain/routine";
 import { clockLabel, fmtRange } from "@/domain/time";
 import type { ID, State } from "@/domain/types";
@@ -244,6 +244,8 @@ export function TaskDetail({
 
           </section>
         )}
+
+        {engine && <SlotSection state={state} engine={engine} taskId={task.id} />}
 
         {engine && (
           <section aria-labelledby="d-ops" className="flex flex-wrap items-center gap-2">
@@ -560,5 +562,69 @@ function DoerBox({ state, taskId, onDecide, onCancel }: { state: State; taskId: 
         やめる
       </button>
     </div>
+  );
+}
+
+/**
+ * この業務の番（決定記録 0024）。いまの番の名前と「番を変える…」。番ごとにきょうの人と、業務の条件を持つか。
+ * 条件を持つ人の番を上に。付け外しはきょうの担当を変えない（次の日からは「今日を業務表として保存」）。
+ */
+function SlotSection({ state, engine, taskId }: { state: State; engine: Engine; taskId: ID }) {
+  const [open, setOpen] = useState(false);
+  const task = state.tasks[taskId];
+  if (!task) return null;
+  const names = task.slotIds.map((id) => state.roleSlots[id]?.name).filter(Boolean);
+  const choices = open ? slotChoices(state, taskId) : [];
+  const toggle = (slotId: ID, on: boolean) => {
+    const r = setTaskSlotEvents(engine.state, taskId, slotId, on, engine.context());
+    if (r.events.length > 0) engine.dispatch(r.events, r.label);
+  };
+  const who = (p: { staffId: ID; ok: boolean; missing: string[] }) =>
+    `${boardName(state, p.staffId)}${task.requiredTags.length === 0 ? "" : p.ok ? "（条件あり）" : `（条件「${p.missing.join("・")}」なし）`}`;
+  return (
+    <section aria-labelledby="d-slot" className="flex flex-col gap-1.5">
+      <h3 id="d-slot" className="text-[14px] font-bold text-[var(--cn-muted)]">
+        この業務の番
+      </h3>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-[15px]">{names.length > 0 ? names.join("・") : "決まっていません"}</span>
+        <button
+          type="button"
+          aria-expanded={open}
+          aria-controls={open ? "slot-list" : undefined}
+          onClick={() => setOpen((v) => !v)}
+          className="h-[44px] rounded-lg border border-[var(--cn-control-line)] px-3 text-[15px]"
+        >
+          番を変える…
+        </button>
+      </div>
+      <p className="text-[14px] text-[var(--cn-ink-soft)]">
+        番の人が「この内容で作る」でこの業務の担当になります（業務の条件を持たない人は付けません）。番を変えたら、⋯ →「今日を業務表として保存」で次の日から効きます。きょうの担当は変わりません。
+        {task.requiredTags.length > 0 && ` この業務の条件: ${task.requiredTags.join("・")}（施設の設定）。`}
+      </p>
+      {open && (
+        <ul id="slot-list" aria-label="番の一覧" className="flex flex-col divide-y divide-[var(--cn-grid)] rounded-xl border border-[var(--cn-border)]">
+          {choices.map((c) => (
+            <li key={c.slotId} className="flex items-center gap-2 px-3 py-1.5">
+              <span className="min-w-0 flex-1">
+                <span className="block font-bold">{c.name}</span>
+                <span className="block text-[14px] text-[var(--cn-ink-soft)]">
+                  {c.people.length > 0 ? `きょう: ${c.people.map(who).join("・")}` : "きょうは出勤なし"}
+                </span>
+              </span>
+              <button
+                type="button"
+                aria-pressed={c.on}
+                aria-label={`${c.name}をこの業務の番にする`}
+                onClick={() => toggle(c.slotId, !c.on)}
+                className={`h-[44px] shrink-0 rounded-lg border px-3 text-[15px] ${c.on ? "border-[var(--cn-accent)] bg-[var(--cn-accent-soft)] font-bold text-[var(--cn-accent)]" : "border-[var(--cn-control-line)]"}`}
+              >
+                {c.on ? `✓ ${c.name}` : `${c.name}にする`}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }

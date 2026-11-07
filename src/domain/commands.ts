@@ -602,3 +602,46 @@ export function doneByEvents(state: State, taskId: ID, doerId: ID, replacedStaff
     : `「${name}」を${boardName(state, doer.id)}さんがやったことにしました（「終わった」の印つき）`;
   return { events, label };
 }
+
+// ---------------------------------------------------------------------------
+// この業務の番（決定記録 0024）: 業務の詳細で、業務を束ねる番を付け外しする。きょうの担当は変えない
+// ---------------------------------------------------------------------------
+
+export interface SlotChoice {
+  slotId: ID;
+  name: string;
+  /** いまこの業務の番か */
+  on: boolean;
+  /** きょうのその番の人と、業務の条件を持つか */
+  people: { staffId: ID; ok: boolean; missing: string[] }[];
+}
+
+/** 番の一覧。条件を持つきょうの人がいる番を上に、次に出勤のある番、出勤のない番（同じ段は番の並び順） */
+export function slotChoices(state: State, taskId: ID): SlotChoice[] {
+  const task = state.tasks[taskId];
+  if (!task) return [];
+  const out: SlotChoice[] = Object.values(state.roleSlots).map((sl) => {
+    const people = Object.values(state.roster)
+      .filter((r) => r.date === task.date && r.slotId === sl.id && !r.absent && state.staff[r.staffId])
+      .map((r) => {
+        const tags = state.staff[r.staffId].tags;
+        const missing = task.requiredTags.filter((t) => !tags.includes(t));
+        return { staffId: r.staffId, ok: missing.length === 0, missing };
+      });
+    return { slotId: sl.id, name: sl.name, on: task.slotIds.includes(sl.id), people };
+  });
+  const rank = (c: SlotChoice) => (c.people.some((p) => p.ok) ? 0 : c.people.length > 0 ? 1 : 2);
+  const order = (id: ID) => state.roleSlots[id]?.sortOrder ?? 999;
+  return out.sort((a, b) => rank(a) - rank(b) || order(a.slotId) - order(b.slotId));
+}
+
+export function setTaskSlotEvents(state: State, taskId: ID, slotId: ID, on: boolean, ctx: EventContext): { events: Event[]; label: string } {
+  const task = state.tasks[taskId];
+  const slot = state.roleSlots[slotId];
+  if (!task || !slot || task.slotIds.includes(slotId) === on) return { events: [], label: "" };
+  const slotIds = on ? [...task.slotIds, slotId] : task.slotIds.filter((x) => x !== slotId);
+  return {
+    events: [{ ...metaOf(ctx), type: "task.update", id: taskId, patch: { slotIds } }],
+    label: `「${taskLabel(state, task)}」の番${on ? `に${slot.name}を足しました` : `から${slot.name}を外しました`}（きょうの担当は変えません。次の日からは ⋯ →「今日を業務表として保存」）`,
+  };
+}

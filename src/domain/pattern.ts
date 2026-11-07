@@ -68,6 +68,28 @@ export function taskFromPatternItem(state: State, date: DateKey, item: DayPatter
   };
 }
 
+/** その業務の条件（施設が決めた担当条件: 0011）をすべて持っているか */
+export function hasTags(state: State, task: Pick<TaskInstance, "requiredTags">, staffId: ID): boolean {
+  const tags = state.staff[staffId]?.tags ?? [];
+  return (task.requiredTags ?? []).every((t) => tags.includes(t));
+}
+
+/**
+ * 業務表から作った日に、番の人だけれど業務の条件を持たないので付けなかった組（「この内容で作る」のトーストの一行。決定記録 0024）
+ */
+export function conditionSkips(state: State, date: DateKey): { task: TaskInstance; staffId: ID; missing: string[] }[] {
+  const out: { task: TaskInstance; staffId: ID; missing: string[] }[] = [];
+  for (const t of tasksForDate(state, date)) {
+    if (t.origin !== "pattern" || (t.requiredTags ?? []).length === 0) continue;
+    for (const staffId of staffForSlots(state, date, t.slotIds)) {
+      if (hasTags(state, t, staffId)) continue;
+      const tags = state.staff[staffId]?.tags ?? [];
+      out.push({ task: t, staffId, missing: t.requiredTags.filter((x) => !tags.includes(x)) });
+    }
+  }
+  return out.sort((a, b) => a.task.startMin - b.task.startMin);
+}
+
 /**
  * 型を当てる。すでに型から作られた当日の予定（origin = pattern）は作り直す。
  * 手で足した予定（origin なし／manual）は残す。
@@ -89,7 +111,8 @@ export function applyPatternEvents(state: State, date: DateKey, patternId: ID, c
   };
   const addTask = (task: TaskInstance, residentIds: ID[], slotIds: ID[]) => {
     events.push({ ...metaOf(ctx), type: "task.add", task, residentIds });
-    for (const staffId of staffForSlots(state, date, slotIds)) assign(task.id, staffId, task.startMin, task.endMin);
+    // 業務の条件（施設の設定: 0011）を持たない番の人は付けない（決定記録 0024）
+    for (const staffId of staffForSlots(state, date, slotIds)) if (hasTags(state, task, staffId)) assign(task.id, staffId, task.startMin, task.endMin);
   };
   /**
    * 日課から分かれた枠・その方だけの枠: 番の出勤者のうち、その時刻に勤務していて、ほかの担当と重ならない人を
@@ -102,6 +125,7 @@ export function applyPatternEvents(state: State, date: DateKey, patternId: ID, c
       if (need === 0) break;
       const entry = rosterForDate(state, date).find((r) => r.staffId === staffId);
       if (!entry || entry.startMin > task.startMin || entry.endMin < task.endMin) continue;
+      if (!hasTags(state, task, staffId)) continue;
       const clash = (busy.get(staffId) ?? []).some((b) => b.startMin < task.endMin && task.startMin < b.endMin);
       if (clash) continue;
       assign(task.id, staffId, task.startMin, task.endMin);
@@ -494,6 +518,7 @@ export function addTodayPersonEvents(
     const mine = assigned(t.id);
     if (mine.some((a) => a.staffId === staffId)) continue;
     if (t.kind !== "break" && mine.length >= t.headcount) continue;
+    if (!hasTags(state, t, staffId)) continue;
     events.push({ ...metaOf(ctx), type: "assignment.add", assignment: { id: ctx.newId(), taskId: t.id, staffId } });
   }
   return events;

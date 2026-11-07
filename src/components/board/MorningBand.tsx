@@ -4,8 +4,10 @@ import Link from "next/link";
 
 import { useMemo, useState } from "react";
 import { useEngine } from "@/store/react";
-import { createDayEvents, isFirstTimeDefault, morningDraft, suggestSlot } from "@/domain/pattern";
-import { fmtRange } from "@/domain/time";
+import { conditionSkips, createDayEvents, isFirstTimeDefault, morningDraft, suggestSlot } from "@/domain/pattern";
+import { applyEvents } from "@/domain/reducer";
+import { boardName } from "@/domain/checks";
+import { fmtMin, fmtRange } from "@/domain/time";
 import type { DateKey, ID, RosterEntry, State } from "@/domain/types";
 
 function shortDate(date: DateKey): string {
@@ -62,7 +64,11 @@ export function MorningBand({ state, date }: { state: State; date: DateKey }) {
     if (!engine || busy) return;
     setBusy(true);
     const events = createDayEvents(engine.state, { ...draft, entries: rows, patternId }, engine.context());
-    await engine.dispatch(events, "今日の時間割を作りました");
+    // 条件を持たない番の人は付けない（決定記録 0024）。付けなかった組を一行で知らせる
+    const skips = conditionSkips(applyEvents(engine.state, events), date);
+    const said = skips.slice(0, 2).map((k) => `${fmtMin(k.task.startMin)} ${k.task.name}: ${boardName(engine.state, k.staffId)}（${k.missing.join("・")}）`);
+    const more = skips.length > 2 ? ` ほか${skips.length - 2}件` : "";
+    await engine.dispatch(events, skips.length > 0 ? `今日の時間割を作りました。条件を持たない人は付けませんでした（${said.join("・")}${more}）` : "今日の時間割を作りました");
     setBusy(false);
     // 帯が消えるので、フォーカスを時間割の見出しへ移す（キーボード・読み上げの人が迷わないように）
     requestAnimationFrame(() => document.getElementById("board-title")?.focus());

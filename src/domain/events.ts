@@ -74,6 +74,8 @@ export type EventBody =
           | "outOfScopeNote"
           | "supplies"
           | "contact"
+          /** この業務の番（業務の詳細で付け外し。決定記録 0024） */
+          | "slotIds"
         >
       >;
     }

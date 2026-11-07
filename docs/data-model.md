@@ -54,7 +54,7 @@ EventMeta = { id, ts, batchId, actorId? }
 | `roster.upsert / remove` | 出勤者。欠勤・早退は `absent: true` の upsert |
 | `task.add { task, residentIds }` | 業務予定の追加（対象者つき） |
 | `task.remove { id }` | 削除（Undo 用。通常の「中止」は `task.update {status:'cancelled'}`） |
-| `task.update { id, patch }` | 名称・時刻・場所・必要人数・条件・メモ・状態・グループ・区分・案内項目 |
+| `task.update { id, patch }` | 名称・時刻・場所・必要人数・条件・メモ・状態・グループ・区分・案内項目・この業務の番（slotIds。決定記録 0024） |
 | `task.setTargets { id, residentIds }` | 対象者の差し替え |
 | `task.done { id, done }` | 「終わった」の印の付け外し（決定記録 0010）。誰が付けたかは `actorId` に残し、画面には出さない。「終わっていない」は `unfinishedTasks`（終わりの時刻から 15 分過ぎて印なし。休憩・中止・見守りを除く） |
 | `assignment.add { assignment }` / `assignment.remove { id }` | 担当 |

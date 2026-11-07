@@ -477,3 +477,27 @@ test.describe("ループ 22（業務の詳細の並び・いまの線・見守�
     await expect(page.getByRole("heading", { name: "いまの時間の予定" }).locator("..")).toContainText("看護の業務");
   });
 });
+
+test.describe("この業務の番（決定記録 0024）", () => {
+  test("業務の詳細で番を付け外しでき、番ごとにきょうの人と条件の有無が出る。元に戻せる", async ({ page }) => {
+    await page.goto("/board?now=10:12");
+    await page.evaluate(() => localStorage.clear());
+    await page.goto("/board?now=10:12");
+    // 入浴介助（2人介助）小林様: 条件「入浴担当可」
+    await page.locator("[data-task-id]").filter({ hasText: "入浴介助（2人介助）" }).first().locator("[data-card-title]").click();
+    const dialog = page.getByRole("dialog");
+    const sec = dialog.locator('section[aria-labelledby="d-slot"]');
+    await expect(sec).toContainText("この業務の条件: 入浴担当可");
+    await sec.getByRole("button", { name: "番を変える…" }).click();
+    const list = sec.getByRole("list", { name: "番の一覧" });
+    await expect(list).toContainText("（条件あり）");
+    await expect(list).toContainText(/条件「入浴担当可」なし|きょうは出勤なし/);
+    const off = list.getByRole("button", { pressed: false }).first();
+    const name = (await off.getAttribute("aria-label"))!.replace("をこの業務の番にする", "");
+    await off.click();
+    await expect(page.locator("#board-toast")).toContainText(`番に${name}を足しました`);
+    await expect(sec.locator("span").first()).toContainText(name);
+    await page.locator("#board-toast").getByRole("button", { name: /元に戻す/ }).click();
+    await expect(sec.locator("span").first()).not.toContainText(name);
+  });
+});
