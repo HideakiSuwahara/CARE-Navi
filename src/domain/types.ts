@@ -198,6 +198,8 @@ export interface RosterEntry {
   firstTimer: boolean;
   /** 欠勤・早退などで本日は配置対象外 */
   absent: boolean;
+  /** 休みの種類（公休・有休・明け・研修 など。勤務表の語のまま。決定記録 0024）。数えない */
+  offKind?: string;
   /** 朝の下書きで先週の同じ曜日から写した行（その日付）。画面に「先週 10/27 から」と出し、確かめてもらう */
   carriedFrom?: DateKey;
 }

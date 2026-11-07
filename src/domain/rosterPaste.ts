@@ -31,7 +31,7 @@ export interface RosterPasteResult {
   /** 名簿と照らせた職員（表の行の順） */
   staffIds: ID[];
   /** 日付ごとの出勤者と番（休みは slotId なし） */
-  cells: { date: DateKey; staffId: ID; slotId?: ID; firstTimer: boolean }[];
+  cells: { date: DateKey; staffId: ID; slotId?: ID; firstTimer: boolean; offKind?: string }[];
   /** 名簿と照らせなかった名前（行番号つき） */
   unmatchedNames: { line: number; name: string }[];
   /** 照らせなかった略称（画面で選ばせる） */
@@ -160,6 +160,19 @@ export function matchSlot(cell: string, slots: RoleSlot[]): RoleSlot | null {
   return null;
 }
 
+/** 休みの印を、画面に出す休みの種類へ（決定記録 0024）。空欄・記号は種類なし（ただの休み） */
+const OFF_KIND: Record<string, string> = {
+  公: "公休", 公休: "公休", 明: "明け", 明け: "明け", 有: "有休", 有休: "有休", 年: "年休", 年休: "年休",
+  特: "特休", 特休: "特休", 代: "代休", 代休: "代休", 振: "振休", 振休: "振休", 欠: "欠勤", 病: "病休",
+  育: "育休", 産: "産休", 慶: "慶弔", 希: "希望休",
+};
+export function offKindOf(cell: string): string | undefined {
+  const c = z2h(cell);
+  if (OFF_KIND[c]) return OFF_KIND[c];
+  // 漢字・かなの語ならそのまま（研修 など）。記号・空欄・「休」は種類なし
+  return /^[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]{2,6}$/u.test(c) && c !== "休日" ? c : undefined;
+}
+
 export function isOffCell(cell: string): boolean {
   const c = z2h(cell);
   return c === "" || OFF_WORDS.has(c);
@@ -274,12 +287,15 @@ export function parseRosterPaste(state: State, text: string, opts: RosterPasteOp
       const c = z2h(m.cells[ci] ?? "");
       if (isOffCell(c)) {
         offSeen.add(c === "" ? "空欄" : c);
-        out.cells.push({ date, staffId: m.staffId, firstTimer: false });
+        const kind = offKindOf(c);
+        out.cells.push({ date, staffId: m.staffId, firstTimer: false, ...(kind ? { offKind: kind } : {}) });
         continue;
       }
       const alias = aliases[c];
       if (alias === "off") {
-        out.cells.push({ date, staffId: m.staffId, firstTimer: false });
+        // 照らせなかった語を「休み」と選んだときは、その語を休みの種類として残す（研修・出張 など）
+        const kind = offKindOf(c);
+        out.cells.push({ date, staffId: m.staffId, firstTimer: false, ...(kind ? { offKind: kind } : {}) });
         continue;
       }
       const slot = alias ? state.roleSlots[alias] : matchSlot(c, slots);
@@ -322,6 +338,7 @@ export function rosterPasteEvents(state: State, parsed: RosterPasteResult, ctx: 
       endMin: slot?.defaultEndMin ?? 18 * 60,
       firstTimer: c.firstTimer,
       absent: !slot,
+      ...(!slot && c.offKind ? { offKind: c.offKind } : {}),
     };
     events.push({ ...metaOf(ctx), type: "roster.upsert", entry });
   }
@@ -338,4 +355,55 @@ export function rosterPasteLabel(parsed: RosterPasteResult): string {
   const first = parsed.dates[0];
   const last = parsed.dates[parsed.dates.length - 1];
   return `勤務表を入れました（${shortDay(first)}〜${shortDay(last)}・${parsed.staffIds.length}人）`;
+}
+
+// ---------------------------------------------------------------------------
+// 1 か月の勤務の表（決定記録 0024）: 職員×日付のマスを 1 つずつ直す。人ごとの合計は出さない
+// ---------------------------------------------------------------------------
+
+/** 1 か月の表で選べる休みの種類（表の語は貼り付けでそのまま入る） */
+export const OFF_KINDS = ["公休", "有休", "明け", "研修"] as const;
+
+export type MonthCellChoice = { kind: "slot"; slotId: ID } | { kind: "off"; offKind?: string } | { kind: "none" };
+
+/** その月の日付（1 日〜末日） */
+export function monthDates(year: number, month: number): DateKey[] {
+  const n = new Date(year, month, 0).getDate();
+  return Array.from({ length: n }, (_, i) => `${year}-${String(month).padStart(2, "0")}-${String(i + 1).padStart(2, "0")}`);
+}
+
+/** マスの文字（番の名前／休み（種類）／空） */
+export function monthCellText(state: State, date: DateKey, staffId: ID): { text: string; off: boolean } {
+  const e = Object.values(state.roster).find((r) => r.date === date && r.staffId === staffId);
+  if (!e) return { text: "", off: false };
+  if (e.absent) return { text: e.offKind ?? "休", off: true };
+  return { text: e.slotId ? (state.roleSlots[e.slotId]?.name ?? "出勤") : "出勤", off: false };
+}
+
+export function setMonthCellEvents(state: State, date: DateKey, staffId: ID, choice: MonthCellChoice, ctx: EventContext): { events: Event[]; label: string } {
+  const staff = state.staff[staffId];
+  if (!staff) return { events: [], label: "" };
+  const prev = Object.values(state.roster).find((r) => r.date === date && r.staffId === staffId);
+  const events: Event[] = [];
+  if (prev) events.push({ ...metaOf(ctx), type: "roster.remove", id: prev.id });
+  const day = shortDay(date);
+  if (choice.kind === "none") {
+    return { events, label: `${day} の${staff.surname}さんの勤務を外しました（入れていない）` };
+  }
+  if (choice.kind === "off") {
+    const entry: RosterEntry = {
+      id: ctx.newId(), date, staffId, startMin: prev?.startMin ?? 9 * 60, endMin: prev?.endMin ?? 18 * 60, firstTimer: false, absent: true,
+      ...(choice.offKind ? { offKind: choice.offKind } : {}),
+    };
+    events.push({ ...metaOf(ctx), type: "roster.upsert", entry });
+    return { events, label: `${day} の${staff.surname}さんを休み${choice.offKind ? `（${choice.offKind}）` : ""}にしました` };
+  }
+  const slot = state.roleSlots[choice.slotId];
+  if (!slot) return { events: [], label: "" };
+  const entry: RosterEntry = {
+    id: ctx.newId(), date, staffId, slotId: slot.id, startMin: slot.defaultStartMin, endMin: slot.defaultEndMin,
+    firstTimer: prev?.firstTimer ?? false, absent: false,
+  };
+  events.push({ ...metaOf(ctx), type: "roster.upsert", entry });
+  return { events, label: `${day} の${staff.surname}さんを${slot.name}にしました` };
 }

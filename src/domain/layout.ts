@@ -157,6 +157,8 @@ export interface PaletteRow {
   startMin: Minutes;
   endMin: Minutes;
   firstTimer: boolean;
+  /** 休みの種類（公休・有休 など。決定記録 0024） */
+  offKind?: string;
   /** 休みの人の番に束ねた枠のうち、未充足の件数（休みの欄に「介護助手の枠: 担当未定 2・担当あと1人 1」。人には数字を付けない） */
   unfilledSlotTasks: number;
   /** その内訳（実際の文言ごと。例: [{label:"担当未定",count:2},{label:"担当あと1人",count:1}]） */
@@ -184,6 +186,7 @@ export function paletteRows(state: State, date: string): { working: PaletteRow[]
       startMin: e.startMin,
       endMin: e.endMin,
       firstTimer: e.firstTimer,
+      ...(e.absent && e.offKind ? { offKind: e.offKind } : {}),
       unfilledSlotTasks: mine.length,
       slotTaskLabels: Object.entries(
         mine.reduce<Record<string, number>>((acc, t) => {

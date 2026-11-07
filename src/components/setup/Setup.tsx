@@ -13,6 +13,7 @@ import { useAppState, useDefaultDate, useEngine, useSyncStatus } from "@/store/r
 import { StaffEditor } from "./StaffEditor";
 import { MasterEditor } from "./MasterEditor";
 import { RosterPaste } from "./RosterPaste";
+import { MonthRoster } from "./MonthRoster";
 import { readChosen, writeChosen, SETUP_NOTE_KEY } from "./setupNote";
 import { sampleEvents } from "@/store/sample";
 import { LocalStore } from "@/store/datastore";
@@ -510,6 +511,7 @@ function Everyday({ onOwn, onSample }: { onOwn: () => void; onSample: () => void
         {[
           ["#s-add", "追加・変更"],
           ["#s-tags", "職員"],
+          ["#s-month", "1 か月の勤務"],
           ["#s-everyday", "ふだんの設定"],
           ["#s-theme", "画面の明るさ"],
         ].map(([href, label]) => (
@@ -688,6 +690,7 @@ function Everyday({ onOwn, onSample }: { onOwn: () => void; onSample: () => void
       </section>
 
       <RosterPaste state={state} today={today} onDone={setToast} />
+      <MonthRoster state={state} today={today} onDone={setToast} />
 
       <h2 id="s-everyday" className="mt-2 text-[18px] font-bold">
         ふだんの設定

@@ -140,7 +140,7 @@ export function MorningBand({ state, date }: { state: State; date: DateKey }) {
                     </button>
                   )}
                   {e.absent ? (
-                    <span className="text-[14px]">休み</span>
+                    <span className="text-[14px]">休み{e.offKind ? `（${e.offKind}）` : ""}</span>
                   ) : (
                     <select
                       aria-label={`${staff?.surname} の番`}
@@ -166,7 +166,7 @@ export function MorningBand({ state, date }: { state: State; date: DateKey }) {
               </div>
               <button
                 type="button"
-                onClick={() => update(e.id, { absent: !e.absent })}
+                onClick={() => update(e.id, { absent: !e.absent, offKind: undefined })}
                 className={`h-[44px] shrink-0 rounded-lg border px-3 text-[14px] ${
                   e.absent ? "border-[var(--cn-ink)] bg-white font-bold text-[var(--cn-ink)]" : "border-[var(--cn-control-line)] bg-white text-[var(--cn-ink-soft)]"
                 }`}

@@ -138,3 +138,40 @@ test("同じ日を貼り直すと、その日のその職員の行は置き換�
   const s4 = applyEvents(s3, invertBatch(history, "b"));
   assert.equal(s4.roleSlots[rosterForDate(s4, "2026-12-01").find((e) => e.staffId === sato.id)!.slotId!].name, "早番A");
 });
+
+test("休みの種類（決定記録 0024）: 貼り付けの「有」「公休」は種類として残り、空欄・記号は種類なし", () => {
+  const s = state();
+  const text = "氏名\t10\t11\t12\n佐藤\t有\t公休\t/";
+  const p = parseRosterPaste(s, text, { year: 2026, month: 11 });
+  const after = applyEvents(s, rosterPasteEvents(s, p, ctx("ok")));
+  const at = (d: string) => Object.values(after.roster).find((r) => r.date === d && r.staffId === "stf-sato")!;
+  assert.equal(at("2026-11-10").offKind, "有休");
+  assert.equal(at("2026-11-11").offKind, "公休");
+  assert.equal(at("2026-11-12").offKind, undefined);
+  assert.equal(at("2026-11-12").absent, true);
+});
+
+test("1 か月の勤務の表: マスを番・休みの種類・入れていないに直す。1 バッチで元に戻る。人ごとの合計は持たない", async () => {
+  const { setMonthCellEvents, monthCellText, monthDates } = await import("../rosterPaste.ts");
+  const s = state();
+  assert.equal(monthDates(2026, 11).length, 30);
+  const slot = Object.values(s.roleSlots)[0];
+  const r1 = setMonthCellEvents(s, "2026-11-20", "stf-sato", { kind: "slot", slotId: slot.id }, ctx("m1"));
+  const s1 = applyEvents(s, r1.events);
+  assert.equal(monthCellText(s1, "2026-11-20", "stf-sato").text, slot.name);
+  const r2 = setMonthCellEvents(s1, "2026-11-20", "stf-sato", { kind: "off", offKind: "有休" }, ctx("m2"));
+  const s2 = applyEvents(s1, r2.events);
+  assert.deepEqual(monthCellText(s2, "2026-11-20", "stf-sato"), { text: "有休", off: true });
+  assert.equal(Object.values(s2.roster).filter((r) => r.date === "2026-11-20" && r.staffId === "stf-sato").length, 1, "1 日 1 行");
+  const r3 = setMonthCellEvents(s2, "2026-11-20", "stf-sato", { kind: "none" }, ctx("m3"));
+  const s3 = applyEvents(s2, r3.events);
+  assert.equal(monthCellText(s3, "2026-11-20", "stf-sato").text, "");
+  // 元に戻す（バッチの打ち消し）
+  const hist = r3.events.reduce<{ event: (typeof r3.events)[number]; before: typeof s2 }[]>((acc, ev, i) => {
+    const before = i === 0 ? s2 : applyEvents(s2, r3.events.slice(0, i));
+    acc.push({ event: ev, before });
+    return acc;
+  }, []);
+  const back = applyEvents(s3, invertBatch(hist, "m3"));
+  assert.deepEqual(monthCellText(back, "2026-11-20", "stf-sato"), { text: "有休", off: true });
+});

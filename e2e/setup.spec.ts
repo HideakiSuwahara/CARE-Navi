@@ -263,3 +263,27 @@ test("トップの「サンプル施設で試す」からボードを見たあ�
   await expect(page.getByRole("heading", { name: "追加・変更" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "はじめに" })).toHaveCount(0);
 });
+
+test.describe("1 か月の勤務（決定記録 0024）", () => {
+  test("マスを押して番・休みの種類を選ぶと表が変わり、元に戻せる。人ごとの合計は出ない", async ({ page }) => {
+    await page.goto("/board?now=10:12");
+    await page.evaluate(() => localStorage.clear());
+    await page.goto("/board?now=10:12");
+    await expect(page.locator("[data-task-id]").first()).toBeVisible();
+    await page.goto("/setup");
+    const sec = page.locator('section[aria-labelledby="s-month"]');
+    await expect(sec.getByRole("heading", { name: "1 か月の勤務" })).toBeVisible();
+    const cell = sec.getByRole("button", { name: /^11月20日 佐藤さん:/ });
+    await cell.click();
+    const pick = sec.getByRole("group");
+    await expect(pick.getByRole("button", { name: "休み（有休）" })).toBeFocused({ timeout: 2000 }).catch(() => {});
+    await pick.getByRole("button", { name: "休み（有休）" }).click();
+    await expect(cell).toHaveAccessibleName(/11月20日 佐藤さん: 休み（有休）/);
+    await expect(cell).toBeFocused();
+    await expect(page.getByRole("status").filter({ hasText: "11/20 の佐藤さんを休み（有休）にしました" })).toBeVisible();
+    await page.getByRole("status").getByRole("button", { name: "元に戻す" }).click();
+    await expect(cell).not.toHaveAccessibleName(/有休/);
+    const text = await sec.innerText();
+    expect(text).not.toMatch(/\d+\s*日勤務|\d+\s*回|合計\s*\d/);
+  });
+});
