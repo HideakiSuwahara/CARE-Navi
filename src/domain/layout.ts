@@ -7,6 +7,7 @@
 
 import type { ID, Minutes, Resident, State, TaskInstance } from "./types.ts";
 import { assigneesOf, boardName, headcountLabel, isWatchTask, taskLabel, tasksForDate } from "./checks.ts";
+import { publicOffKind } from "./rosterPaste.ts";
 
 export { isWatchTask };
 
@@ -186,7 +187,7 @@ export function paletteRows(state: State, date: string): { working: PaletteRow[]
       startMin: e.startMin,
       endMin: e.endMin,
       firstTimer: e.firstTimer,
-      ...(e.absent && e.offKind ? { offKind: e.offKind } : {}),
+      ...(e.absent && publicOffKind(e.offKind) ? { offKind: publicOffKind(e.offKind) } : {}),
       unfilledSlotTasks: mine.length,
       slotTaskLabels: Object.entries(
         mine.reduce<Record<string, number>>((acc, t) => {

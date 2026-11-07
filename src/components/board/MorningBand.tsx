@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 import { useEngine } from "@/store/react";
 import { conditionSkips, createDayEvents, isFirstTimeDefault, morningDraft, suggestSlot } from "@/domain/pattern";
 import { applyEvents } from "@/domain/reducer";
+import { publicOffKind } from "@/domain/rosterPaste";
 import { boardName } from "@/domain/checks";
 import { fmtMin, fmtRange } from "@/domain/time";
 import type { DateKey, ID, RosterEntry, State } from "@/domain/types";
@@ -66,7 +67,7 @@ export function MorningBand({ state, date }: { state: State; date: DateKey }) {
     const events = createDayEvents(engine.state, { ...draft, entries: rows, patternId }, engine.context());
     // 条件を持たない番の人は付けない（決定記録 0024）。付けなかった組を一行で知らせる
     const skips = conditionSkips(applyEvents(engine.state, events), date);
-    const said = skips.slice(0, 2).map((k) => `${fmtMin(k.task.startMin)} ${k.task.name}: ${boardName(engine.state, k.staffId)}（${k.missing.join("・")}）`);
+    const said = skips.slice(0, 2).map((k) => `${fmtMin(k.task.startMin)} ${k.task.name}: ${boardName(engine.state, k.staffId)}（条件「${k.missing.join("・")}」なし）`);
     const more = skips.length > 2 ? ` ほか${skips.length - 2}件` : "";
     await engine.dispatch(events, skips.length > 0 ? `今日の時間割を作りました。条件を持たない人は付けませんでした（${said.join("・")}${more}）` : "今日の時間割を作りました");
     setBusy(false);
@@ -140,7 +141,7 @@ export function MorningBand({ state, date }: { state: State; date: DateKey }) {
                     </button>
                   )}
                   {e.absent ? (
-                    <span className="text-[14px]">休み{e.offKind ? `（${e.offKind}）` : ""}</span>
+                    <span className="text-[14px]">休み{publicOffKind(e.offKind) ? `（${publicOffKind(e.offKind)}）` : ""}</span>
                   ) : (
                     <select
                       aria-label={`${staff?.surname} の番`}

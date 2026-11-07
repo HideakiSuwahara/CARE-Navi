@@ -11,6 +11,7 @@
 
 import type { Event } from "./events.ts";
 import { metaOf, type EventContext } from "./pattern.ts";
+import { boardName } from "./checks.ts";
 import type { DateKey, ID, RoleSlot, RosterEntry, State } from "./types.ts";
 
 export type CellMapping = ID | "off";
@@ -372,6 +373,16 @@ export function monthDates(year: number, month: number): DateKey[] {
   return Array.from({ length: n }, (_, i) => `${year}-${String(month).padStart(2, "0")}-${String(i + 1).padStart(2, "0")}`);
 }
 
+/**
+ * 共有の画面（ボードの休みの欄・朝の帯）に出してよい休みの種類。勤務の段取りに要る語だけ。
+ * 病休・産休・育休・慶弔・欠勤などは「休み」とだけ出す（職員の事情を共有の画面に出さない。原則 7。ループ 23）。
+ * 種類そのものは「1 か月の勤務」だけで見る
+ */
+const PUBLIC_OFF_KINDS = new Set(["公休", "有休", "明け", "研修", "代休", "振休", "希望休", "年休", "特休"]);
+export function publicOffKind(kind: string | undefined): string | undefined {
+  return kind && PUBLIC_OFF_KINDS.has(kind) ? kind : undefined;
+}
+
 /** マスの文字（番の名前／休み（種類）／空） */
 export function monthCellText(state: State, date: DateKey, staffId: ID): { text: string; off: boolean } {
   const e = Object.values(state.roster).find((r) => r.date === date && r.staffId === staffId);
@@ -388,7 +399,7 @@ export function setMonthCellEvents(state: State, date: DateKey, staffId: ID, cho
   if (prev) events.push({ ...metaOf(ctx), type: "roster.remove", id: prev.id });
   const day = shortDay(date);
   if (choice.kind === "none") {
-    return { events, label: `${day} の${staff.surname}さんの勤務を外しました（入れていない）` };
+    return { events, label: `${day} の${boardName(state, staffId)}さんの勤務を外しました（入れていない）` };
   }
   if (choice.kind === "off") {
     const entry: RosterEntry = {
@@ -396,7 +407,7 @@ export function setMonthCellEvents(state: State, date: DateKey, staffId: ID, cho
       ...(choice.offKind ? { offKind: choice.offKind } : {}),
     };
     events.push({ ...metaOf(ctx), type: "roster.upsert", entry });
-    return { events, label: `${day} の${staff.surname}さんを休み${choice.offKind ? `（${choice.offKind}）` : ""}にしました` };
+    return { events, label: `${day} の${boardName(state, staffId)}さんを休み${choice.offKind ? `（${choice.offKind}）` : ""}にしました` };
   }
   const slot = state.roleSlots[choice.slotId];
   if (!slot) return { events: [], label: "" };
@@ -405,5 +416,5 @@ export function setMonthCellEvents(state: State, date: DateKey, staffId: ID, cho
     firstTimer: prev?.firstTimer ?? false, absent: false,
   };
   events.push({ ...metaOf(ctx), type: "roster.upsert", entry });
-  return { events, label: `${day} の${staff.surname}さんを${slot.name}にしました` };
+  return { events, label: `${day} の${boardName(state, staffId)}さんを${slot.name}にしました` };
 }

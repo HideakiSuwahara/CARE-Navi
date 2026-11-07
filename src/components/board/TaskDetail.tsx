@@ -599,7 +599,7 @@ function SlotSection({ state, engine, taskId }: { state: State; engine: Engine; 
         </button>
       </div>
       <p className="text-[14px] text-[var(--cn-ink-soft)]">
-        番の人が「この内容で作る」でこの業務の担当になります（業務の条件を持たない人は付けません）。番を変えたら、⋯ →「今日を業務表として保存」で次の日から効きます。きょうの担当は変わりません。
+        番を変えたら、⋯ →「今日を業務表として保存」で次の日から効きます（きょうの担当は変わりません）。
         {task.requiredTags.length > 0 && ` この業務の条件: ${task.requiredTags.join("・")}（施設の設定）。`}
       </p>
       {open && (
