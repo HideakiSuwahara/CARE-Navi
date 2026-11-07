@@ -158,16 +158,21 @@ export function TaskDetail({
           </div>
           {engine && !isBreak && assignees.length > 0 && (
             <div className="mt-2 flex flex-wrap items-center gap-2">
+              {/* 予定の付け替え（印は付かない）と、やったことの記録を分けて書く（どれを押すか迷わないように。ループ 22） */}
+              <span id="d-swap-hint" className="basis-full text-[14px] text-[var(--cn-ink-soft)]">
+                予定を変える: 時間の重なるほかの業務の人と担当を入れ替えます（「終わった」の印は付きません）
+              </span>
               {assignees.map((s) => (
                 <button
                   key={s.id}
                   type="button"
                   data-swap-open={s.id}
                   aria-expanded={swapFrom === s.id}
+                  aria-describedby="d-swap-hint"
                   onClick={() => openSwap(swapFrom === s.id ? null : s.id)}
                   className="h-[44px] rounded-lg border border-[var(--cn-control-line)] px-3 text-[15px]"
                 >
-                  {boardName(state, s.id)}さんをほかの人と入れ替える…
+                  {boardName(state, s.id)}さんの担当を入れ替える…
                 </button>
               ))}
             </div>
@@ -190,34 +195,31 @@ export function TaskDetail({
           )}
         </section>
 
-        {engine && (
-          <section aria-labelledby="d-ops" className="flex flex-wrap items-center gap-2">
-            <h3 id="d-ops" className="sr-only">
-              {canMarkDone(task) ? "終わった・時刻・中止" : "時刻・中止"}
+        {engine && canMarkDone(task) && (
+          <section aria-labelledby="d-done" className="flex flex-col gap-1.5">
+            <h3 id="d-done" className="text-[14px] font-bold text-[var(--cn-muted)]">
+              やったことを記録する
             </h3>
-            {canMarkDone(task) && <DoneButton task={task} />}
-            {canMarkDone(task) && (task.done || (today !== null && clock !== null && taskStarted(task, today, clock))) && (
-              <button
-                type="button"
-                data-doer-open
-                aria-expanded={doerOpen}
-                aria-controls={doerOpen ? "doer-box" : undefined}
-                onClick={() => setDoerOpen((v) => !v)}
-                className="h-[44px] rounded-lg border border-[var(--cn-control-line)] px-3 text-[15px]"
-              >
-                やった人を変える…
-              </button>
-            )}
-            <button type="button" onClick={() => shift(-30)} className="h-[44px] rounded-lg border border-[var(--cn-control-line)] px-3 text-[15px]">
-              30分前へ
-            </button>
-            <button type="button" onClick={() => shift(30)} className="h-[44px] rounded-lg border border-[var(--cn-control-line)] px-3 text-[15px]">
-              30分後へ
-            </button>
-            {!isBreak && (
-              <button type="button" onClick={cancel} className="ml-auto h-[44px] rounded-lg border border-[var(--cn-control-line)] px-3 text-[15px]">
-                この業務を中止
-              </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <DoneButton task={task} />
+              {(task.done || (today !== null && clock !== null && taskStarted(task, today, clock))) && (
+                <button
+                  type="button"
+                  data-doer-open
+                  aria-expanded={doerOpen}
+                  aria-controls={doerOpen ? "doer-box" : undefined}
+                  aria-describedby="d-doer-hint"
+                  onClick={() => setDoerOpen((v) => !v)}
+                  className="h-[44px] rounded-lg border border-[var(--cn-control-line)] px-3 text-[15px]"
+                >
+                  やった人を変える…
+                </button>
+              )}
+            </div>
+            {(task.done || (today !== null && clock !== null && taskStarted(task, today, clock))) && (
+              <p id="d-doer-hint" className="text-[14px] text-[var(--cn-ink-soft)]">
+                「やった人を変える…」は、代わってもらったときや担当を決めないままやったときに。やった人を担当にして「終わった」の印も付けます。
+              </p>
             )}
           </section>
         )}
@@ -238,6 +240,25 @@ export function TaskDetail({
               window.setTimeout(() => document.querySelector<HTMLElement>("[data-doer-open]")?.focus(), 0);
             }}
           />
+        )}
+
+        {engine && (
+          <section aria-labelledby="d-ops" className="flex flex-wrap items-center gap-2">
+            <h3 id="d-ops" className="basis-full text-[14px] font-bold text-[var(--cn-muted)]">
+              時刻・中止
+            </h3>
+            <button type="button" onClick={() => shift(-30)} className="h-[44px] rounded-lg border border-[var(--cn-control-line)] px-3 text-[15px]">
+              30分前へ
+            </button>
+            <button type="button" onClick={() => shift(30)} className="h-[44px] rounded-lg border border-[var(--cn-control-line)] px-3 text-[15px]">
+              30分後へ
+            </button>
+            {!isBreak && (
+              <button type="button" onClick={cancel} className="ml-auto h-[44px] rounded-lg border border-[var(--cn-control-line)] px-3 text-[15px]">
+                この業務を中止
+              </button>
+            )}
+          </section>
         )}
 
         {(task.scopeNote || task.outOfScopeNote) && (

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { assigneesOf, canMarkDone, boardName } from "@/domain/checks";
+import { assigneesOf, canMarkDone, boardName, isWatchTask } from "@/domain/checks";
 import { residentLabel } from "@/domain/display";
 import { leaderContact, staffTaskName, targetLines } from "@/domain/myday";
 import { clockLabel, fmtMin, fmtRange } from "@/domain/time";
@@ -108,6 +108,7 @@ export function PhoneTaskDetail({ state, date, taskId, me, now }: { state: State
             <DoneButton task={task} />
           </div>
         )}
+        {isWatchTask(task) && <p className="mt-3 border-t border-[var(--cn-grid)] pt-3 text-[14px] text-[var(--cn-ink-soft)]">見守りは次の人へ引き継ぐ業務なので、「終わった」の印はありません。</p>}
       </div>
 
       <div className="flex flex-col gap-4 px-4 pt-4">

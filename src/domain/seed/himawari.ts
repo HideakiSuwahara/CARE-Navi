@@ -226,6 +226,7 @@ const TPL_BEDTIME = "tpl-bedtime";
 const TPL_ROUNDS = "tpl-rounds";
 const TPL_REPOSITION = "tpl-reposition";
 const TPL_VITALS = "tpl-vitals";
+const TPL_NURSING = "tpl-nursing";
 const TPL_ESCORT = "tpl-escort";
 const TPL_VISIT = "tpl-visit";
 const TPL_LINEN = "tpl-linen";
@@ -527,6 +528,22 @@ const templates: TaskTemplate[] = [
     outOfScopeNote: "体位表にない方は行いません。皮膚の赤みに気づいたら看護師へ。",
     procedure: ["体位表（ベッド脇）の向きに合わせる", "クッションで支える", "終わった向きを表に記入"],
     supplies: "クッションは各居室の棚",
+    contact: CONTACT_NURSE,
+  },
+  {
+    id: TPL_NURSING,
+    name: "看護の業務",
+    kind: "care",
+    categoryId: CAT_CORE,
+    targetMode: "none",
+    defaultDurationMin: 240,
+    defaultHeadcount: 1,
+    requiredTags: ["看護師"],
+    place: "詰所・各フロア",
+    scopeNote: "配薬の準備と確認、処置、体調の変わった方の確認。介護の担当から相談を受ける。",
+    outOfScopeNote: "介護の枠の担当は、リーダーが決めます。",
+    procedure: ["申し送りの記録を見る", "配薬の準備と確認", "処置と体調の確認"],
+    supplies: "薬は詰所の薬品庫",
     contact: CONTACT_NURSE,
   },
   {
@@ -860,6 +877,8 @@ const dayCommon = (bathDay: boolean): ItemSpec[] => [
   { id: "watch-sakura-3b", tpl: TPL_WATCH, start: t(14), end: t(15), group: GRP_SAKURA, slots: [bathDay ? SLOT_OSOBAN : SLOT_HAYABAN_B], hc: 1 },
   { id: "watch-sakura-4", tpl: TPL_WATCH, start: t(15, 30), end: t(17), group: GRP_SAKURA, slots: [SLOT_NIKKIN_SAKURA], hc: 1 },
   // 午前
+  // 看護の番の午後（2 時間以上なので共通の列のレールに出る。午前は受診の付き添いなどに出られるよう空けておく。ループ 22）
+  { id: "nursing-pm", tpl: TPL_NURSING, start: t(14), end: t(18), group: GRP_COMMON, slots: [SLOT_KANGO], hc: 1 },
   { id: "vitals-tanaka", tpl: TPL_VITALS, start: t(9), end: t(9, 30), group: GRP_SAKURA, slots: [SLOT_KANGO], hc: 1, residents: [RES_TANAKA] },
   // 入浴日は日勤Bが小林様の入浴に入るので、田中様の排泄介助は入浴のあと
   bathDay

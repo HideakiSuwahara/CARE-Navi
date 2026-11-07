@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { tasksForDate, boardName } from "@/domain/checks";
+import { tasksForDate, boardName, isWatchTask } from "@/domain/checks";
 import { freeGaps, leaderSchedule, myDay, type FreeGap, type MyItem } from "@/domain/myday";
 import { fmtMin, fmtRange } from "@/domain/time";
 import type { ID, State } from "@/domain/types";
@@ -221,6 +221,7 @@ export function MyDayView({
               ) : row.kind === "now" ? (
                 <li key="now" className="cn-noprint flex items-center gap-2 border-y-2 border-[var(--cn-now)] px-4 py-1.5 text-[16px] font-bold text-[var(--cn-now)]">
                   ● いまの時間 {fmtMin(now)}
+                  {row.during && <span className="text-[14px] font-normal">（{row.during}の途中）</span>}
                 </li>
               ) : row.kind === "end" ? (
                 <li key="end" className="flex items-baseline gap-3 px-4 py-3">
@@ -239,20 +240,25 @@ export function MyDayView({
   );
 }
 
-type FlowRowData = { kind: "item"; item: MyItem } | { kind: "now" } | { kind: "end" } | { kind: "gap"; gap: FreeGap };
+type FlowRowData = { kind: "item"; item: MyItem } | { kind: "now"; during?: string } | { kind: "end" } | { kind: "gap"; gap: FreeGap };
 
 /** きょうの流れに「● いまの時間」を差し込む（勤務時間中だけ） */
 function flowWithNow(items: MyItem[], now: number, start: number, end: number, gaps: FreeGap[] = []): FlowRowData[] {
   const rows: FlowRowData[] = [];
   const showNow = now >= start && now < end;
   let placed = false;
+  // 線の直前の行がいまの予定なら「（見守りの途中）」と添える（線が終わりの時刻に見えないように。ループ 22）
+  const nowRow = (): FlowRowData => {
+    const cur = [...rows].reverse().find((r) => r.kind === "item");
+    return cur && cur.kind === "item" && cur.item.task.startMin <= now && now < cur.item.task.endMin ? { kind: "now", during: cur.item.title } : { kind: "now" };
+  };
   // 予定のない時間（手が空いたら）を時刻の順に差し込む（決定記録 0021）
   const pending = [...gaps];
   const pushGapsBefore = (min: number) => {
     while (pending.length > 0 && pending[0].startMin < min) {
       // いまの線は時刻の順に（予定のない時間より前ならその前へ。中にあるならその行の後ろへ。ループ 20）
       if (showNow && !placed && pending[0].startMin > now) {
-        rows.push({ kind: "now" });
+        rows.push(nowRow());
         placed = true;
       }
       rows.push({ kind: "gap", gap: pending.shift()! });
@@ -261,13 +267,13 @@ function flowWithNow(items: MyItem[], now: number, start: number, end: number, g
   for (const item of items) {
     pushGapsBefore(item.task.startMin);
     if (showNow && !placed && item.task.startMin > now) {
-      rows.push({ kind: "now" });
+      rows.push(nowRow());
       placed = true;
     }
     rows.push({ kind: "item", item });
   }
   pushGapsBefore(Infinity);
-  if (showNow && !placed) rows.push({ kind: "now" });
+  if (showNow && !placed) rows.push(nowRow());
   rows.push({ kind: "end" });
   return rows;
 }
@@ -372,6 +378,10 @@ function FocusCard({ item, open, now, upcoming }: { item: MyItem; open: boolean;
         <span className="text-[14px] text-[var(--cn-ink-soft)]">{doneHint(t, item.together.length)}</span>
         <DoneButton task={t} />
       </div>
+    )}
+    {/* 見守りには印が無い理由を一言（押す場所を探さないように。ループ 22） */}
+    {isWatchTask(t) && (
+      <p className="border-t border-[var(--cn-grid)] px-4 py-2 text-[14px] text-[var(--cn-ink-soft)]">見守りは次の人へ引き継ぐ業務なので、「終わった」の印はありません。</p>
     )}
     </div>
   );

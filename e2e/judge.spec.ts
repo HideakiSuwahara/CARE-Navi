@@ -372,7 +372,7 @@ test.describe("担当の入れ替え（決定記録 0021）", () => {
     const card = page.locator("[data-task-id]").filter({ hasText: "入浴介助（2人介助）" }).first();
     await card.locator("[data-card-title]").click();
     const dialog = page.getByRole("dialog");
-    await dialog.getByRole("button", { name: "伊藤さんをほかの人と入れ替える…" }).click();
+    await dialog.getByRole("button", { name: "伊藤さんの担当を入れ替える…" }).click();
     const box = dialog.getByRole("group", { name: "伊藤さんの入れ替え" });
     const choice = box.getByRole("listitem").first().getByRole("button");
     await expect(choice).toBeFocused();
@@ -445,5 +445,34 @@ test.describe("やった人を変える（決定記録 0022）", () => {
     const later = page.locator("[data-task-id]").filter({ hasText: "16:00" }).filter({ hasNot: page.locator("[data-done]") }).first();
     await later.locator("[data-card-title]").click();
     await expect(page.getByRole("dialog").getByRole("button", { name: "やった人を変える…" })).toHaveCount(0);
+  });
+});
+
+test.describe("ループ 22（業務の詳細の並び・いまの線・見守り・看護の一日）", () => {
+  test("業務の詳細: 「予定を変える」と「やったことを記録する」を分けて書く", async ({ page }) => {
+    await page.goto("/board?now=10:12");
+    await page.evaluate(() => localStorage.clear());
+    await page.goto("/board?now=10:12");
+    await page.locator("[data-task-id]").filter({ hasText: "おむつ交換" }).filter({ hasText: "鈴木" }).first().locator("[data-card-title]").click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toContainText("予定を変える: 時間の重なるほかの業務の人と担当を入れ替えます（「終わった」の印は付きません）");
+    await expect(dialog.getByRole("heading", { name: "やったことを記録する" })).toBeVisible();
+    await expect(dialog).toContainText("やった人を担当にして「終わった」の印も付けます");
+    await expect(dialog.getByRole("heading", { name: "時刻・中止" })).toBeVisible();
+  });
+
+  test("自分の予定: いまの線に「（見守りの途中）」、見守りには印が無い理由。看護の人に午後の看護の業務", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/me?now=10:12");
+    await page.evaluate(() => localStorage.clear());
+    await page.goto("/me?now=10:12");
+    await page.getByRole("list", { name: "きょうの出勤者" }).getByRole("button", { name: /^高橋 / }).click();
+    await expect(page.getByText(/● いまの時間 10:12（見守り.*の途中）/)).toBeVisible();
+    await expect(page.getByText("見守りは次の人へ引き継ぐ業務なので、「終わった」の印はありません。").first()).toBeVisible();
+    await page.goto("/me?now=14:30");
+    await page.getByRole("button", { name: /名前を選び直す|ほかの人/ }).first().click().catch(() => {});
+    const list = page.getByRole("list", { name: "きょうの出勤者" });
+    if (await list.isVisible()) await list.getByRole("button", { name: /^中村 / }).click();
+    await expect(page.getByRole("heading", { name: "いまの時間の予定" }).locator("..")).toContainText("看護の業務");
   });
 });
