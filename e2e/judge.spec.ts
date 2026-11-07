@@ -403,7 +403,7 @@ test.describe("やった人を変える（決定記録 0022）", () => {
     const dialog = page.getByRole("dialog");
     await dialog.getByRole("button", { name: "やった人を変える…" }).click();
     await dialog.getByRole("button", { name: "鈴木さんの代わり" }).click();
-    const box = dialog.getByRole("region", { name: "鈴木さんの代わりにやった人" });
+    const box = dialog.getByRole("group", { name: "鈴木さんの代わりにやった人" });
     const first = box.getByRole("listitem").first().getByRole("button");
     const who = (await first.locator("span").first().innerText()).replace("さん", "");
     await first.click();
@@ -425,7 +425,7 @@ test.describe("やった人を変える（決定記録 0022）", () => {
     await card.locator("[data-card-title]").click();
     const dialog = page.getByRole("dialog");
     await dialog.getByRole("button", { name: "やった人を変える…" }).click();
-    const box = dialog.getByRole("region", { name: "やった人を選ぶ" });
+    const box = dialog.getByRole("group", { name: "やった人を選ぶ" });
     // 人を選ぶ段は見出しへ（1 回の Enter で決まらないように）
     await expect(box.getByRole("heading", { name: "やった人を選ぶ" })).toBeFocused();
     const first = box.getByRole("listitem").first().getByRole("button");
@@ -449,26 +449,27 @@ test.describe("やった人を変える（決定記録 0022）", () => {
 });
 
 test.describe("ループ 22（業務の詳細の並び・いまの線・見守り・看護の一日）", () => {
-  test("業務の詳細: 「予定を変える」と「やったことを記録する」を分けて書く", async ({ page }) => {
+  test("業務の詳細: 「予定を変える」と「終わったの印・やった人」を分けて書く", async ({ page }) => {
     await page.goto("/board?now=10:12");
     await page.evaluate(() => localStorage.clear());
     await page.goto("/board?now=10:12");
     await page.locator("[data-task-id]").filter({ hasText: "おむつ交換" }).filter({ hasText: "鈴木" }).first().locator("[data-card-title]").click();
     const dialog = page.getByRole("dialog");
-    await expect(dialog).toContainText("予定を変える: 時間の重なるほかの業務の人と担当を入れ替えます（「終わった」の印は付きません）");
-    await expect(dialog.getByRole("heading", { name: "やったことを記録する" })).toBeVisible();
+    await expect(dialog.getByRole("heading", { name: "予定を変える" })).toBeVisible();
+    await expect(dialog).toContainText("時間の重なるほかの業務の人と担当を入れ替えます（「終わった」の印は付きません）");
+    await expect(dialog.getByRole("heading", { name: "終わったの印・やった人" })).toBeVisible();
     await expect(dialog).toContainText("やった人を担当にして「終わった」の印も付けます");
     await expect(dialog.getByRole("heading", { name: "時刻・中止" })).toBeVisible();
   });
 
-  test("自分の予定: いまの線に「（見守りの途中）」、見守りには印が無い理由。看護の人に午後の看護の業務", async ({ page }) => {
+  test("自分の予定: いまの線に「（見守り 〜11:00 の時間）」、見守りには印が無い理由。看護の人に午後の看護の業務", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/me?now=10:12");
     await page.evaluate(() => localStorage.clear());
     await page.goto("/me?now=10:12");
     await page.getByRole("list", { name: "きょうの出勤者" }).getByRole("button", { name: /^高橋 / }).click();
-    await expect(page.getByText(/● いまの時間 10:12（見守り.*の途中）/)).toBeVisible();
-    await expect(page.getByText("見守りは次の人へ引き継ぐ業務なので、「終わった」の印はありません。").first()).toBeVisible();
+    await expect(page.getByText(/いまの時間 10:12（見守り.*の時間）/)).toBeVisible();
+    await expect(page.getByText("見守りは交代の時刻まで続けます（「終わった」の印はありません）。離れるときは、次に入る人かリーダーに声をかけてから。").first()).toBeVisible();
     await page.goto("/me?now=14:30");
     await page.getByRole("button", { name: /名前を選び直す|ほかの人/ }).first().click().catch(() => {});
     const list = page.getByRole("list", { name: "きょうの出勤者" });

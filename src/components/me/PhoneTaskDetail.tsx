@@ -108,7 +108,7 @@ export function PhoneTaskDetail({ state, date, taskId, me, now }: { state: State
             <DoneButton task={task} />
           </div>
         )}
-        {isWatchTask(task) && <p className="mt-3 border-t border-[var(--cn-grid)] pt-3 text-[14px] text-[var(--cn-ink-soft)]">見守りは次の人へ引き継ぐ業務なので、「終わった」の印はありません。</p>}
+        {isWatchTask(task) && <p className="mt-3 border-t border-[var(--cn-grid)] pt-3 text-[14px] text-[var(--cn-ink-soft)]">見守りは交代の時刻まで続けます（「終わった」の印はありません）。離れるときは、次に入る人かリーダーに声をかけてから。</p>}
       </div>
 
       <div className="flex flex-col gap-4 px-4 pt-4">

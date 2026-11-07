@@ -157,10 +157,13 @@ export function TaskDetail({
             )}
           </div>
           {engine && !isBreak && assignees.length > 0 && (
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              {/* 予定の付け替え（印は付かない）と、やったことの記録を分けて書く（どれを押すか迷わないように。ループ 22） */}
-              <span id="d-swap-hint" className="basis-full text-[14px] text-[var(--cn-ink-soft)]">
-                予定を変える: 時間の重なるほかの業務の人と担当を入れ替えます（「終わった」の印は付きません）
+            <div role="group" aria-labelledby="d-swap-title" className="mt-2 flex flex-wrap items-center gap-2">
+              {/* 予定の付け替え（印は付かない）と、終わったの印・やった人を分けて書く（どれを押すか迷わないように。ループ 22） */}
+              <h4 id="d-swap-title" className="basis-full text-[14px] font-bold text-[var(--cn-muted)]">
+                予定を変える
+              </h4>
+              <span id="d-swap-hint" className="-mt-1.5 basis-full text-[14px] text-[var(--cn-ink-soft)]">
+                時間の重なるほかの業務の人と担当を入れ替えます（「終わった」の印は付きません）
               </span>
               {assignees.map((s) => (
                 <button
@@ -198,7 +201,7 @@ export function TaskDetail({
         {engine && canMarkDone(task) && (
           <section aria-labelledby="d-done" className="flex flex-col gap-1.5">
             <h3 id="d-done" className="text-[14px] font-bold text-[var(--cn-muted)]">
-              やったことを記録する
+              終わったの印・やった人
             </h3>
             <div className="flex flex-wrap items-center gap-2">
               <DoneButton task={task} />
@@ -218,28 +221,28 @@ export function TaskDetail({
             </div>
             {(task.done || (today !== null && clock !== null && taskStarted(task, today, clock))) && (
               <p id="d-doer-hint" className="text-[14px] text-[var(--cn-ink-soft)]">
-                「やった人を変える…」は、代わってもらったときや担当を決めないままやったときに。やった人を担当にして「終わった」の印も付けます。
+                代わってもらったとき・担当を決めないままやったときに。やった人を担当にして「終わった」の印も付けます。
               </p>
             )}
-          </section>
-        )}
+            {doerOpen && (
+              <DoerBox
+                state={state}
+                taskId={task.id}
+                onDecide={(doerId, replacedId) => {
+                  const r = doneByEvents(engine.state, task.id, doerId, replacedId, engine.context());
+                  if (r.events.length === 0) return;
+                  engine.dispatch(r.events, r.label);
+                  setDoerOpen(false);
+                  window.setTimeout(() => (document.querySelector<HTMLElement>("[data-doer-open]") ?? document.getElementById("task-detail-title"))?.focus(), 0);
+                }}
+                onCancel={() => {
+                  setDoerOpen(false);
+                  window.setTimeout(() => document.querySelector<HTMLElement>("[data-doer-open]")?.focus(), 0);
+                }}
+              />
+            )}
 
-        {engine && doerOpen && (
-          <DoerBox
-            state={state}
-            taskId={task.id}
-            onDecide={(doerId, replacedId) => {
-              const r = doneByEvents(engine.state, task.id, doerId, replacedId, engine.context());
-              if (r.events.length === 0) return;
-              engine.dispatch(r.events, r.label);
-              setDoerOpen(false);
-              window.setTimeout(() => (document.querySelector<HTMLElement>("[data-doer-open]") ?? document.getElementById("task-detail-title"))?.focus(), 0);
-            }}
-            onCancel={() => {
-              setDoerOpen(false);
-              window.setTimeout(() => document.querySelector<HTMLElement>("[data-doer-open]")?.focus(), 0);
-            }}
-          />
+          </section>
         )}
 
         {engine && (
@@ -480,7 +483,7 @@ function DoerBox({ state, taskId, onDecide, onCancel }: { state: State; taskId: 
     else boxRef.current?.querySelector<HTMLElement>("#doer-title")?.focus();
   }, [needWho]);
   const who = replaced ? boardName(state, replaced) : undefined;
-  const title = needWho ? "代わりにやったか、一緒にやったか" : who ? `${who}さんの代わりにやった人` : assignees.length > 0 ? "一緒にやった人を足す" : "やった人を選ぶ";
+  const title = needWho ? (short ? "代わりにやったか、一緒にやったか" : "誰の代わりにやりましたか") : who ? `${who}さんの代わりにやった人` : assignees.length > 0 ? "一緒にやった人を足す" : "やった人を選ぶ";
   const item = (c: DoerChoice) => {
     const st = state.staff[c.staffId];
     return (
@@ -502,9 +505,10 @@ function DoerBox({ state, taskId, onDecide, onCancel }: { state: State; taskId: 
     );
   };
   return (
-    <section
+    <div
       ref={boxRef}
       id="doer-box"
+      role="group"
       aria-labelledby="doer-title"
       className="flex flex-col gap-2 rounded-xl border border-[var(--cn-border)] p-3"
       onKeyDown={(e) => {
@@ -514,10 +518,10 @@ function DoerBox({ state, taskId, onDecide, onCancel }: { state: State; taskId: 
         }
       }}
     >
-      <h3 id="doer-title" tabIndex={-1} className="text-[15px] font-bold outline-none focus-visible:ring-2 focus-visible:ring-[var(--cn-accent)]">
+      <h4 id="doer-title" tabIndex={-1} className="text-[15px] font-bold outline-none focus-visible:ring-2 focus-visible:ring-[var(--cn-accent)]">
         {title}
-      </h3>
-      <p className="text-[14px] text-[var(--cn-ink-soft)]">選ぶと、その人を担当にして「終わった」の印を付けます（元に戻せます）。</p>
+      </h4>
+      <p className="text-[14px] text-[var(--cn-ink-soft)]">元に戻せます。</p>
       {needWho ? (
         <div className="flex flex-wrap gap-2">
           {assignees.map((a) => (
@@ -555,6 +559,6 @@ function DoerBox({ state, taskId, onDecide, onCancel }: { state: State; taskId: 
       <button type="button" onClick={onCancel} className="h-[44px] self-start rounded-lg border border-[var(--cn-control-line)] px-3 text-[15px]">
         やめる
       </button>
-    </section>
+    </div>
   );
 }

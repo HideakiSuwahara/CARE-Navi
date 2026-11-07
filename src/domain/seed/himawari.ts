@@ -207,7 +207,7 @@ const CAT_NONCORE = "noncore";
 const CAT_OTHER = "other";
 // PHS は画面の「困ったら」で、その時刻のリーダーから出す（ここに番号を書くと夜に違う人を指す）
 const LEADER = "いまのリーダー（画面の上の「困ったら」）";
-const CONTACT_CARE = "一緒に入る常勤の職員";
+const CONTACT_CARE = "一緒に入る常勤の職員（ひとりで入るときは、上の「困ったら」の人）";
 const CONTACT_NURSE = "看護師（看護師が出勤している日の日中は看護用 PHS 810 ／ 日曜など看護師がいない日と夜間はオンコール: 詰所に掲示の番号）";
 
 const TPL_WAKEUP = "tpl-wakeup";
@@ -541,7 +541,7 @@ const templates: TaskTemplate[] = [
     requiredTags: ["看護師"],
     place: "詰所・各フロア",
     scopeNote: "配薬の準備と確認、処置、体調の変わった方の確認。介護の担当から相談を受ける。",
-    outOfScopeNote: "介護の枠の担当は、リーダーが決めます。",
+    outOfScopeNote: "ほかの業務の担当は、リーダーが決めます。",
     procedure: ["申し送りの記録を見る", "配薬の準備と確認", "処置と体調の確認"],
     supplies: "薬は詰所の薬品庫",
     contact: CONTACT_NURSE,
@@ -877,9 +877,6 @@ const dayCommon = (bathDay: boolean): ItemSpec[] => [
   { id: "watch-sakura-3b", tpl: TPL_WATCH, start: t(14), end: t(15), group: GRP_SAKURA, slots: [bathDay ? SLOT_OSOBAN : SLOT_HAYABAN_B], hc: 1 },
   { id: "watch-sakura-4", tpl: TPL_WATCH, start: t(15, 30), end: t(17), group: GRP_SAKURA, slots: [SLOT_NIKKIN_SAKURA], hc: 1 },
   // 午前
-  // 看護の番の午後（2 時間以上なので共通の列のレールに出る。午前は受診の付き添いなどに出られるよう空けておく。ループ 22）
-  { id: "nursing-pm", tpl: TPL_NURSING, start: t(14), end: t(18), group: GRP_COMMON, slots: [SLOT_KANGO], hc: 1 },
-  { id: "vitals-tanaka", tpl: TPL_VITALS, start: t(9), end: t(9, 30), group: GRP_SAKURA, slots: [SLOT_KANGO], hc: 1, residents: [RES_TANAKA] },
   // 入浴日は日勤Bが小林様の入浴に入るので、田中様の排泄介助は入浴のあと
   bathDay
     ? { id: "toilet-tanaka-am", tpl: TPL_TOILET, start: t(10, 30), end: t(11), group: GRP_SAKURA, slots: [SLOT_NIKKIN_B], hc: 1, residents: [RES_TANAKA] }
@@ -973,6 +970,16 @@ const weekdayChores: ItemSpec[] = [
 ];
 
 /** 日曜はレクを長めに、雑務を軽く */
+/**
+ * 看護の番の枠（看護師が出勤する日の業務表だけ。日曜は看護がいないので入れない: ループ 22）。
+ * 2 時間以上なので共通の列のレールに出る。午前はサンプルの見せ場（10:15 の付き添いで空いている人が出る）のために空けている。
+ * 実際の施設では午前の看護（入浴前の体調確認・配薬・処置）も業務表に入れる（ループ 22 の持ち越し）
+ */
+const nurseDay: ItemSpec[] = [
+  { id: "vitals-tanaka", tpl: TPL_VITALS, start: t(9), end: t(9, 30), group: GRP_SAKURA, slots: [SLOT_KANGO], hc: 1, residents: [RES_TANAKA] },
+  { id: "nursing-pm", tpl: TPL_NURSING, start: t(14), end: t(18), group: GRP_COMMON, slots: [SLOT_KANGO], hc: 1 },
+];
+
 const sundayExtras: ItemSpec[] = [
   { id: "rec-prep-long", tpl: TPL_REC_PREP, start: t(14), end: t(15), group: GRP_COMMON, slots: [SLOT_NIKKIN_C, SLOT_OSOBAN], hc: 2 },
 ];
@@ -989,14 +996,14 @@ const patterns: DayPattern[] = [
     id: PAT_BATH_DAY,
     name: "入浴日（火・金）",
     weekdays: [2, 5],
-    items: build("pbd", [...dayCommon(true), ...bathOnly, ...weekdayChores, ...nightCommon]),
+    items: build("pbd", [...dayCommon(true), ...nurseDay, ...bathOnly, ...weekdayChores, ...nightCommon]),
   },
   {
     id: PAT_WEEKDAY,
     // 月・水・木・土に当たるので「平日」とは呼ばない（土曜の朝に迷わないように。ループ 19 #18）
     name: "入浴のない日",
     weekdays: [1, 3, 4, 6],
-    items: build("pwd", [...dayCommon(false), ...weekdayChores, ...nightCommon]),
+    items: build("pwd", [...dayCommon(false), ...nurseDay, ...weekdayChores, ...nightCommon]),
   },
   {
     id: PAT_SUNDAY,

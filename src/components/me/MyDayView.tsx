@@ -220,8 +220,8 @@ export function MyDayView({
                 </li>
               ) : row.kind === "now" ? (
                 <li key="now" className="cn-noprint flex items-center gap-2 border-y-2 border-[var(--cn-now)] px-4 py-1.5 text-[16px] font-bold text-[var(--cn-now)]">
-                  ● いまの時間 {fmtMin(now)}
-                  {row.during && <span className="text-[14px] font-normal">（{row.during}の途中）</span>}
+                  <span aria-hidden="true">●</span> いまの時間 {fmtMin(now)}
+                  {row.during && <span className="text-[14px] font-normal">（{row.during.title} <span aria-hidden="true">〜</span>{fmtMin(row.during.endMin)}<span className="sr-only">まで</span> の時間）</span>}
                 </li>
               ) : row.kind === "end" ? (
                 <li key="end" className="flex items-baseline gap-3 px-4 py-3">
@@ -240,17 +240,19 @@ export function MyDayView({
   );
 }
 
-type FlowRowData = { kind: "item"; item: MyItem } | { kind: "now"; during?: string } | { kind: "end" } | { kind: "gap"; gap: FreeGap };
+type FlowRowData = { kind: "item"; item: MyItem } | { kind: "now"; during?: { title: string; endMin: number } } | { kind: "end" } | { kind: "gap"; gap: FreeGap };
 
 /** きょうの流れに「● いまの時間」を差し込む（勤務時間中だけ） */
 function flowWithNow(items: MyItem[], now: number, start: number, end: number, gaps: FreeGap[] = []): FlowRowData[] {
   const rows: FlowRowData[] = [];
   const showNow = now >= start && now < end;
   let placed = false;
-  // 線の直前の行がいまの予定なら「（見守りの途中）」と添える（線が終わりの時刻に見えないように。ループ 22）
+  // 線の直前の行がいまの予定なら「（見守り 〜11:00 の時間）」と添える（線が終わりの時刻に見えないように。時刻だけで「やっている」とは言わない。印のある行には添えない。ループ 22）
   const nowRow = (): FlowRowData => {
     const cur = [...rows].reverse().find((r) => r.kind === "item");
-    return cur && cur.kind === "item" && cur.item.task.startMin <= now && now < cur.item.task.endMin ? { kind: "now", during: cur.item.title } : { kind: "now" };
+    return cur && cur.kind === "item" && !cur.item.done && cur.item.task.startMin <= now && now < cur.item.task.endMin
+      ? { kind: "now", during: { title: cur.item.title, endMin: cur.item.task.endMin } }
+      : { kind: "now" };
   };
   // 予定のない時間（手が空いたら）を時刻の順に差し込む（決定記録 0021）
   const pending = [...gaps];
@@ -381,7 +383,7 @@ function FocusCard({ item, open, now, upcoming }: { item: MyItem; open: boolean;
     )}
     {/* 見守りには印が無い理由を一言（押す場所を探さないように。ループ 22） */}
     {isWatchTask(t) && (
-      <p className="border-t border-[var(--cn-grid)] px-4 py-2 text-[14px] text-[var(--cn-ink-soft)]">見守りは次の人へ引き継ぐ業務なので、「終わった」の印はありません。</p>
+      <p className="border-t border-[var(--cn-grid)] px-4 py-2 text-[14px] text-[var(--cn-ink-soft)]">見守りは交代の時刻まで続けます（「終わった」の印はありません）。離れるときは、次に入る人かリーダーに声をかけてから。</p>
     )}
     </div>
   );
